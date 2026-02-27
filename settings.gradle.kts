@@ -1,1 +1,1 @@
-rootProject.name = "PepeTrace"
+rootProject.name = "pepetrace"

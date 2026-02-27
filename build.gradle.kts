@@ -31,7 +31,7 @@ plugins {
     id("java")
 }
 
-group = "org.example"
+group = "org.pepetrace"
 version = "1.0-SNAPSHOT"
 
 repositories {
