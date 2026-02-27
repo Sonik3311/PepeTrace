@@ -1,6 +1,7 @@
 import org.gradle.internal.os.OperatingSystem
 
 val lwjglVersion by extra("3.4.1")
+val imguiVersion by extra("1.90.0")
 
 val lwjglNatives: String by extra {
     when (OperatingSystem.current()) {
@@ -51,6 +52,9 @@ dependencies {
 	implementation("org.lwjgl:lwjgl-glfw::$lwjglNatives")
 	implementation("org.lwjgl:lwjgl-opengl::$lwjglNatives")
 	implementation("org.lwjgl:lwjgl-stb::$lwjglNatives")
+
+	implementation("io.github.spair:imgui-java-app:${imguiVersion}")
+
 }
 
 tasks.test {
