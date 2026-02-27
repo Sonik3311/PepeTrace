@@ -1,8 +1,12 @@
 import org.gradle.internal.os.OperatingSystem
 
+// Версии библиотек
 val lwjglVersion by extra("3.4.1")
 val imguiVersion by extra("1.90.0")
 
+// Ставим переменную lwjglNatives.
+// Просто смотрим, на какой системе собираем (линукс и виндовс),
+// и ставим нужное значение в переменную (natives-linux, natives-windows и суффиксы armv8, arm64, arm32, ppc64le, riscv)
 val lwjglNatives: String by extra {
     when (OperatingSystem.current()) {
         OperatingSystem.LINUX -> {
