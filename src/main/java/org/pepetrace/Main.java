@@ -8,6 +8,7 @@ public class Main {
     static void main() {
 
         Window window = new Window();
+        window.setActive();
 
         glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
 

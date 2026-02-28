@@ -29,10 +29,15 @@ val lwjglNatives: String by extra {
 
 plugins {
     id("java")
+    application
 }
 
 group = "org.pepetrace"
 version = "1.0-SNAPSHOT"
+
+application {
+    mainClass = "$group.Main"
+}
 
 repositories {
     mavenCentral()
@@ -61,12 +66,4 @@ dependencies {
     implementation ("io.github.spair:imgui-java-lwjgl3:$imguiVersion")
     implementation ("io.github.spair:imgui-java-$lwjglNatives:$imguiVersion")
 
-}
-
-tasks.test {
-    useJUnitPlatform()
-}
-
-repositories {
-	mavenCentral()
 }

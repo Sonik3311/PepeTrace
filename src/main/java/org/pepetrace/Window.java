@@ -13,48 +13,46 @@ public class Window {
 
     public Window() {
         initGLFW();
-        glfwDefaultWindowHints(); // Loads GLFW's default window settings
-        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE); // Sets window to be visible
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // Sets whether the window is resizable
+        glfwDefaultWindowHints(); // Загружаем настройки окна GLFW по умолчания
+        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE); // Делаем окно видимым
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // Делает окно меняемым по размеру
 
-        this.id = glfwCreateWindow(1600, 900, "PepeTrace", NULL, NULL); // Does the actual window creation
+        this.id = glfwCreateWindow(1600, 900, "PepeTrace", NULL, NULL);
         if (this.id == NULL) throw new RuntimeException("Failed to create window");
-        setActive();
     }
 
     public Window(int width, int height, boolean resizable, String title) {
         initGLFW();
-        glfwDefaultWindowHints(); // Loads GLFW's default window settings
-        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE); // Sets window to be visible
-        glfwWindowHint(GLFW_RESIZABLE, resizable ? GLFW_TRUE : GLFW_FALSE); // Sets whether the window is resizable
+        glfwDefaultWindowHints(); // Загружаем настройки окна GLFW по умолчания
+        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE); // Делаем окно видимым
+        glfwWindowHint(GLFW_RESIZABLE, resizable ? GLFW_TRUE : GLFW_FALSE); // Делает окно меняемым по размеру
 
-        this.id = glfwCreateWindow(width, height, title, NULL, NULL); // Does the actual window creation
+        this.id = glfwCreateWindow(width, height, title, NULL, NULL);
         if (this.id == NULL) throw new RuntimeException("Failed to create window");
-        setActive();
     }
 
+    // Инициализирует библиотеку GLFW
     private void initGLFW() {
+        if (glfw_initialized) return;
+
         GLFWErrorCallback errorCallback;
         glfwSetErrorCallback(
                 errorCallback = GLFWErrorCallback.createPrint(System.err)
         );
-
-        if (glfw_initialized) return;
 
         if (!glfwInit()) {
             throw new IllegalStateException("Unable to initialize GLFW");
         }
 
         glfw_initialized = true;
-
     }
 
     // Делает данное окно "основным"
-    // комманды GLFW и GL будут работать по отношению к данному
-    private void setActive() {
-        glfwMakeContextCurrent(this.id); // glfwSwapInterval needs a context on the calling thread, otherwise will cause NO_CURRENT_CONTEXT error
-        GL.createCapabilities(); // Will let lwjgl know we want to use this context as the context to draw with
-        glfwSwapInterval(1); // How many draws to swap the buffer
-        glfwShowWindow(this.id); // Shows the window
+    // команды GLFW и GL будут работать по отношению к данному
+    public void setActive() {
+        glfwMakeContextCurrent(this.id); // некоторым функциям (таким как glfwSwapInterval) необходимо знать, к какому окну (контексту) мы обращаемся, иначе ошибка NO_CURRENT_CONTEXT
+        GL.createCapabilities(); // Даём lwjgl понять что мы хотим использовать данный контекст для отрисовки
+        glfwSwapInterval(1); // Vertical Sync
+        glfwShowWindow(this.id); // Показывает окно на экране
     }
 }
