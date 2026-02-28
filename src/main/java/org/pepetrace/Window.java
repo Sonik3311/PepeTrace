@@ -14,6 +14,8 @@ public class Window {
     public Window() {
         initGLFW();
         glfwDefaultWindowHints(); // Загружаем настройки окна GLFW по умолчания
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // OpenGL 4.6
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6); // OpenGL 4.6
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE); // Делаем окно видимым
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // Делает окно меняемым по размеру
 
@@ -24,6 +26,8 @@ public class Window {
     public Window(int width, int height, boolean resizable, String title) {
         initGLFW();
         glfwDefaultWindowHints(); // Загружаем настройки окна GLFW по умолчания
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // OpenGL 4.6
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6); // OpenGL 4.6
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE); // Делаем окно видимым
         glfwWindowHint(GLFW_RESIZABLE, resizable ? GLFW_TRUE : GLFW_FALSE); // Делает окно меняемым по размеру
 
