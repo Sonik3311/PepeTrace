@@ -1,18 +1,22 @@
 #version 460 core
 
-layout (local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
+layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 layout(rgba32f, binding = 0) uniform image2D imgOutput;
 
 void main() {
     vec4 value = vec4(0.0, 0.0, 0.0, 1.0);
-    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+
+    //We have size of 8x8 pixels. gl_GlobalInvocationID in this case is the index of this 'chunk'
+    // This means that to get pixel coordinate we have to gl_GlobalInvocationID * 8 + gl_LocalInvocationID
+
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);// + gl_LocalInvocationID.xy);
 
     vec2 uv;
 
-    uv.x = float(texelCoord.x)/(gl_NumWorkGroups.x);
-    uv.y = float(texelCoord.y)/(gl_NumWorkGroups.y);
+    uv.x = float(texelCoord.x)/(gl_NumWorkGroups.x * 8);
+    uv.y = float(texelCoord.y)/(gl_NumWorkGroups.y * 8);
 
-    //value.xyz = vec3(pow(1 - distance(uv, vec2(0.5)), 90));
+    //value.xyz = vec3(pow(1 - distance(uv, vec2(0.5)), 1));
     value.xy = uv.xy;
 
     imageStore(imgOutput, texelCoord, value);

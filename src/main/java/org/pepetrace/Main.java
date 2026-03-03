@@ -6,6 +6,7 @@ import org.pepetrace.Shader.Texture;
 
 import java.io.FileNotFoundException;
 
+import static java.lang.Math.ceil;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL46.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
@@ -37,10 +38,30 @@ public class Main {
 
         int empty_vao = glGenVertexArrays();
 
+
+        int[] queries = {0, 0};
+        glGenQueries(queries);
+
         while (!glfwWindowShouldClose(window.id)) {
+
             // 1. Запуск compute шейдера
+            glQueryCounter(queries[0], GL_TIMESTAMP);
             computeShader.use();
-            glDispatchCompute(1600, 900, 1);
+            glDispatchCompute(1600 / 8, (int) 113, 1);
+            glQueryCounter(queries[1], GL_TIMESTAMP);
+
+            int[] params = {0};
+            while(params[0] == GL_FALSE) {
+                glGetQueryObjectiv(queries[1], GL_QUERY_RESULT_AVAILABLE, params);
+            }
+
+            long[] startTime = {0};
+            long[] endTime = {0};
+            glGetQueryObjectui64v(queries[0], GL_QUERY_RESULT, startTime);
+            glGetQueryObjectui64v(queries[1], GL_QUERY_RESULT, endTime);
+            System.out.println("Compute Shader занял " + ((double) (endTime[0] - startTime[0]) / 1000000.0) + " мс");
+
+            //System.out.println(end_time - start_time);
 
             // 2. Барьер памяти - важно для синхронизации
             glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
