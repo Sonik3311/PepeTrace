@@ -7,8 +7,13 @@ void main() {
     vec4 value = vec4(0.0, 0.0, 0.0, 1.0);
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
 
-    value.x = float(texelCoord.x)/(gl_NumWorkGroups.x);
-    value.y = float(texelCoord.y)/(gl_NumWorkGroups.y);
+    vec2 uv;
+
+    uv.x = float(texelCoord.x)/(gl_NumWorkGroups.x);
+    uv.y = float(texelCoord.y)/(gl_NumWorkGroups.y);
+
+    //value.xyz = vec3(pow(1 - distance(uv, vec2(0.5)), 90));
+    value.xy = uv.xy;
 
     imageStore(imgOutput, texelCoord, value);
 }

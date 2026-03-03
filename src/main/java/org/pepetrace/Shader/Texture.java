@@ -7,7 +7,6 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class Texture {
     public int id;
-    private static int total_bound_textures = 0;
 
     public Texture(int width, int height, int pixel_format, int pixel_datatype, int bind_dataformat) {
         id = glGenTextures();
