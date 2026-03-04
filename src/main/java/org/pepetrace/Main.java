@@ -11,7 +11,14 @@ import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL46.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
+import imgui.*;
+import imgui.gl3.ImGuiImplGl3;
+import imgui.glfw.ImGuiImplGlfw;
+
+
 public class Main {
+
+
 
     private boolean isHardwareCompatible() {
         return true;
@@ -21,6 +28,24 @@ public class Main {
 
         Window window = new Window();
         window.setActive();
+
+        ImGuiImplGlfw imGuiGlfw = new ImGuiImplGlfw();
+        ImGuiImplGl3 imGuiGl3 = new ImGuiImplGl3();
+        // 1. Create the ImGui context
+        ImGui.createContext();
+
+        // 2. Set basic configuration (optional)
+        ImGuiIO io = ImGui.getIO();
+        io.setIniFilename(null); // Disable .ini file to avoid saving state
+        io.setDisplaySize(1024, 768); // Set your initial window size
+        io.getFonts().addFontDefault(); // Load default font
+
+        // 3. Initialize the GLFW and OpenGL 3 bindings
+        imGuiGlfw.init(window.id, true); // The boolean is for integrating the callbacks
+        imGuiGl3.init("#version 460"); // Your GLSL version
+
+
+
 
         // TODO: Перекинуть всё в класс Drawer (кроме цикла while)
 
@@ -72,11 +97,24 @@ public class Main {
             screenQuad.setInt("tex", 0);
 
             // Убедимся, что текстура привязана (опционально)
-            //glActiveTexture(GL_TEXTURE0);
-            //glBindTexture(GL_TEXTURE_2D, texture.id);
-
             glBindVertexArray(empty_vao);
             glDrawArrays(GL_TRIANGLES, 0, 3);
+
+            // Start a new ImGui frame
+            imGuiGl3.newFrame();
+            imGuiGlfw.newFrame();
+            ImGui.newFrame();
+
+            // Build your UI
+            ImGui.showDemoWindow(); // Show the built-in demo window
+            if (ImGui.button("Hello, World!")) {
+                System.out.println("Button clicked!");
+            }
+
+            // Render ImGui
+            ImGui.render();
+            imGuiGl3.renderDrawData(ImGui.getDrawData());
+
 
             glfwSwapBuffers(window.id);
 
