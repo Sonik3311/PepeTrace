@@ -3,6 +3,8 @@
 layout (local_size_x = 8, local_size_y = 8, local_size_z = 1) in; // Используем 8x8x1=64 так как оптимальный размер рабочей группы на AMD = 64*n, на Nvidia = 32*n
 layout(rgba32f, binding = 0) uniform image2D imgOutput;
 
+shared int branchNum;
+
 vec2 sphIntersect( vec3 ro,  vec3 rd, float ra ){
     float b = dot( ro, rd );
     float c = dot( ro, ro ) - ra*ra;

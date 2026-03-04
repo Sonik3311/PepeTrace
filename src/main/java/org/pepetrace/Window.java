@@ -9,7 +9,9 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 public class Window {
 
     private static boolean glfw_initialized = false;
-    public long id;
+    private long id;
+    private int width;
+    private int height;
 
     public Window() {
         initGLFW();
@@ -20,6 +22,8 @@ public class Window {
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // Делает окно меняемым по размеру
 
         this.id = glfwCreateWindow(1600, 900, "PepeTrace", NULL, NULL);
+        this.width = 1600;
+        this.height = 900;
         if (this.id == NULL) throw new RuntimeException("Failed to create window");
     }
 
@@ -32,6 +36,8 @@ public class Window {
         glfwWindowHint(GLFW_RESIZABLE, resizable ? GLFW_TRUE : GLFW_FALSE); // Делает окно меняемым по размеру
 
         this.id = glfwCreateWindow(width, height, title, NULL, NULL);
+        this.width = width;
+        this.height = height;
         if (this.id == NULL) throw new RuntimeException("Failed to create window");
     }
 
@@ -58,5 +64,21 @@ public class Window {
         GL.createCapabilities(); // Даём lwjgl понять что мы хотим использовать данный контекст для отрисовки
         glfwSwapInterval(1); // Vertical Sync
         glfwShowWindow(this.id); // Показывает окно на экране
+    }
+
+    public int getWidth() {
+        return this.width;
+    }
+
+    public int getHeight() {
+        return this.height;
+    }
+
+    public long getId() {
+        return this.id;
+    }
+
+    public boolean shouldClose() {
+        return glfwWindowShouldClose(id);
     }
 }
