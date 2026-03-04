@@ -1,11 +1,5 @@
 package org.pepetrace;
 
-import org.pepetrace.Shader.ComputeProgram;
-import org.pepetrace.Shader.Program;
-import org.pepetrace.Shader.Texture;
-
-import java.io.FileNotFoundException;
-
 import static java.lang.Math.ceil;
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL46.*;
@@ -14,6 +8,10 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 import imgui.*;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
+import java.io.FileNotFoundException;
+import org.pepetrace.Shader.ComputeProgram;
+import org.pepetrace.Shader.Program;
+import org.pepetrace.Shader.Texture;
 
 public class Drawer {
 
@@ -35,9 +33,17 @@ public class Drawer {
 
     private void initGL() throws FileNotFoundException {
         glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-        pathTracingTexture = new Texture(1600, 900, GL_RGBA, GL_FLOAT, GL_RGBA32F);
+        pathTracingTexture = new Texture(
+            1600,
+            900,
+            GL_RGBA,
+            GL_FLOAT,
+            GL_RGBA32F
+        );
 
-        pathTracingProgram = new ComputeProgram("./src/main/glsl/program");
+        pathTracingProgram = new ComputeProgram(
+            "./src/main/glsl/program_branchVis"
+        );
 
         windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
 
@@ -64,10 +70,12 @@ public class Drawer {
     public void renderFrame() {
         // 1. Запуск compute шейдера
         pathTracingProgram.use();
-        glDispatchCompute(window.getWidth() / 8,  window.getHeight() / 8, 1);
+        glDispatchCompute(window.getWidth() / 16, window.getHeight() / 16 + 1, 1);
 
         // 2. Барьер памяти - важно для синхронизации
-        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
+        glMemoryBarrier(
+            GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT
+        );
 
         // 3. Рендеринг квада
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // чистим прошлый фрэймбуффер (опционально)

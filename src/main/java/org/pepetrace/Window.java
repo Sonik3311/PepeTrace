@@ -1,10 +1,10 @@
 package org.pepetrace;
 
-import org.lwjgl.glfw.GLFWErrorCallback;
-import org.lwjgl.opengl.GL;
-
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
+
+import org.lwjgl.glfw.GLFWErrorCallback;
+import org.lwjgl.opengl.GL;
 
 public class Window {
 
@@ -21,10 +21,24 @@ public class Window {
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE); // Делаем окно видимым
         glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // Делает окно меняемым по размеру
 
+        // Первая попытка ИГНОРИТЬ скейлинг системы (DPI)
+        glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
+
         this.id = glfwCreateWindow(1600, 900, "PepeTrace", NULL, NULL);
         this.width = 1600;
         this.height = 900;
-        if (this.id == NULL) throw new RuntimeException("Failed to create window");
+        if (this.id == NULL) throw new RuntimeException(
+            "Failed to create window"
+        );
+
+        //Вторая попытка
+        float[] xscale = {0};
+        float[] yscale = {0};
+        glfwGetWindowContentScale(id, xscale, yscale);
+        glfwSetWindowSize(id,
+                (int) (width / xscale[0]),
+                (int) (height / yscale[0]));
+
     }
 
     public Window(int width, int height, boolean resizable, String title) {
@@ -38,7 +52,9 @@ public class Window {
         this.id = glfwCreateWindow(width, height, title, NULL, NULL);
         this.width = width;
         this.height = height;
-        if (this.id == NULL) throw new RuntimeException("Failed to create window");
+        if (this.id == NULL) throw new RuntimeException(
+            "Failed to create window"
+        );
     }
 
     // Инициализирует библиотеку GLFW
@@ -47,7 +63,7 @@ public class Window {
 
         GLFWErrorCallback errorCallback;
         glfwSetErrorCallback(
-                errorCallback = GLFWErrorCallback.createPrint(System.err)
+            errorCallback = GLFWErrorCallback.createPrint(System.err)
         );
 
         if (!glfwInit()) {
