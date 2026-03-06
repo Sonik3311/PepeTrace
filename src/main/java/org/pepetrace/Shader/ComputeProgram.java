@@ -1,17 +1,22 @@
 package org.pepetrace.Shader;
 
-import java.io.FileNotFoundException;
-
 import static org.lwjgl.opengl.GL46.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
+import java.io.FileNotFoundException;
 
 public class ComputeProgram extends Program {
+
     // TODO: Использовать вместо типа String для filepath что-то иное?
     //  Вдруг при разных типах упаковки (.jar, .class, ...) пути поломаются?
 
     public ComputeProgram(String filepath) throws FileNotFoundException {
-        CharSequence shader_source = readFile(filepath + ".comp");
+        CharSequence shader_source = SourceReader.readFile(
+            filepath + ".comp",
+            false
+        );
+
+        System.out.println(shader_source);
 
         int compute = glCreateShader(GL_COMPUTE_SHADER);
         glShaderSource(compute, shader_source);
@@ -24,8 +29,8 @@ public class ComputeProgram extends Program {
         checkLinkStatus(id);
     }
 
-    static public int[] getMaxWorkGroupCount() {
-        int[] workGroupCount = {-1, -1, -1};
+    public static int[] getMaxWorkGroupCount() {
+        int[] workGroupCount = { -1, -1, -1 };
 
         glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, workGroupCount);
         glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, workGroupCount);

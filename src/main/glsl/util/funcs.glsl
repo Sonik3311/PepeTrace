@@ -1,0 +1,6 @@
+
+void syncronize()
+{
+    memoryBarrierShared();
+    barrier();
+}

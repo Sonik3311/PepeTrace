@@ -1,20 +1,27 @@
 package org.pepetrace.Shader;
 
+import static org.lwjgl.opengl.GL46.*;
+
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Scanner;
 
-import static org.lwjgl.opengl.GL46.*;
-
 public class Program {
-    public int id;
 
+    public int id;
 
     // TODO: Использовать вместо типа String для filepath что-то иное?
     //  Вдруг при разных типах упаковки (.jar, .class, ...) пути поломаются?
     public Program(String filepath) throws FileNotFoundException {
-        CharSequence frag_source = readFile(filepath + ".frag");
-        CharSequence vert_source = readFile(filepath + ".vert");
+        CharSequence frag_source = SourceReader.readFile(
+            filepath + ".frag",
+            false
+        );
+        CharSequence vert_source = SourceReader.readFile(
+            filepath + ".vert",
+            false
+        );
+        System.out.println(frag_source + "\n" + vert_source);
 
         int vertex, fragment;
 
@@ -41,10 +48,8 @@ public class Program {
         glDeleteShader(fragment);
     }
 
-
     // Затычка
-    public Program() {
-    }
+    public Program() {}
 
     public String getShaderTypeString(int shaderId) {
         // 1. Получаем тип шейдера (как int)
@@ -60,35 +65,33 @@ public class Program {
         };
     }
 
-    // TODO: Использовать StringBuilder вместо конкатенации в цикле?
-    protected CharSequence readFile(String filepath) throws FileNotFoundException {
-        CharSequence chars = "";
-        File file = new File(filepath);
-        Scanner scanner = new Scanner(file);
-
-        chars = scanner.nextLine();
-        while (scanner.hasNextLine()) {
-            chars = chars + "\n" + scanner.nextLine();
-        }
-
-        return chars;
-    }
-
     protected void checkCompilationStatus(int shader) {
         int success = glGetShaderi(shader, GL_COMPILE_STATUS);
 
-        if (success != GL_TRUE) { // compile failure
+        if (success != GL_TRUE) {
+            // compile failure
             String infoLog = glGetShaderInfoLog(shader, 512);
-            System.err.println("\u001B[31m[" + getShaderTypeString(shader) + "] GLSL COMPILE ERROR: " + infoLog + "\u001B[0m");
+            System.err.println(
+                "\u001B[31m[" +
+                    getShaderTypeString(shader) +
+                    "] GLSL COMPILE ERROR: " +
+                    infoLog +
+                    "\u001B[0m"
+            );
         }
     }
 
     protected void checkLinkStatus(int program) {
         int success = glGetProgrami(program, GL_LINK_STATUS);
 
-        if (success != GL_TRUE) { // linking failure
+        if (success != GL_TRUE) {
+            // linking failure
             String infoLog = glGetProgramInfoLog(program, 512);
-            System.err.println("\u001B[31m[Program] GLSL LINKING ERROR: " + infoLog + "\u001B[0m");
+            System.err.println(
+                "\u001B[31m[Program] GLSL LINKING ERROR: " +
+                    infoLog +
+                    "\u001B[0m"
+            );
         }
     }
 
@@ -106,5 +109,47 @@ public class Program {
 
     public void setFloat(final String name, float value) {
         glUniform1f(glGetUniformLocation(id, name), value);
+    }
+}
+
+// Читает шейдерные файлы и рекурсивно подгружает импорты (#include).
+class SourceReader {
+
+    public static CharSequence readFile(
+        String filepath,
+        boolean readingIncludeFile
+    ) throws FileNotFoundException {
+        CharSequence chars = "";
+        File file = new File(filepath);
+        Scanner scanner = new Scanner(file);
+
+        while (scanner.hasNextLine()) {
+            String line = scanner.nextLine();
+            if (readingIncludeFile && !isIncludable(line)) {
+                continue;
+            }
+
+            if (line.startsWith("#include")) {
+                String include_filename = line.substring(
+                    line.indexOf('"') + 1,
+                    line.indexOf('"', line.indexOf('"') + 1)
+                );
+                String include_path =
+                    filepath.substring(0, filepath.lastIndexOf('/') + 1) +
+                    include_filename;
+                chars = chars + "\n" + readFile(include_path, true);
+            } else {
+                chars = chars + "\n" + line;
+            }
+        }
+        scanner.close();
+        return chars;
+    }
+
+    private static boolean isIncludable(String line) {
+        // NOT Includable:
+        // #version
+        // layout
+        return !(line.startsWith("#version") || line.startsWith("layout"));
     }
 }

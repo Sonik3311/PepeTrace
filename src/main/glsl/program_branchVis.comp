@@ -3,13 +3,9 @@
 layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in; // Используем 8x8x1=64 так как оптимальный размер рабочей группы на AMD = 64*n, на Nvidia = 32*n
 layout(rgba32f, binding = 0) uniform image2D imgOutput;
 
-shared int branchNum = 0;
+#include "util/funcs.glsl";
 
-void syncronize()
-{
-    memoryBarrierShared();
-    barrier();
-}
+shared int branchNum = 0;
 
 // RGB to HSV conversion
 vec3 rgb2hsv(vec3 c) {
@@ -43,11 +39,11 @@ float interpolateHue(float h1, float h2, float t) {
 vec3 hotMap5(float t) {
     // Define the 5 colors in RGB (easier to visualize)
     vec3 colorsRGB[5] = vec3[](
-            vec3(0.0, 0.5, 0.7), // Blue at t=0.0
-            vec3(1.0, 1.0, 0.0), // Yellow at t=0.25
-            vec3(1.0, 0.0, 0.0), // Red at t=0.5
-            vec3(1.0, 1.0, 0.0), // Yellow at t=0.75
-            vec3(0.0, 0.0, 1.0) //  Blue at t=1.0
+            vec3(0.0, 0.0, 1.0), // Blue at 0 % coverage
+            vec3(1.0, 1.0, 0.0), // yellow at 35% coverage
+            vec3(1.0, 0.0, 0.0), // Red at 50% coverage
+            vec3(0.75, 1.0, 0.0), // Lime at 80% coverage
+            vec3(0.0, 0.0, 1.0) //  Green at 100% coverage
         );
 
     // Convert to HSV once
@@ -57,7 +53,7 @@ vec3 hotMap5(float t) {
     }
 
     // Define positions
-    float positions[6] = float[](0.0, 0.25, 0.5, 0.75, 1.0, 1.1);
+    float positions[6] = float[](0.0, 0.35, 0.5, 0.8, 1.0, 1.1);
 
     t = clamp(t, 0.0, 1.0);
 
@@ -145,7 +141,24 @@ void main() {
 
     syncronize();
 
-    vec3 branch_color = hotMap5(float(branchNum) / (16 * 16));
-    value.xyz = mix(value.xyz, branch_color, 0.3);
+    float t = float(branchNum) / (16 * 16);
+
+    int border_size = 0;
+    bool include_border = false;
+    bool include_border_corner = false;
+    bool include_dots = true;
+    int dot_size = 4;
+    bool fill_center_lower = false;
+
+    bool is_xborder = ((gl_LocalInvocationID.x <= border_size) || (gl_LocalInvocationID.x >= (15 - border_size))) ? true : false;
+    bool is_yborder = ((gl_LocalInvocationID.y <= border_size) || (gl_LocalInvocationID.y >= (15 - border_size))) ? true : false;
+    bool is_border = (is_xborder || is_yborder) && (!(is_xborder && is_yborder) || include_border_corner);
+
+    bool is_dot = ((gl_LocalInvocationID.x - (dot_size + 1) % 2) % 4 >= dot_size || (gl_LocalInvocationID.y - (dot_size + 1) % 2) % 4 >= dot_size) ? false : true;
+
+    float mix_factor = ((is_border && include_border) || (is_dot && include_dots)) ? 0.5 : 0.0;
+    mix_factor = (mix_factor == 0.0 && fill_center_lower) ? 0.25 : mix_factor;
+    vec3 branch_color = hotMap5(t);
+    value.xyz = mix(value.xyz, branch_color, mix_factor);
     imageStore(imgOutput, texelCoord, value);
 }
