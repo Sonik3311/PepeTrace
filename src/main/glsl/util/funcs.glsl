@@ -1,5 +1,5 @@
 
-void syncronize()
+void synchronize()
 {
     memoryBarrierShared();
     barrier();

@@ -21,7 +21,7 @@ public class Program {
             filepath + ".vert",
             false
         );
-        System.out.println(frag_source + "\n" + vert_source);
+        //System.out.println(frag_source + "\n" + vert_source);
 
         int vertex, fragment;
 

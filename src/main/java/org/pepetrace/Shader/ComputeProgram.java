@@ -16,7 +16,7 @@ public class ComputeProgram extends Program {
             false
         );
 
-        System.out.println(shader_source);
+        //System.out.println(shader_source);
 
         int compute = glCreateShader(GL_COMPUTE_SHADER);
         glShaderSource(compute, shader_source);

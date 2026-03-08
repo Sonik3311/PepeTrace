@@ -23,6 +23,8 @@ public class Drawer {
     private Program windowTextureDrawerProgram;
     private int drawVAO;
 
+    private FloatSSBO TEST_SSBO;
+
     private Texture pathTracingTexture;
 
     public Drawer(Window window) throws FileNotFoundException {
@@ -48,6 +50,16 @@ public class Drawer {
         windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
 
         drawVAO = glGenVertexArrays();
+
+        //ТЕСТ
+        //TODO: Убрать и сделать нормально
+        TEST_SSBO = new FloatSSBO(1);
+        TEST_SSBO.fillBuffer(new float[]
+                {0,0,0,
+                 0,5,0,
+                 5,0,0}
+        );
+
     }
 
     private void initImGUI() {
