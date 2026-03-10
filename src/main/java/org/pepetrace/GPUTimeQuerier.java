@@ -24,7 +24,7 @@ public class GPUTimeQuerier {
 
     public long stopTimer() {
         if (!isTicking) {
-            System.err.println("Received start command without finishing previous, stopping");
+            System.err.println("Received stop command without starting, ignoring");
             return -1;
         }
 

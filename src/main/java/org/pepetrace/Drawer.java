@@ -55,9 +55,14 @@ public class Drawer {
         //TODO: Убрать и сделать нормально
         TEST_SSBO = new FloatSSBO(1);
         TEST_SSBO.fillBuffer(new float[]
-                {0,0,0,
-                 0,5,0,
-                 5,0,0}
+                {-1,-1, 0,
+                 -1, 1, 0,
+                  1, 1, 0,
+
+                  1, 1, 0,
+                  1,-1, 0,
+                        -1,-1,0
+                }
         );
 
     }
