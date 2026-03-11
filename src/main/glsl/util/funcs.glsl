@@ -1,6 +1,0 @@
-
-void synchronize()
-{
-    memoryBarrierShared();
-    barrier();
-}

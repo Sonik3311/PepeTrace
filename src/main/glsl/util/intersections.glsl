@@ -28,15 +28,21 @@ HitResult triIntersect(vec3 ro, vec3 rd, vec3 A, vec3 B, vec3 C) {
     vec3 q = cross(s, edgeAB);
     float v = dot(rd, q) * invDet;
 
-    if (v < 0.1 || u + v > 0.9) return hit_result;
+    if (v < 0 || u + v > 1) return hit_result;
 
     // Calculate t (distance along ray)
     float t = dot(edgeAC, q) * invDet;
 
+    vec3 normal = cross(edgeAB, edgeAC);
+    float switch_factor = ceil(abs(max(0,dot(normal, rd))));
+
     hit_result.isValid = true;
     hit_result.position = ro + rd * t;
     hit_result.distance = t;
-    hit_result.normal = cross(edgeAB, edgeAC);
+    hit_result.normal = mix(normal, -normal, switch_factor);
+
+
+
 
     return hit_result;
 }

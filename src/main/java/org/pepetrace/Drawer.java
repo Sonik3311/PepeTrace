@@ -44,7 +44,7 @@ public class Drawer {
         );
 
         pathTracingProgram = new ComputeProgram(
-            "./src/main/glsl/program_branchVis"
+            "./src/main/glsl/program"
         );
 
         windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
@@ -55,13 +55,17 @@ public class Drawer {
         //TODO: Убрать и сделать нормально
         TEST_SSBO = new FloatSSBO(1);
         TEST_SSBO.fillBuffer(new float[]
-                {-1,-1, 1,
-                 -1, 1, 1,
-                  1, 1, -1,
+                {1, 1, 0,
+                 -1, -1, 0,
+                 -1,1, 0.3f,
 
-                  1.1f, 1.0f, 1,
-                  1.1f,-1.0f, 1,
-                  -0.9f,-1.0f,-1,
+                        -1, -1, 0,
+                        1, 1, 0,
+                        1, -1, 0.3f
+
+                  //1.1f, 1.0f, 1,
+                  //1.1f,-1.0f, 0,
+                  //-0.9f,-1.0f,-1,
 
 
                 }
