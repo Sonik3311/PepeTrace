@@ -15,7 +15,7 @@ public class Main {
     }
 
     static void main() throws IOException {
-        Passport build = new Passport();
+        //Passport build = new Passport();
         Window window = new Window();
         window.setActive();
 
