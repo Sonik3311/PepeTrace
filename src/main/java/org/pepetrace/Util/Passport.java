@@ -29,11 +29,11 @@ public class Passport {
             this.buildOS = properties.getProperty("build.os");
             this.buildTime = properties.getProperty("build.time");
 
-            System.out.println("\n\u001B[33m==============");
+            System.out.println("\n\u001B[33m===========================");
             System.out.println("Build: " + buildNumber);
             System.out.println("Time: " + buildTime);
             System.out.println("Java: " + javaVersion);
-            System.out.println("==============\u001B[0m\n");
+            System.out.println("===========================\u001B[0m\n");
 
 
         } catch (IOException e) {

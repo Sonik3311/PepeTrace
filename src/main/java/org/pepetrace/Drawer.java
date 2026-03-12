@@ -7,7 +7,7 @@ import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import java.io.FileNotFoundException;
 
-import org.pepetrace.Buffers.FloatSSBO;
+import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
 import org.pepetrace.Buffers.Texture;
@@ -22,7 +22,7 @@ public class Drawer {
     private Program windowTextureDrawerProgram;
     private int drawVAO;
 
-    private FloatSSBO TEST_SSBO;
+    private SSBO TEST_SSBO;
 
     private Texture pathTracingTexture;
 
@@ -52,7 +52,7 @@ public class Drawer {
 
         //ТЕСТ
         //TODO: Убрать и сделать нормально
-        TEST_SSBO = new FloatSSBO(1);
+        TEST_SSBO = new SSBO(GL_STATIC_DRAW, 1);
         TEST_SSBO.fillBuffer(new float[]
                 {1, 1, 0,
                  -1, -1, 0,
