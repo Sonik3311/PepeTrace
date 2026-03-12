@@ -1,17 +1,16 @@
 package org.pepetrace;
 
-import static java.lang.Math.ceil;
-import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL46.*;
-import static org.lwjgl.system.MemoryUtil.NULL;
 
 import imgui.*;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import java.io.FileNotFoundException;
+
+import org.pepetrace.Buffers.FloatSSBO;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
-import org.pepetrace.Shader.Texture;
+import org.pepetrace.Buffers.Texture;
 
 public class Drawer {
 

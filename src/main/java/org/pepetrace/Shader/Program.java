@@ -13,6 +13,8 @@ public class Program {
     // TODO: Использовать вместо типа String для filepath что-то иное?
     //  Вдруг при разных типах упаковки (.jar, .class, ...) пути поломаются?
     public Program(String filepath) throws FileNotFoundException {
+        id = glCreateProgram();
+
         CharSequence frag_source = SourceReader.readFile(
             filepath + ".frag",
             false
@@ -37,7 +39,6 @@ public class Program {
         checkCompilationStatus(vertex);
         checkCompilationStatus(fragment);
 
-        id = glCreateProgram();
         glAttachShader(id, vertex);
         glAttachShader(id, fragment);
         glLinkProgram(id);

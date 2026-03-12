@@ -1,4 +1,4 @@
-package org.pepetrace;
+package org.pepetrace.Util;
 
 import static org.lwjgl.opengl.GL11.GL_FALSE;
 import static org.lwjgl.opengl.GL15.*;

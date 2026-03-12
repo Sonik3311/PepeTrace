@@ -1,4 +1,4 @@
-package org.pepetrace;
+package org.pepetrace.Buffers;
 
 import static org.lwjgl.opengl.GL46.*;
 

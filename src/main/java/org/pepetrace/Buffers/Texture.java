@@ -1,6 +1,4 @@
-package org.pepetrace.Shader;
-
-import org.lwjgl.opengl.*;
+package org.pepetrace.Buffers;
 
 import static org.lwjgl.opengl.GL46.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
