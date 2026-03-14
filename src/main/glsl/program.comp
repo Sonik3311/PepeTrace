@@ -37,7 +37,7 @@ HitResult checkSceneIntersection(vec3 ro, vec3 rd) {
             vertices[7 + index],
             vertices[8 + index]
         );
-        HitResult hit = triIntersect(ro, rd, A, B, C);
+        HitResult hit = rayTriangleIntersect(ro, rd, A, B, C);
 
         if (hit.distance < min_dist && hit.isValid) {
             min_dist = hit.distance;
@@ -57,7 +57,7 @@ void main() {
     vec2 uv;
     uv.x = float(texelCoord.x)/(gl_NumWorkGroups.x * KERNEL_SIZE);
     uv.y = float(texelCoord.y)/(gl_NumWorkGroups.y * KERNEL_SIZE);
-    uv.xy = ((uv.xy - 0.5) * 2);
+    uv = ((uv - 0.5) * 2);
 
     float aspect_ratio = float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
     uv.x *= aspect_ratio;

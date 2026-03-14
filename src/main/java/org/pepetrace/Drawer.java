@@ -56,11 +56,11 @@ public class Drawer {
         TEST_SSBO.fillBuffer(new float[]
                 {1, 1, 0,
                  -1, -1, 0,
-                 -1,1, 0.3f,
+                 -1,1, 0,
 
                         -1, -1, 0,
                         1, 1, 0,
-                        1, -1, 0.3f
+                        1, -1, 0
 
                   //1.1f, 1.0f, 1,
                   //1.1f,-1.0f, 0,

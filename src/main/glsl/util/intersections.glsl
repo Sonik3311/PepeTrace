@@ -5,11 +5,11 @@ struct HitResult {
     vec3 normal;
 };
 
-HitResult triIntersect(vec3 ro, vec3 rd, vec3 A, vec3 B, vec3 C) {
-    vec3 edgeAB = B - A;
-    vec3 edgeAC = C - A;
-    vec3 h = cross(rd, edgeAC);
-    float det = dot(edgeAB, h);
+HitResult rayTriangleIntersect(vec3 ro, vec3 rd, vec3 v0, vec3 v1, vec3 v2) {
+    vec3 v0v1 = v1 - v0;
+    vec3 v0v2 = v2 - v0;
+    vec3 pvec = cross(rd, v0v2);
+    float det = dot(v0v1, pvec);
 
     HitResult hit_result;
     hit_result.isValid = false;
@@ -17,32 +17,24 @@ HitResult triIntersect(vec3 ro, vec3 rd, vec3 A, vec3 B, vec3 C) {
     hit_result.normal = vec3(0);
     hit_result.distance = -1;
 
-    if (det < EPSILON) return hit_result;
-    float invDet = 1.0 / det;
+    if (abs(det) < EPSILON) return hit_result;
 
-    vec3 s = ro - A;
-    float u = dot(s, h) * invDet;
-
+    float invDet = 1/det;
+    vec3 tvec = ro - v0;
+    float u = dot(tvec, pvec) * invDet;
     if (u < 0 || u > 1) return hit_result;
 
-    vec3 q = cross(s, edgeAB);
-    float v = dot(rd, q) * invDet;
+    vec3 qvec = cross(tvec, v0v1);
+    float v = dot(rd, qvec) * invDet;
+    if (v < 0 || (v + u) > 1) return hit_result;
 
-    if (v < 0 || u + v > 1) return hit_result;
-
-    // Calculate t (distance along ray)
-    float t = dot(edgeAC, q) * invDet;
-
-    vec3 normal = cross(edgeAB, edgeAC);
-    float switch_factor = ceil(abs(max(0,dot(normal, rd))));
+    float dist = dot(v0v2, qvec) * invDet;
+    vec3 normal = cross(v0v1, v0v2);
 
     hit_result.isValid = true;
-    hit_result.position = ro + rd * t;
-    hit_result.distance = t;
-    hit_result.normal = mix(normal, -normal, switch_factor);
-
-
-
+    hit_result.position = ro + rd * dist;
+    hit_result.distance = dist;
+    hit_result.normal = normal;
 
     return hit_result;
 }
