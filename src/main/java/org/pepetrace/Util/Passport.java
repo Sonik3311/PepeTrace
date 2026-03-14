@@ -36,7 +36,7 @@ public enum Passport {
         }
     }
 
-    private void printBuildInfo() {
+    public void printBuildInfo() {
         System.out.println("\n\u001B[33m===========================");
         System.out.println("Build: " + buildNumber);
         System.out.println("Time: " + buildTime);
