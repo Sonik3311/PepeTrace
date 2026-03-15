@@ -9,6 +9,9 @@ layout(rgba32f, binding = 0) uniform image2D imgOutput;
 layout(std430, binding = 1) readonly buffer DataBuffer {
     float vertices[];
 };
+layout (std140, binding = 2) uniform RenderInts {
+    int tick;
+};
 
 #include "util/intersections.glsl"
 
@@ -65,7 +68,7 @@ void main() {
     vec3 ray_dir = normalize(vec3(uv.xy, 1));
     vec3 ray_pos = vec3(0,0, -5);
 
-    vec3 light_dir = normalize(vec3(1,-1,-0.5));
+    vec3 light_dir = normalize(vec3(cos(float(tick)/100),sin(float(tick)/100),-0.5));
 
     HitResult hit = checkSceneIntersection(ray_pos, ray_dir);
     if (hit.isValid) {
@@ -73,5 +76,5 @@ void main() {
     }
 
 
-    imageStore(imgOutput, texelCoord, value);
+    imageStore(imgOutput, texelCoord, vec4(cos(float(tick) / 10),cos(float(tick) / 10),0,1));
 }

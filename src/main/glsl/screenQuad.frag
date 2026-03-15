@@ -4,6 +4,10 @@ in vec2 v_uv;
 out vec4 FragColor;
 
 uniform sampler2D tex;
+layout(std140, binding = 2) uniform TestUBO {
+    float tata;
+};
+
 
 void main() {
     vec3 texCol = texture(tex, v_uv).rgb;

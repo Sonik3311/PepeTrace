@@ -12,10 +12,10 @@ public abstract class Buffer {
         this.bufferType = bufferType;
     }
 
-    protected void setShaderBinding(int GL_DrawTarget, int binding) {
+    protected void setShaderBinding(int binding) {
         this.binding = binding;
         bind();
-        glBindBufferBase(GL_DrawTarget, binding, id);
+        glBindBufferBase(bufferType, binding, id);
         unbind();
     };
 

@@ -10,7 +10,7 @@ public class SSBO extends Buffer {
 
     public SSBO(int GL_DrawTarget, int binding) {
         super(GL_SHADER_STORAGE_BUFFER, binding);
-        setShaderBinding(GL_DrawTarget, binding);
+        setShaderBinding(binding);
         this.usage = GL_DrawTarget;
     }
 

@@ -23,6 +23,10 @@ public class Drawer {
     private int drawVAO;
 
     private SSBO TEST_SSBO;
+    private UBORenderInts ubo;
+
+    private int frame = 0;
+
 
     private Texture pathTracingTexture;
 
@@ -42,13 +46,17 @@ public class Drawer {
             GL_RGBA32F
         );
 
+
         pathTracingProgram = new ComputeProgram(
             "./src/main/glsl/program"
         );
 
+
         windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
 
+
         drawVAO = glGenVertexArrays();
+
 
         //ТЕСТ
         //TODO: Убрать и сделать нормально
@@ -70,6 +78,8 @@ public class Drawer {
                 }
         );
 
+
+        ubo = new UBORenderInts(2);
     }
 
     private void initImGUI() {
@@ -91,7 +101,9 @@ public class Drawer {
 
     public void renderFrame() {
         // 1. Запуск compute шейдера
+        ubo.updateBuffer(frame);
         pathTracingProgram.use();
+        //glBindBufferBase(GL_UNIFORM_BUFFER, 2, ubo.getId());
         glDispatchCompute(window.getWidth() / 16, window.getHeight() / 16 + 1, 1);
 
         // 2. Барьер памяти - важно для синхронизации
@@ -110,6 +122,9 @@ public class Drawer {
 
         // Start a new ImGui frame
         renderImGUI();
+
+        frame++;
+        //System.out.println(frame);
     }
 
     private void renderImGUI() {

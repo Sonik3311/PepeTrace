@@ -1,8 +1,11 @@
 package org.pepetrace.Buffers;
 
+import org.lwjgl.BufferUtils;
+
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
+import static org.lwjgl.opengl.GL30.glBindBufferBase;
 import static org.lwjgl.opengl.GL46.*;
 
 public abstract class UBO extends Buffer {
@@ -12,11 +15,14 @@ public abstract class UBO extends Buffer {
     public UBO(int sizeBytes, int binding) {
         super(GL_UNIFORM_BUFFER, binding);
         this.sizeBytes = sizeBytes;
-        buffer = ByteBuffer.allocateDirect(sizeBytes)
-                .order(ByteOrder.nativeOrder());
-    }
+        buffer = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder());
 
-    public abstract void updateBuffer();
+        bind();
+        glBufferData(GL_UNIFORM_BUFFER, sizeBytes, GL_DYNAMIC_DRAW);
+        unbind();
+        setShaderBinding(binding);
+
+    }
 
     protected void putFloat(int offsetBytes, float value) {
         buffer.putFloat(offsetBytes, value);
@@ -52,5 +58,9 @@ public abstract class UBO extends Buffer {
         bind();
         glBufferSubData(GL_UNIFORM_BUFFER, 0, buffer);
         unbind();
+    }
+
+    public int getSizeBytes() {
+        return sizeBytes;
     }
 }
