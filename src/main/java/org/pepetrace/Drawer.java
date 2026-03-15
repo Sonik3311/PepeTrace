@@ -62,13 +62,13 @@ public class Drawer {
         //TODO: Убрать и сделать нормально
         TEST_SSBO = new SSBO(GL_STATIC_DRAW, 1);
         TEST_SSBO.fillBuffer(new float[]
-                {1, 1, 0,
+                {1, 1,0,
                  -1, -1, 0,
-                 -1,1, 0,
+                 -1,1, 0.3f,
 
-                        -1, -1, 0,
+                        -1, -1,0,
                         1, 1, 0,
-                        1, -1, 0
+                        1, -1, 0.3f
 
                   //1.1f, 1.0f, 1,
                   //1.1f,-1.0f, 0,
@@ -103,7 +103,6 @@ public class Drawer {
         // 1. Запуск compute шейдера
         ubo.updateBuffer(frame);
         pathTracingProgram.use();
-        //glBindBufferBase(GL_UNIFORM_BUFFER, 2, ubo.getId());
         glDispatchCompute(window.getWidth() / 16, window.getHeight() / 16 + 1, 1);
 
         // 2. Барьер памяти - важно для синхронизации
@@ -124,7 +123,6 @@ public class Drawer {
         renderImGUI();
 
         frame++;
-        //System.out.println(frame);
     }
 
     private void renderImGUI() {

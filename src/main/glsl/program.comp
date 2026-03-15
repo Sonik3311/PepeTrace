@@ -68,7 +68,7 @@ void main() {
     vec3 ray_dir = normalize(vec3(uv.xy, 1));
     vec3 ray_pos = vec3(0,0, -5);
 
-    vec3 light_dir = normalize(vec3(cos(float(tick)/100),sin(float(tick)/100),-0.5));
+    vec3 light_dir = normalize(vec3(0.5, cos(float(tick)/100),sin(float(tick)/100)));
 
     HitResult hit = checkSceneIntersection(ray_pos, ray_dir);
     if (hit.isValid) {
@@ -76,5 +76,5 @@ void main() {
     }
 
 
-    imageStore(imgOutput, texelCoord, vec4(cos(float(tick) / 10),cos(float(tick) / 10),0,1));
+    imageStore(imgOutput, texelCoord, value);
 }
