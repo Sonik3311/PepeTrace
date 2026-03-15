@@ -3,6 +3,7 @@ package org.pepetrace;
 import static org.lwjgl.opengl.GL46.*;
 
 import imgui.*;
+import imgui.flag.ImGuiCond;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import java.io.FileNotFoundException;
@@ -11,6 +12,7 @@ import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
 import org.pepetrace.Buffers.Texture;
+import org.pepetrace.Util.Passport;
 
 public class Drawer {
 
@@ -770,9 +772,19 @@ public class Drawer {
 
         // Здесь строится UI
         ImGui.showDemoWindow(); // Встроенное демо окно
+
+        //ImGui.setNextWindowSize(300, 150, ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowPos(0, 0, ImGuiCond.FirstUseEver);
+        ImGui.begin("Build info");
+        ImGui.text(String.format("Build No. %s", Passport.INSTANCE.getBuildNumber()));
+        ImGui.text(String.format("OS: %s", Passport.INSTANCE.getBuildOS()));
+        ImGui.text(String.format("Build timestamp: %s", Passport.INSTANCE.getBuildTime()));
+        ImGui.text(String.format("Java: %s", Passport.INSTANCE.getJavaVersion()));
+        ImGui.text(String.format("Git branch: %s", Passport.INSTANCE.getGitBranchHash()));
         if (ImGui.button("Hello, World!")) {
             System.out.println("Button clicked!");
         }
+        ImGui.end();
 
         // Render ImGui
         ImGui.render();
