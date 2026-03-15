@@ -34,7 +34,7 @@ def generate_sphere(radius=1.0, sectors=36, stacks=18):
     return triangle_vertices
 
 # Генерируем и выводим
-vertices = generate_sphere(1.0, 36, 18)
+vertices = generate_sphere(1.0, 6, 6)
 print("float[] sphereVertices = {")
 for i, v in enumerate(vertices):
     end = "," if i < len(vertices) - 1 else ""

@@ -22,11 +22,11 @@ HitResult rayTriangleIntersect(vec3 ro, vec3 rd, vec3 v0, vec3 v1, vec3 v2) {
     float invDet = 1/det;
     vec3 tvec = ro - v0;
     float u = dot(tvec, pvec) * invDet;
-    if (u < 0 || u > 1) return hit_result;
+    if (u < 0 - EPSILON || u > 1 + EPSILON) return hit_result;
 
     vec3 qvec = cross(tvec, v0v1);
     float v = dot(rd, qvec) * invDet;
-    if (v < 0 || (v + u) > 1) return hit_result;
+    if (v < 0 - EPSILON || (v + u) > 1 + EPSILON) return hit_result;
 
     float dist = dot(v0v2, qvec) * invDet;
     vec3 normal = cross(v0v1, v0v2);
