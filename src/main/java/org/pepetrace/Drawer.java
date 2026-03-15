@@ -781,8 +781,8 @@ public class Drawer {
         ImGui.text(String.format("Build timestamp: %s", Passport.INSTANCE.getBuildTime()));
         ImGui.text(String.format("Java: %s", Passport.INSTANCE.getJavaVersion()));
         ImGui.text(String.format("Git branch: %s", Passport.INSTANCE.getGitBranchHash()));
-        if (ImGui.button("Hello, World!")) {
-            System.out.println("Button clicked!");
+        if (ImGui.button("Set frame to 0")) {
+            frame = 0;
         }
         ImGui.end();
 
