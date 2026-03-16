@@ -1,5 +1,8 @@
 package org.pepetrace.Buffers;
 
+import org.joml.Vector2f;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.BufferUtils;
 
 import java.nio.ByteBuffer;
@@ -15,7 +18,7 @@ public abstract class UBO extends Buffer {
     public UBO(int sizeBytes, int binding) {
         super(GL_UNIFORM_BUFFER, binding);
         this.sizeBytes = sizeBytes;
-        buffer = ByteBuffer.allocateDirect(4).order(ByteOrder.nativeOrder());
+        buffer = ByteBuffer.allocateDirect(sizeBytes).order(ByteOrder.nativeOrder());
 
         bind();
         glBufferData(GL_UNIFORM_BUFFER, sizeBytes, GL_DYNAMIC_DRAW);
@@ -36,22 +39,22 @@ public abstract class UBO extends Buffer {
         buffer.putInt(offsetBytes, value ? 1 : 0);
     }
 
-    protected void putVec2(int offsetBytes, float x, float y) {
-        buffer.putFloat(offsetBytes, x);
-        buffer.putFloat(offsetBytes + 4, y);
+    protected void putVec2(int offsetBytes, Vector2f vec2) {
+        buffer.putFloat(offsetBytes, vec2.x);
+        buffer.putFloat(offsetBytes + 4, vec2.y);
     }
 
-    protected void putVec3(int offsetBytes, float x, float y, float z) {
-        buffer.putFloat(offsetBytes, x);
-        buffer.putFloat(offsetBytes + 4, y);
-        buffer.putFloat(offsetBytes + 8, z);
+    protected void putVec3(int offsetBytes, Vector3f vec3) {
+        buffer.putFloat(offsetBytes, vec3.x);
+        buffer.putFloat(offsetBytes + 4, vec3.y);
+        buffer.putFloat(offsetBytes + 8, vec3.z);
     }
 
-    protected void putVec4(int offsetBytes, float x, float y, float z, float w) {
-        buffer.putFloat(offsetBytes, x);
-        buffer.putFloat(offsetBytes + 4, y);
-        buffer.putFloat(offsetBytes + 8, z);
-        buffer.putFloat(offsetBytes + 12, w);
+    protected void putVec4(int offsetBytes, Vector4f vec4) {
+        buffer.putFloat(offsetBytes, vec4.x);
+        buffer.putFloat(offsetBytes + 4, vec4.y);
+        buffer.putFloat(offsetBytes + 8, vec4.z);
+        buffer.putFloat(offsetBytes + 12, vec4.w);
     }
 
     protected void uploadToGPU() {

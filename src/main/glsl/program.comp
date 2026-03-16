@@ -12,11 +12,15 @@ layout(std430, binding = 1) readonly buffer DataBuffer {
 layout (std140, binding = 2) uniform RenderInts {
     int tick;
 };
-layout(std430, binding = 3) buffer CameraData {
-    vec3 camPos;
+layout(std430, binding = 4) buffer CameraDataOld {
+    vec3 camPos_old;
     float camYaw;
     float camPitch;
     float padding;
+};
+layout (std140, binding = 3) uniform CameraData {
+    vec3 camPos;
+    vec2 camYawPitch;
 } camera;
 
 #include "util/intersections.glsl"
@@ -73,8 +77,8 @@ void main() {
 
     vec3 ray_pos = camera.camPos;
 
-    float yawRad = radians(camera.camYaw);
-    float pitchRad = radians(camera.camPitch);
+    float yawRad = radians(camera.camYawPitch.x);
+    float pitchRad = radians(camera.camYawPitch.y);
 
     vec3 forward = vec3(0.0, 0.0, 1.0);
 

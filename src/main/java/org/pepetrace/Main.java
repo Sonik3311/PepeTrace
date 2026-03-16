@@ -25,12 +25,14 @@ public class Main {
         float[] cameraRot = new float[]{0.0f, 0.0f}; // yaw, pitch
 
         Drawer drawer = new Drawer(window, cameraPos, cameraRot);
+        Camera camera = new Camera();
 
         GPUTimeQuerier timer = new GPUTimeQuerier();
 
         while (!window.shouldClose()) {
             //timer.startTimer();
-            drawer.handleCameraInput();
+            //drawer.handleCameraInput();
+            camera.updateCamera(window);
             drawer.renderFrame();
             //long duration = timer.stopTimer();
             //System.out.println(
