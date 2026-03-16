@@ -13,18 +13,18 @@ public class Camera {
     private boolean cursorLocked = true;
     private boolean wasEscapePressed = false;
 
-    private UBOCamera ubo;
+    private final UBOCamera ubo = new UBOCamera(3);;
 
     public Camera() {
         position = new Vector3f(0.0f, 0.0f, -5.0f);
         yawPitch = new Vector2f(0.0f, 0.0f);
-        ubo = new UBOCamera(3);
+        ubo.updateBuffer(position, yawPitch);
     }
 
     public Camera(Vector3f position, Vector2f yawPitch) {
         this.position = new Vector3f(0.0f, 0.0f, -5.0f);
         this.yawPitch = yawPitch;
-        ubo = new UBOCamera(3);
+        ubo.updateBuffer(position, yawPitch);
     }
 
     public void setActive() {
