@@ -27,10 +27,6 @@ public class Camera {
         ubo.updateBuffer(position, yawPitch);
     }
 
-    public void setActive() {
-        ubo.updateBuffer(this.position, this.yawPitch);
-    }
-
     public void updateCamera(Window inputWindow) {
 
         boolean escapePressed = inputWindow.isKeyPressed(GLFW_KEY_ESCAPE);
