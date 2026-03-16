@@ -100,6 +100,12 @@ public class Drawer {
                 cameraPosition.x += (float)Math.sin(yawRad - Math.PI/2) * moveSpeed;
                 cameraPosition.z += (float)Math.cos(yawRad - Math.PI/2) * moveSpeed;
             }
+            if (window.isKeyPressed(Window.KEY_E)) {
+                cameraPosition.y += moveSpeed;
+            }
+            if (window.isKeyPressed(Window.KEY_Q)) {
+                cameraPosition.y -= moveSpeed;
+            }
         }
 
         updateCameraSSBO();
