@@ -77,6 +77,7 @@ public class Drawer {
         if (escapePressed && !wasEscapePressed) {
             cursorLocked = !cursorLocked;
             window.setCursorMode(cursorLocked ? Window.CURSOR_DISABLED : Window.CURSOR_NORMAL);
+            window.resetMouse();
         }
         wasEscapePressed = escapePressed;
 
@@ -92,12 +93,12 @@ public class Drawer {
                 cameraPosition.z -= (float)Math.cos(yawRad) * moveSpeed;
             }
             if (window.isKeyPressed(Window.KEY_A)) {
-                cameraPosition.x += (float)Math.sin(yawRad - Math.PI/2) * moveSpeed;
-                cameraPosition.z += (float)Math.cos(yawRad - Math.PI/2) * moveSpeed;
-            }
-            if (window.isKeyPressed(Window.KEY_D)) {
                 cameraPosition.x += (float)Math.sin(yawRad + Math.PI/2) * moveSpeed;
                 cameraPosition.z += (float)Math.cos(yawRad + Math.PI/2) * moveSpeed;
+            }
+            if (window.isKeyPressed(Window.KEY_D)) {
+                cameraPosition.x += (float)Math.sin(yawRad - Math.PI/2) * moveSpeed;
+                cameraPosition.z += (float)Math.cos(yawRad - Math.PI/2) * moveSpeed;
             }
         }
 
@@ -151,6 +152,10 @@ public class Drawer {
         imGuiGl3.newFrame();
         imGuiGlfw.newFrame();
         ImGui.newFrame();
+
+        if (cursorLocked) {
+            ImGui.getIO().setMousePos(-Float.MAX_VALUE, -Float.MAX_VALUE);
+        }
 
         // Здесь строится UI
         ImGui.showDemoWindow(); // Встроенное демо окно

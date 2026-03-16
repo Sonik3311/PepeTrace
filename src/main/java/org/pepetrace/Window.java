@@ -93,6 +93,15 @@ public class Window {
         glfwShowWindow(this.id); // Показывает окно на экране
     }
 
+    public void resetMouse() {
+        double[] xpos = new double[1];
+        double[] ypos = new double[1];
+        glfwGetCursorPos(id, xpos, ypos);
+        lastMouseX = xpos[0];
+        lastMouseY = ypos[0];
+        firstMouse = false; // гарантируем, что следующий getMouseDelta не будет сбрасывать
+    }
+
     public float[] getMouseDelta() {
         double[] xpos = new double[1];
         double[] ypos = new double[1];
@@ -105,7 +114,7 @@ public class Window {
             lastMouseY = ypos[0];
             firstMouse = false;
         } else {
-            dx = (float)(xpos[0] - lastMouseX);
+            dx = (float)(lastMouseX - xpos[0]);
             dy = (float)(lastMouseY - ypos[0]); // Инвертируем Y для OpenGL
             lastMouseX = xpos[0];
             lastMouseY = ypos[0];

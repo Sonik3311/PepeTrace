@@ -29,8 +29,8 @@ HitResult rayTriangleIntersect(vec3 ro, vec3 rd, vec3 v0, vec3 v1, vec3 v2) {
     if (v < 0 - EPSILON || (v + u) > 1 + EPSILON) return hit_result;
 
     float dist = dot(v0v2, qvec) * invDet;
-    vec3 normal = cross(v0v1, v0v2);
-
+    vec3 normal = normalize(cross(v0v1, v0v2));
+    //vec3 normal = cross(v0v1, v0v2);
     hit_result.isValid = true;
     hit_result.position = ro + rd * dist;
     hit_result.distance = dist;
