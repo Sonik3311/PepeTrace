@@ -12,6 +12,17 @@ public class Window {
     private long id;
     private int width;
     private int height;
+    private double lastMouseX, lastMouseY;
+    private boolean firstMouse = true;
+
+    public static final int KEY_W = GLFW_KEY_W;
+    public static final int KEY_A = GLFW_KEY_A;
+    public static final int KEY_S = GLFW_KEY_S;
+    public static final int KEY_D = GLFW_KEY_D;
+    public static final int KEY_ESCAPE = GLFW_KEY_ESCAPE;
+
+    public static final int CURSOR_NORMAL = GLFW_CURSOR_NORMAL;
+    public static final int CURSOR_DISABLED = GLFW_CURSOR_DISABLED;
 
     public Window() {
         initGLFW();
@@ -80,6 +91,35 @@ public class Window {
         GL.createCapabilities(); // Даём lwjgl понять что мы хотим использовать данный контекст для отрисовки
         glfwSwapInterval(1); // Vertical Sync
         glfwShowWindow(this.id); // Показывает окно на экране
+    }
+
+    public float[] getMouseDelta() {
+        double[] xpos = new double[1];
+        double[] ypos = new double[1];
+        glfwGetCursorPos(id, xpos, ypos);
+
+        float dx = 0, dy = 0;
+
+        if (firstMouse) {
+            lastMouseX = xpos[0];
+            lastMouseY = ypos[0];
+            firstMouse = false;
+        } else {
+            dx = (float)(xpos[0] - lastMouseX);
+            dy = (float)(lastMouseY - ypos[0]); // Инвертируем Y для OpenGL
+            lastMouseX = xpos[0];
+            lastMouseY = ypos[0];
+        }
+
+        return new float[]{dx, dy};
+    }
+
+    public boolean isKeyPressed(int key) {
+        return glfwGetKey(id, key) == GLFW_PRESS;
+    }
+
+    public void setCursorMode(int mode) {
+        glfwSetInputMode(id, GLFW_CURSOR, mode);
     }
 
     public int getWidth() {

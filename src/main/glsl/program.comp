@@ -12,6 +12,12 @@ layout(std430, binding = 1) readonly buffer DataBuffer {
 layout (std140, binding = 2) uniform RenderInts {
     int tick;
 };
+layout(std430, binding = 3) buffer CameraData {
+    vec3 camPos;
+    float camYaw;
+    float camPitch;
+    float padding;
+} camera;
 
 #include "util/intersections.glsl"
 
@@ -65,8 +71,23 @@ void main() {
     float aspect_ratio = float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
     uv.x *= aspect_ratio;
 
-    vec3 ray_dir = normalize(vec3(uv.xy, 1));
-    vec3 ray_pos = vec3(0,0, -5);
+    vec3 ray_pos = camera.camPos;
+
+    float yawRad = radians(camera.camYaw);
+    float pitchRad = radians(camera.camPitch);
+
+    vec3 forward = vec3(0.0, 0.0, 1.0);
+
+    vec3 ray_dir = normalize(vec3(
+        cos(pitchRad) * sin(yawRad),
+        sin(pitchRad),
+        cos(pitchRad) * cos(yawRad)
+    ));
+
+    vec3 right = normalize(cross(ray_dir, vec3(0.0, 1.0, 0.0)));
+    vec3 up = cross(right, ray_dir);
+
+    ray_dir = normalize(ray_dir + right * uv.x + up * uv.y);
 
     vec3 light_dir = normalize(vec3(0.5, cos(float(tick)/100),sin(float(tick)/100)));
 

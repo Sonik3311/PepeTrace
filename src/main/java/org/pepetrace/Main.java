@@ -2,6 +2,8 @@ package org.pepetrace;
 
 import static org.lwjgl.glfw.GLFW.*;
 
+import org.joml.Vector3f;
+
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
@@ -19,12 +21,16 @@ public class Main {
         Window window = new Window();
         window.setActive();
 
-        Drawer drawer = new Drawer(window);
+        Vector3f cameraPos = new Vector3f(0.0f, 0.0f, -5.0f);
+        float[] cameraRot = new float[]{0.0f, 0.0f}; // yaw, pitch
+
+        Drawer drawer = new Drawer(window, cameraPos, cameraRot);
 
         GPUTimeQuerier timer = new GPUTimeQuerier();
 
         while (!window.shouldClose()) {
             //timer.startTimer();
+            drawer.handleCameraInput();
             drawer.renderFrame();
             //long duration = timer.stopTimer();
             //System.out.println(
