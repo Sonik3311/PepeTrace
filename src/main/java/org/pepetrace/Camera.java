@@ -19,18 +19,21 @@ public class Camera {
         position = new Vector3f(0.0f, 0.0f, -5.0f);
         yawPitch = new Vector2f(0.0f, 0.0f);
         ubo = new UBOCamera(3);
-        ubo.updateBuffer(this.position, this.yawPitch);
     }
 
     public Camera(Vector3f position, Vector2f yawPitch) {
         this.position = new Vector3f(0.0f, 0.0f, -5.0f);
         this.yawPitch = yawPitch;
         ubo = new UBOCamera(3);
+    }
+
+    public void setActive() {
         ubo.updateBuffer(this.position, this.yawPitch);
     }
 
     public void updateCamera(Window inputWindow) {
-        boolean escapePressed = inputWindow.isKeyPressed(Window.KEY_ESCAPE);
+
+        boolean escapePressed = inputWindow.isKeyPressed(GLFW_KEY_ESCAPE);
         if (escapePressed && !wasEscapePressed) {
             cursorLocked = !cursorLocked;
             inputWindow.setCursorMode(cursorLocked ? Window.CURSOR_DISABLED : Window.CURSOR_NORMAL);

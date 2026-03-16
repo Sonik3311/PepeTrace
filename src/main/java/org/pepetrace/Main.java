@@ -21,10 +21,7 @@ public class Main {
         Window window = new Window();
         window.setActive();
 
-        Vector3f cameraPos = new Vector3f(0.0f, 0.0f, -5.0f);
-        float[] cameraRot = new float[]{0.0f, 0.0f}; // yaw, pitch
-
-        Drawer drawer = new Drawer(window, cameraPos, cameraRot);
+        Drawer drawer = new Drawer(window);
         Camera camera = new Camera();
 
         GPUTimeQuerier timer = new GPUTimeQuerier();
