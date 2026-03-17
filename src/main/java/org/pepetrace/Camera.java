@@ -26,8 +26,8 @@ public class Camera {
     }
 
     public Camera(Vector3f position, Vector2f yawPitch) {
-        this.position = new Vector3f(0.0f, 0.0f, -5.0f);
-        this.yawPitch = yawPitch;
+        this.position = new Vector3f(position);
+        this.yawPitch = new Vector2f(yawPitch);
         ubo.updateBuffer(position, yawPitch);
     }
 
@@ -120,15 +120,13 @@ public class Camera {
             orbitRadius -= scroll * 0.5f;
             orbitRadius = Math.max(1.0f, Math.min(50.0f, orbitRadius));
             hasUpdated = true;
-            System.out.println("Колесико: " + scroll + ", радиус: " + orbitRadius);
         }
 
         if (inputWindow.isMouseButtonPressed(Window.MOUSE_BUTTON_LEFT)) {
             float[] mouseDelta = inputWindow.getMouseDelta();
-            System.out.println("ЛКМ зажата, мышь: " + mouseDelta[0] + ", " + mouseDelta[1]);
 
             orbitYaw += mouseDelta[0] * mouseSensitivity;
-            orbitPitch += mouseDelta[1] * mouseSensitivity;
+            orbitPitch -= mouseDelta[1] * mouseSensitivity;
             orbitPitch = Math.max(-89.0f, Math.min(89.0f, orbitPitch));
             if (mouseDelta[0] != 0 || mouseDelta[1] != 0) hasUpdated = true;
         }
