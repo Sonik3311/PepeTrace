@@ -8,6 +8,7 @@ import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import java.io.FileNotFoundException;
 
+import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Shader.ComputeProgram;
@@ -24,6 +25,7 @@ public class Drawer {
     private ComputeProgram pathTracingProgram;
     private Program windowTextureDrawerProgram;
     private int drawVAO;
+    private Camera camera;
 
     private SSBO TEST_SSBO;
     private UBORenderInts ubo;
@@ -40,6 +42,10 @@ public class Drawer {
         this.initGL();
 
         window.setCursorMode(Window.CURSOR_DISABLED);
+    }
+
+    public void setCamera(Camera camera) {
+        this.camera = camera;
     }
 
     private void initImGUI() {
@@ -100,6 +106,13 @@ public class Drawer {
         //ImGui.setNextWindowSize(300, 150, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowPos(0, 0, ImGuiCond.FirstUseEver);
         ImGui.begin("Build info");
+        if (camera != null) {
+            ImGui.text(String.format("Mode: %s", camera.getCameraMode() == 0 ? "Free" : "Orbit"));
+            Vector3f pos = camera.getPosition();
+            Vector2f rot = camera.getYawPitch();
+            ImGui.text(String.format("Pos: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z));
+            ImGui.text(String.format("Yaw: %.2f Pitch: %.2f", rot.x, rot.y));
+        }
         //ImGui.text(String.format("Camera: (%.2f, %.2f, %.2f)", cameraPosition.x, cameraPosition.y, cameraPosition.z));
         //ImGui.text(String.format("Yaw: %.2f Pitch: %.2f", cameraRotation[0], cameraRotation[1]));
         ImGui.text(String.format("Build No. %s", Passport.INSTANCE.getBuildNumber()));

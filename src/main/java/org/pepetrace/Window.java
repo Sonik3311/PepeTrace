@@ -14,9 +14,11 @@ public class Window {
     private int height;
     private double lastMouseX, lastMouseY;
     private boolean firstMouse = true;
+    private double scrollY = 0.0;
 
     public static final int CURSOR_NORMAL = GLFW_CURSOR_NORMAL;
     public static final int CURSOR_DISABLED = GLFW_CURSOR_DISABLED;
+    public static final int MOUSE_BUTTON_LEFT = GLFW_MOUSE_BUTTON_LEFT;
 
     public Window() {
         initGLFW();
@@ -32,9 +34,11 @@ public class Window {
         this.id = glfwCreateWindow(1600, 900, "PepeTrace", NULL, NULL);
         this.width = 1600;
         this.height = 900;
-        if (this.id == NULL) throw new RuntimeException(
-            "Failed to create window"
-        );
+        if (this.id == NULL) throw new RuntimeException("Failed to create window");
+
+        glfwSetScrollCallback(id, (window, xoffset, yoffset) -> {
+            scrollY += yoffset;
+        });
 
         //Вторая попытка
         float[] xscale = {0};
@@ -96,6 +100,12 @@ public class Window {
         firstMouse = false; // гарантируем, что следующий getMouseDelta не будет сбрасывать
     }
 
+    public double getScrollDelta() {
+        double value = scrollY;
+        scrollY = 0;
+        return value;
+    }
+
     public float[] getMouseDelta() {
         double[] xpos = new double[1];
         double[] ypos = new double[1];
@@ -109,7 +119,7 @@ public class Window {
             firstMouse = false;
         } else {
             dx = (float)(lastMouseX - xpos[0]);
-            dy = (float)(lastMouseY - ypos[0]); // Инвертируем Y для OpenGL
+            dy = (float)(lastMouseY - ypos[0]); // Инвертируем для OpenGL
             lastMouseX = xpos[0];
             lastMouseY = ypos[0];
         }
@@ -119,6 +129,10 @@ public class Window {
 
     public boolean isKeyPressed(int key) {
         return glfwGetKey(id, key) == GLFW_PRESS;
+    }
+
+    public boolean isMouseButtonPressed(int button) {
+        return glfwGetMouseButton(id, button) == GLFW_PRESS;
     }
 
     public void setCursorMode(int mode) {

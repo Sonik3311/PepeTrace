@@ -23,6 +23,7 @@ public class Main {
 
         Drawer drawer = new Drawer(window);
         Camera camera = new Camera();
+        drawer.setCamera(camera);
 
         GPUTimeQuerier timer = new GPUTimeQuerier();
 
