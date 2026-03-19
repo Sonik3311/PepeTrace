@@ -34,12 +34,20 @@ float floatConstruct( uint m ) {
 
 
 // Pseudo-random value in half-open range [0:1].
-float random( inout uvec3 v ) {
+float randomOld( inout uvec3 v ) {
     uint hash1 = hash(v);
     uint hash2 = hash(hash1);
     uint hash3 = hash(hash1 + hash2);
     v = uvec3(hash1, hash2, hash3);
     return floatConstruct(hash(floatBitsToUint(v)));
+}
+
+float random(inout uvec3 v) {
+    if (false){//(float(gl_GlobalInvocationID.x) / (gl_NumWorkGroups.x * KERNEL_SIZE)) > 0.5) {
+        return randomOld(v);
+    } else {
+        return randomBlue(v);
+    }
 }
 
 vec3 randomUnitVector(uvec3 x) {
