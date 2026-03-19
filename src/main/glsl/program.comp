@@ -65,7 +65,7 @@ vec3 getSkyColor(vec3 direction) {
 }
 
 void main() {
-    vec3 rngState = vec3(gl_LocalInvocationID.xy, tick);
+    uvec3 rngState = uvec3(gl_LocalInvocationID.xy, tick);
     vec4 value = vec4(0.0, 0.0, 0.0, 1.0);
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
 
@@ -95,21 +95,42 @@ void main() {
     ray_dir = normalize(ray_dir + right * uv.x + up * uv.y);
 
     vec3 color = vec3(0);
-    vec3 light_ray_color = vec3(1);
+    vec3 throughput = vec3(1); // множитель энергии луча
+    float emissive = 0;
 
-    for (int reflections = 0; reflections<3; reflections++) {
+    for (int reflections = 0; reflections < 3; reflections++) {
         HitResult hit = checkSceneIntersection(ray_pos, ray_dir);
+
         if (!hit.isValid) {
-            color += light_ray_color * getSkyColor(ray_dir);
+            // Луч ушел в небо - добавляем фоновое освещение
+            color += throughput * getSkyColor(ray_dir);
             break;
         }
 
-        vec3 albedo = vec3(0.5);
+        // Проверяем, не источник ли это света
+        if (emissive > 0) {
+            color += throughput * emissive;
+            break;
+        }
 
-        color += albedo * light_ray_color;
-        light_ray_color *= albedo;
+        vec3 albedo = vec3(0.5); // цвет поверхности
+
+        // Накопление цвета: throughput хранит, сколько света осталось
+        // НЕ добавляем albedo к color, а умножаем throughput
+
+        // Рассеянное отражение (diffuse)
         ray_pos = hit.position + hit.normal * EPSILON;
-        ray_dir = reflect(ray_dir, hit.normal);
+        ray_dir = randomHemisphereUnitVector(rngState, hit.normal);
+
+        // Умножаем throughput на albedo (поглощение света поверхностью)
+        throughput *= albedo;
+
+        // Russian roulette - преждевременное завершение луча
+        float p = max(throughput.r, max(throughput.g, throughput.b));
+        if (p < 0.1f) {
+            if (random(rngState) < p) break;
+            throughput /= p; // масштабируем, чтобы сохранить ожидание
+        }
     }
 
 

@@ -33,7 +33,19 @@ float floatConstruct( uint m ) {
 
 
 // Pseudo-random value in half-open range [0:1].
-float random( float x ) { return floatConstruct(hash(floatBitsToUint(x))); }
-float random( vec2  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
-float random( vec3  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
-float random( vec4  v ) { return floatConstruct(hash(floatBitsToUint(v))); }
+float random(inout  uvec3  v ) {
+    uint hash1 = hash(v);
+    uint hash2 = hash(hash1);
+    uint hash3 = hash(hash1 + hash2);
+    v = uvec3(hash1, hash2, hash3);
+    return floatConstruct(hash(floatBitsToUint(v)));
+}
+
+vec3 randomUnitVector(uvec3 x) {
+    return normalize(vec3(random(x) - 0.5,random(x) - 0.5, random(x) - 0.5));
+}
+
+vec3 randomHemisphereUnitVector(uvec3 x, vec3 N) {
+    vec3 vector = randomUnitVector(x);
+    return dot(vector, N) >= 0 ? vector : -vector;
+}
