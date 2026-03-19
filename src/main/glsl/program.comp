@@ -65,7 +65,7 @@ vec3 getSkyColor(vec3 direction) {
 }
 
 void main() {
-    uvec3 rngState = uvec3(gl_LocalInvocationID.xy, tick);
+    uvec3 rngState = uvec3(gl_GlobalInvocationID.xy, tick);
     vec4 value = vec4(0.0, 0.0, 0.0, 1.0);
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
 
@@ -77,63 +77,74 @@ void main() {
     float aspect_ratio = float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
     uv.x *= aspect_ratio;
 
-    vec3 ray_pos = camera.camPos;
+    vec3 origray_pos = camera.camPos;
 
     float yawRad = radians(camera.camYawPitch.x);
     float pitchRad = radians(camera.camYawPitch.y);
 
     vec3 forward = vec3(0.0, 0.0, 1.0);
 
-    vec3 ray_dir = normalize(vec3(
+    vec3 origray_dir = normalize(vec3(
         cos(pitchRad) * sin(yawRad),
         sin(pitchRad),
         cos(pitchRad) * cos(yawRad)
     ));
 
-    vec3 right = normalize(cross(ray_dir, vec3(0.0, 1.0, 0.0)));
-    vec3 up = cross(right, ray_dir);
-    ray_dir = normalize(ray_dir + right * uv.x + up * uv.y);
+    vec3 right = normalize(cross(origray_dir, vec3(0.0, 1.0, 0.0)));
+    vec3 up = cross(right, origray_dir);
+    origray_dir = normalize(origray_dir + right * uv.x + up * uv.y);
 
-    vec3 color = vec3(0);
-    vec3 throughput = vec3(1); // множитель энергии луча
-    float emissive = 0;
+    vec3 final_color = vec3(0);
+    int total_samples = 15;
 
-    for (int reflections = 0; reflections < 3; reflections++) {
-        HitResult hit = checkSceneIntersection(ray_pos, ray_dir);
+    for (int samples=0; samples < total_samples; samples++) {
+        vec3 ray_pos = origray_pos;
+        vec3 ray_dir = origray_dir;
+        vec3 color = vec3(0);
+        vec3 throughput = vec3(1); // множитель энергии луча
+        float emissive = 0;
 
-        if (!hit.isValid) {
-            // Луч ушел в небо - добавляем фоновое освещение
-            color += throughput * getSkyColor(ray_dir);
-            break;
+        for (int reflections = 0; reflections < 3; reflections++) {
+            HitResult hit = checkSceneIntersection(ray_pos, ray_dir);
+
+            if (!hit.isValid) {
+                // Луч ушел в небо - добавляем фоновое освещение
+                color += throughput * getSkyColor(ray_dir);
+                break;
+            }
+
+            // Проверяем, не источник ли это света
+            if (emissive > 0) {
+                color += throughput * emissive;
+                break;
+            }
+
+            vec3 albedo = vec3(1); // цвет поверхности
+
+            // Накопление цвета: throughput хранит, сколько света осталось
+            // НЕ добавляем albedo к color, а умножаем throughput
+
+            // Рассеянное отражение (diffuse)
+            ray_pos = hit.position + hit.normal * EPSILON;
+            ray_dir = RandomHemisphereUnitVector(rngState, hit.normal);
+
+            // Умножаем throughput на albedo (поглощение света поверхностью)
+            throughput *= albedo;
+
+            // Russian roulette - преждевременное завершение луча
+            float p = max(throughput.r, max(throughput.g, throughput.b));
+            if (p < 0.1f) {
+                if (random(rngState) < p) break;
+                throughput /= p; // масштабируем, чтобы сохранить ожидание
+            }
         }
-
-        // Проверяем, не источник ли это света
-        if (emissive > 0) {
-            color += throughput * emissive;
-            break;
-        }
-
-        vec3 albedo = vec3(0.5); // цвет поверхности
-
-        // Накопление цвета: throughput хранит, сколько света осталось
-        // НЕ добавляем albedo к color, а умножаем throughput
-
-        // Рассеянное отражение (diffuse)
-        ray_pos = hit.position + hit.normal * EPSILON;
-        ray_dir = randomHemisphereUnitVector(rngState, hit.normal);
-
-        // Умножаем throughput на albedo (поглощение света поверхностью)
-        throughput *= albedo;
-
-        // Russian roulette - преждевременное завершение луча
-        float p = max(throughput.r, max(throughput.g, throughput.b));
-        if (p < 0.1f) {
-            if (random(rngState) < p) break;
-            throughput /= p; // масштабируем, чтобы сохранить ожидание
-        }
+        final_color += color;
+        //rngState *= uvec3(2);
     }
 
+    final_color /= total_samples;
 
-    value.xyz = color;//vec3(random(rngState));
+
+    value.xyz = final_color;//vec3(random(rngState));
     imageStore(imgOutput, texelCoord, value);
 }

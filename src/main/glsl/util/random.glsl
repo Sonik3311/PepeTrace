@@ -1,3 +1,4 @@
+const float PI = 3.14159265;
 // A single iteration of Bob Jenkins' One-At-A-Time hashing algorithm.
 uint hash( uint x ) {
     x += ( x << 10u );
@@ -33,7 +34,7 @@ float floatConstruct( uint m ) {
 
 
 // Pseudo-random value in half-open range [0:1].
-float random(inout  uvec3  v ) {
+float random( inout uvec3 v ) {
     uint hash1 = hash(v);
     uint hash2 = hash(hash1);
     uint hash3 = hash(hash1 + hash2);
@@ -42,10 +43,24 @@ float random(inout  uvec3  v ) {
 }
 
 vec3 randomUnitVector(uvec3 x) {
-    return normalize(vec3(random(x) - 0.5,random(x) - 0.5, random(x) - 0.5));
+    return normalize(vec3(random(x),random(x), random(x)));
 }
 
 vec3 randomHemisphereUnitVector(uvec3 x, vec3 N) {
     vec3 vector = randomUnitVector(x);
     return dot(vector, N) >= 0 ? vector : -vector;
+}
+
+vec3 RandomUnitVector(inout uvec3 state)
+{
+    float z = random(state) * 2.0f - 1.0f;
+    float a = random(state) * PI*2;
+    float r = sqrt(1.0f - z * z);
+    float x = r * cos(a);
+    float y = r * sin(a);
+    return vec3(x, y, z);
+}
+vec3 RandomHemisphereUnitVector(inout uvec3 state, in vec3 n){
+    vec3 v = RandomUnitVector(state);
+    return normalize(dot(v,n) * v);
 }
