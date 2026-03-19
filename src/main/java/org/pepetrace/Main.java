@@ -30,7 +30,9 @@ public class Main {
         while (!window.shouldClose()) {
             timer.startTimer();
             //drawer.handleCameraInput();
-            camera.updateCamera(window);
+            if (camera.updateCamera(window)) {
+                drawer.resetRender();
+            }
             drawer.renderFrame();
             long duration = timer.stopTimer();
             System.out.println(

@@ -31,7 +31,7 @@ public class Camera {
         ubo.updateBuffer(position, yawPitch);
     }
 
-    public void updateCamera(Window inputWindow) {
+    public boolean updateCamera(Window inputWindow) {
 
         boolean escapePressed = inputWindow.isKeyPressed(GLFW_KEY_ESCAPE);
         if (escapePressed && !wasEscapePressed) {
@@ -52,6 +52,8 @@ public class Camera {
             default -> throw new IllegalStateException("Unexpected value: " + cameraMode);
         }
         if (shouldUpdateBuffer) ubo.updateBuffer(position, yawPitch);
+
+        return shouldUpdateBuffer;
     }
 
     private boolean freeCameraTransform(Window inputWindow) {
