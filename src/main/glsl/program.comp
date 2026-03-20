@@ -64,7 +64,7 @@ vec3 getSkyColor(vec3 direction) {
     vec3 light_dir = normalize(vec3(0.5, cos(float(50)/100),sin(float(50)/100)));
     vec3 lower_sky = vec3(0.01, 0.1, 0.2);
     vec3 upper_sky = vec3(0.65, 0.7, 0.8);
-    return dot(direction, light_dir) < 0.9 ? mix(lower_sky, upper_sky,dot(direction, vec3(0,1,0))) : vec3(5);
+    return dot(direction, light_dir) < 0.95 ? mix(lower_sky, upper_sky,dot(direction, vec3(0,1,0))) : vec3(5);
 }
 
 void main() {
@@ -98,7 +98,7 @@ void main() {
     origray_dir = normalize(origray_dir + right * uv.x + up * uv.y);
 
     vec3 final_color = vec3(0);
-    int total_samples = 16;
+    int total_samples = 128;
 
     for (int samples=0; samples < total_samples; samples++) {
         vec3 ray_pos = origray_pos;
@@ -107,7 +107,7 @@ void main() {
         vec3 throughput = vec3(1); // множитель энергии луча
         float emissive = 0;
 
-        for (int reflections = 0; reflections < 3; reflections++) {
+        for (int reflections = 0; reflections < 2; reflections++) {
             HitResult hit = checkSceneIntersection(ray_pos, ray_dir);
 
             if (!hit.isValid) {
@@ -128,7 +128,7 @@ void main() {
             // НЕ добавляем albedo к color, а умножаем throughput
 
             // Рассеянное отражение (diffuse)
-            ray_pos = hit.position + hit.normal * EPSILON;
+            ray_pos = hit.position + hit.normal * EPSILON * 100;
             ray_dir = RandomHemisphereUnitVector(rngState, hit.normal);
 
             // Умножаем throughput на albedo (поглощение света поверхностью)
