@@ -21,6 +21,7 @@ layout (std140, binding = 3) uniform CameraData {
 #include "util/intersections.glsl"
 #include "util/sobolBlueNoise.glsl"
 #include "util/random.glsl"
+#include "util/gradient.glsl"
 
 HitResult checkSceneIntersection(vec3 ro, vec3 rd) {
     float min_dist = INFINITY;
@@ -153,7 +154,7 @@ void main() {
         final_color = prev_frame_color * (1.0 - alpha) + final_color * alpha;
     }
 
-
-    value.xyz = final_color;//vec3(random(rngState));
+    uint total_pixels = gl_NumWorkGroups.x*gl_NumWorkGroups.y * KERNEL_SIZE*KERNEL_SIZE;
+    value.xyz = vec3(hotnessMap(float(gl_GlobalInvocationID.x) / (gl_NumWorkGroups.x*KERNEL_SIZE)));//final_color;//vec3(random(rngState));
     imageStore(imgOutput, texelCoord, value);
 }
