@@ -45,6 +45,14 @@ val lwjglNatives: String by extra {
             }
         }
         OperatingSystem.WINDOWS -> "natives-windows"
+        OperatingSystem.MAC_OS -> {
+            val osArch = System.getProperty("os.arch")
+            when {
+                osArch == "aarch64" || osArch == "arm64" -> "natives-macos-arm64"
+                osArch == "x86_64" -> "natives-macos"           // Intel Mac
+                else -> error("Unsupported macOS architecture: $osArch")
+            }
+        }
         else -> error("Unsupported operating system")
     }
 }

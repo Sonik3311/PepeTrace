@@ -59,6 +59,26 @@ HitResult checkSceneIntersection(vec3 ro, vec3 rd) {
     }
     return min_hit;
 }
+float myrefract(inout vec3 dir, vec3 n, float N) // return fres (N supposed to be >1)
+{
+    float dn=dot(dir,n);
+    float fres=1.-abs(dot(dir,n));
+    fres*=fres*fres;
+    fres=.1+.9*fres;
+    if (dn>0.) { N=1./N; }
+    vec3 ds=dir-dn*n;
+    if(length(ds)*(1.-1./N)>1.) {  // total reflection
+                                   dir=reflect(dir,n); return 1.;
+    }
+    dir-=ds*(1.-1./N);
+    if (dn>0.) {
+        fres=1.-abs(dot(dir,n));
+        fres*=fres*fres;
+        fres=.2+.8*fres;
+    }
+    dir=normalize(dir);
+    return fres;
+}
 
 vec3 getSkyColor(vec3 direction) {
     vec3 light_dir = normalize(vec3(0.5, cos(float(50)/100),sin(float(50)/100)));
@@ -128,8 +148,17 @@ void main() {
             // НЕ добавляем albedo к color, а умножаем throughput
 
             // Рассеянное отражение (diffuse)
-            ray_pos = hit.position + hit.normal * EPSILON * 100;
-            ray_dir = normalize(mix(reflect(ray_dir, hit.normal), RandomHemisphereUnitVector(rngState, hit.normal),0.1));
+
+            //ray_dir = normalize(mix(reflect(ray_dir, hit.normal), RandomHemisphereUnitVector(rngState, hit.normal),1));
+            vec3 refract_dir = ray_dir;
+            float fres = myrefract(refract_dir,hit.normal,1.333);
+            if (random(rngState) > fres) {
+                ray_dir = refract_dir;
+                ray_pos = hit.position + ray_dir * EPSILON * 100;
+            } else {
+                ray_pos = hit.position + hit.normal * EPSILON * 100;
+                ray_dir = normalize(mix(reflect(ray_dir, hit.normal), RandomHemisphereUnitVector(rngState, hit.normal),0));
+            }
 
             // Умножаем throughput на albedo (поглощение света поверхностью)
             throughput *= albedo;
