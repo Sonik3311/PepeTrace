@@ -19,6 +19,12 @@ repositories {
     mavenCentral()
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(26)
+    }
+}
+
 // Версии библиотек
 val lwjglVersion by extra("3.4.1")
 val imguiVersion by extra("1.90.0")
