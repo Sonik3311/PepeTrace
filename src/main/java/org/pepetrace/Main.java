@@ -29,7 +29,6 @@ public class Main {
 
         while (!window.shouldClose()) {
             timer.startTimer();
-            //drawer.handleCameraInput();
             if (camera.updateCamera(window)) {
                 drawer.resetRender();
             }
