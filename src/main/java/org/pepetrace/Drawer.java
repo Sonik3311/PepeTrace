@@ -92,7 +92,7 @@ public class Drawer {
         // Start a new ImGui frame
         renderImGUI();
 
-        frame++;
+        //frame++;
     }
 
     private void renderImGUI() {
