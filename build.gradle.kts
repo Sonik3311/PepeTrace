@@ -19,6 +19,12 @@ repositories {
     mavenCentral()
 }
 
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(26)
+    }
+}
+
 // Версии библиотек
 val lwjglVersion by extra("3.4.1")
 val imguiVersion by extra("1.90.0")
@@ -39,6 +45,14 @@ val lwjglNatives: String by extra {
             }
         }
         OperatingSystem.WINDOWS -> "natives-windows"
+        OperatingSystem.MAC_OS -> {
+            val osArch = System.getProperty("os.arch")
+            when {
+                osArch == "aarch64" || osArch == "arm64" -> "natives-macos-arm64"
+                osArch == "x86_64" -> "natives-macos"           // Intel Mac
+                else -> error("Unsupported macOS architecture: $osArch")
+            }
+        }
         else -> error("Unsupported operating system")
     }
 }

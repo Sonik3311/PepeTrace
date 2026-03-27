@@ -17,8 +17,9 @@ public class Texture {
         //TODO: NULL здесь нужно заменить на картинку,
         // полученную через org.lwjgl.stb.STBImage.stbi_load
         // Тогда можно будет загружать картинки на видеокарту
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0,pixel_format,
-                pixel_datatype, NULL);
+        //glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0,pixel_format,
+        //        pixel_datatype, NULL);
+        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA32F, width, height);
 
         glBindImageTexture(0, id, 0, false, 0, GL_READ_WRITE, bind_dataformat);
     }

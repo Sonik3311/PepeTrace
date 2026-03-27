@@ -39,9 +39,8 @@ public class Camera {
         ubo.updateBuffer(position, yawPitch);
     }
 
-    // Called every frame from Main
-    public void updateCamera(Window inputWindow) {
-        // Mode switching with Escape
+    public boolean updateCamera(Window inputWindow) {
+
         boolean escapePressed = inputWindow.isKeyPressed(GLFW_KEY_ESCAPE);
         if (escapePressed && !wasEscapePressed) {
             cameraMode = (cameraMode == 0) ? 1 : 0;
@@ -68,6 +67,9 @@ public class Camera {
         if (shouldUpdateBuffer) {
             ubo.updateBuffer(position, yawPitch);
         }
+        if (shouldUpdateBuffer) ubo.updateBuffer(position, yawPitch);
+
+        return shouldUpdateBuffer;
     }
 
     // ---------- Free flight mode ----------

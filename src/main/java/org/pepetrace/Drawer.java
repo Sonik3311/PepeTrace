@@ -48,6 +48,10 @@ public class Drawer {
         this.camera = camera;
     }
 
+    public void resetRender() {
+        frame = 0;
+    }
+
     private void initImGUI() {
         imGuiGlfw = new ImGuiImplGlfw();
         imGuiGl3 = new ImGuiImplGl3();
@@ -803,7 +807,16 @@ public class Drawer {
                 -0.000000f,
                 0.500000f,
                 0.866025f,
-                -0.000000f
+                -0.000000f,
+                // Пол
+                5f, -1f, 5f,
+                -5f, -1f, 5f,
+                5f, -1f, -5f,
+                -5, -1, 5,
+                5, -1, -5,
+                -5, -1, -5
+
+
         };
 
 

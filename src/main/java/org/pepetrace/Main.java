@@ -28,14 +28,15 @@ public class Main {
         GPUTimeQuerier timer = new GPUTimeQuerier();
 
         while (!window.shouldClose()) {
-            //timer.startTimer();
-            //drawer.handleCameraInput();
-            camera.updateCamera(window);
+            timer.startTimer();
+            if (camera.updateCamera(window)) {
+                drawer.resetRender();
+            }
             drawer.renderFrame();
-            //long duration = timer.stopTimer();
-            //System.out.println(
-            //    "Рендер занял " + (double) (duration) / 1000000 + " мс"
-            //);
+            long duration = timer.stopTimer();
+            System.out.println(
+                "Рендер занял " + (double) (duration) / 1000000 + " мс"
+            );
 
             glfwSwapBuffers(window.getId());
 
