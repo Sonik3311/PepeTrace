@@ -118,7 +118,7 @@ public class Window {
             lastMouseY = ypos[0];
             firstMouse = false;
         } else {
-            dx = (float)(lastMouseX - xpos[0]);
+            dx = (float)(lastMouseX - xpos[0]); // Инвертируем для OpenGL
             dy = (float)(lastMouseY - ypos[0]); // Инвертируем для OpenGL
             lastMouseX = xpos[0];
             lastMouseY = ypos[0];
