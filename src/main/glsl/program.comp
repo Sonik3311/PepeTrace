@@ -153,11 +153,11 @@ void main() {
             vec3 refract_dir = ray_dir;
             float fres = myrefract(refract_dir,hit.normal,1.333);
             if (random(rngState) > fres) {
-                ray_dir = refract_dir;
+                ray_dir = normalize(mix(refract_dir, RandomHemisphereUnitVector(rngState, refract_dir), 0.5));
                 ray_pos = hit.position + ray_dir * EPSILON * 100;
             } else {
                 ray_pos = hit.position + hit.normal * EPSILON * 100;
-                ray_dir = normalize(mix(reflect(ray_dir, hit.normal), RandomHemisphereUnitVector(rngState, hit.normal),0));
+                ray_dir = normalize(mix(reflect(ray_dir, hit.normal), RandomHemisphereUnitVector(rngState, hit.normal),0.5));
             }
 
             // Умножаем throughput на albedo (поглощение света поверхностью)
