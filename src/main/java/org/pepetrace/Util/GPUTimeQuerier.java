@@ -5,45 +5,64 @@ import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL33.*;
 import static org.lwjgl.opengl.GL33.glGetQueryObjectui64v;
 
+/*
+ * Класс для измерения времени выполнения на ГП.
+ */
 public class GPUTimeQuerier {
-    final private int[] queries = {0, 0};
+
+    private final int[] queries = { 0, 0 };
     private boolean isTicking = false;
 
     public GPUTimeQuerier() {
         glGenQueries(queries);
     }
 
+    /*
+     * Запускает таймер. Таймер не может быть запущен, если он уже запущен.
+     */
     public void startTimer() {
         if (isTicking) {
-            System.err.println("Received start command without finishing previous, ignoring");
+            System.err.println(
+                "Received start command without finishing previous, ignoring"
+            );
             return;
         }
         isTicking = true;
         glQueryCounter(queries[0], GL_TIMESTAMP);
     }
 
+    /*
+     * Останавливает таймер и возвращает время выполнения в наносекундах.
+     *
+     * @return время выполнения в наносекундах, или -1, если таймер не был запущен
+     */
     public long stopTimer() {
         if (!isTicking) {
-            System.err.println("Received stop command without starting, ignoring");
+            System.err.println(
+                "Received stop command without starting, ignoring"
+            );
             return -1;
         }
 
         glQueryCounter(queries[1], GL_TIMESTAMP);
 
         // GPU закончила измерять время?
-        int[] isStopped = {0};
-        while(isStopped[0] == GL_FALSE) {
-            glGetQueryObjectiv(queries[1], GL_QUERY_RESULT_AVAILABLE, isStopped);
+        int[] isStopped = { 0 };
+        while (isStopped[0] == GL_FALSE) {
+            glGetQueryObjectiv(
+                queries[1],
+                GL_QUERY_RESULT_AVAILABLE,
+                isStopped
+            );
         }
 
         isTicking = false;
 
-        long[] startTime = {0};
-        long[] endTime = {0};
+        long[] startTime = { 0 };
+        long[] endTime = { 0 };
         glGetQueryObjectui64v(queries[0], GL_QUERY_RESULT, startTime);
         glGetQueryObjectui64v(queries[1], GL_QUERY_RESULT, endTime);
 
         return endTime[0] - startTime[0];
     }
-
 }

@@ -3,10 +3,29 @@ package org.pepetrace.Buffers;
 import static org.lwjgl.opengl.GL46.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
+/**
+ * Класс для создания и управления Текстурами OpenGL.
+ */
 public class Texture {
+
     public int id;
 
-    public Texture(int width, int height, int pixel_format, int pixel_datatype, int bind_dataformat) {
+    /**
+     * Конструктор для создания текстуры.
+     *
+     * @param width        ширина текстуры
+     * @param height       высота текстуры
+     * @param pixel_format формат пикселя (GL_RGB, GL_RGBA, GL_DEPTH_COMPONENT, GL_STENCIL_INDEX)
+     * @param pixel_datatype тип данных пикселя (GL_UNSIGNED_BYTE, GL_FLOAT, GL_HALF_FLOAT, ...)
+     * @param bind_dataformat формат данных для привязки (GL_RGB, GL_RGBA)
+     */
+    public Texture(
+        int width,
+        int height,
+        int pixel_format,
+        int pixel_datatype,
+        int bind_dataformat
+    ) {
         id = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, id);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);

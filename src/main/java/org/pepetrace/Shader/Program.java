@@ -4,12 +4,21 @@ import static org.lwjgl.opengl.GL46.*;
 
 import java.io.FileNotFoundException;
 
+/**
+ * Класс для создания и управления программой-шейдером.
+ */
 public class Program {
 
     public int id;
 
     // TODO: Использовать вместо типа String для filepath что-то иное?
     //  Вдруг при разных типах упаковки (.jar, .class, ...) пути поломаются?
+    /**
+     * Создаёт программу OpenGL из файлов-шейдеров <filepath>.vert и <filepath>.frag.
+     *
+     * @param filepath путь к шейдеру. Обязан НЕ иметь расширение файла (например, ".vert" или ".frag")
+     * Пример: "shaders/myShader", при этом файлы-шейдеры должны быть "shaders/myShader.vert" и "shaders/myShader.frag"
+     */
     public Program(String filepath) throws FileNotFoundException {
         id = glCreateProgram();
 
@@ -49,10 +58,19 @@ public class Program {
         glDeleteShader(fragment);
     }
 
-    // Затычка
+    /**
+     * Если ты это используешь, то ты идёшь по неправильному пути. Наверное.
+     * Пустая затычка чтобы линтер не ругался.
+     */
     public Program() {}
 
-    public String getShaderTypeString(int shaderId) {
+    /**
+     * Возвращает строку, описывающую тип шейдера по его ID.
+     *
+     * @param shaderId ID шейдера
+     * @return строка, описывающая тип шейдера
+     */
+    public static String getShaderTypeString(int shaderId) {
         // 1. Получаем тип шейдера (как int)
         int type = glGetShaderi(shaderId, GL_SHADER_TYPE);
 
@@ -66,6 +84,11 @@ public class Program {
         };
     }
 
+    /**
+     * Проверяет статус компиляции шейдера и выводит сообщение об ошибке, если компиляция не удалась.
+     *
+     * @param shader ID шейдера
+     */
     protected void checkCompilationStatus(int shader) {
         int success = glGetShaderi(shader, GL_COMPILE_STATUS);
 
@@ -82,6 +105,12 @@ public class Program {
         }
     }
 
+    /**
+     * Проверяет статус линковки программы и выводит сообщение об ошибке, если линковка не удалась.
+     * Линковка - процесс после компиляции шейдеров, связывающих их в единую программу, готовую к запуске на ГП.
+     *
+     * @param program ID программы
+     */
     protected void checkLinkStatus(int program) {
         int success = glGetProgrami(program, GL_LINK_STATUS);
 
@@ -96,18 +125,39 @@ public class Program {
         }
     }
 
+    /**
+     * Говорит OpenGL использовать данную программу для рендеринга.
+     */
     public void use() {
         glUseProgram(id);
     }
 
+    /**
+     * Устанавливает целочисленное значение для униформной переменной (uniform).
+     *
+     * @param name  Имя униформной переменной. Должно совпадать с тем, что прописано в шейдере.
+     * @param value Значение
+     */
     public void setInt(final String name, int value) {
         glUniform1i(glGetUniformLocation(id, name), value);
     }
 
+    /**
+     * Устанавливает булево значение для униформной переменной (uniform).
+     *
+     * @param name  Имя униформной переменной. Должно совпадать с тем, что прописано в шейдере.
+     * @param value Значение
+     */
     public void setBool(final String name, boolean value) {
         glUniform1i(glGetUniformLocation(id, name), value ? 1 : 0);
     }
 
+    /**
+     * Устанавливает значение типа float для униформной переменной (uniform).
+     *
+     * @param name  Имя униформной переменной. Должно совпадать с тем, что прописано в шейдере.
+     * @param value Значение
+     */
     public void setFloat(final String name, float value) {
         glUniform1f(glGetUniformLocation(id, name), value);
     }
