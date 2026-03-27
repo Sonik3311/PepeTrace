@@ -2,9 +2,7 @@ package org.pepetrace.Shader;
 
 import static org.lwjgl.opengl.GL46.*;
 
-import java.io.File;
 import java.io.FileNotFoundException;
-import java.util.Scanner;
 
 public class Program {
 
@@ -15,11 +13,13 @@ public class Program {
     public Program(String filepath) throws FileNotFoundException {
         id = glCreateProgram();
 
-        CharSequence frag_source = SourceReader.readFile(
+        ShaderSourceReader sourceReader = new ShaderSourceReader();
+
+        CharSequence frag_source = sourceReader.readFile(
             filepath + ".frag",
             false
         );
-        CharSequence vert_source = SourceReader.readFile(
+        CharSequence vert_source = sourceReader.readFile(
             filepath + ".vert",
             false
         );
@@ -110,47 +110,5 @@ public class Program {
 
     public void setFloat(final String name, float value) {
         glUniform1f(glGetUniformLocation(id, name), value);
-    }
-}
-
-// Читает шейдерные файлы и рекурсивно подгружает импорты (#include).
-class SourceReader {
-
-    public static CharSequence readFile(
-        String filepath,
-        boolean readingIncludeFile
-    ) throws FileNotFoundException {
-        CharSequence chars = "";
-        File file = new File(filepath);
-        Scanner scanner = new Scanner(file);
-
-        while (scanner.hasNextLine()) {
-            String line = scanner.nextLine();
-            if (readingIncludeFile && !isIncludable(line)) {
-                continue;
-            }
-
-            if (line.startsWith("#include")) {
-                String include_filename = line.substring(
-                    line.indexOf('"') + 1,
-                    line.indexOf('"', line.indexOf('"') + 1)
-                );
-                String include_path =
-                    filepath.substring(0, filepath.lastIndexOf('/') + 1) +
-                    include_filename;
-                chars = chars + "\n" + readFile(include_path, true);
-            } else {
-                chars = chars + "\n" + line;
-            }
-        }
-        scanner.close();
-        return chars;
-    }
-
-    private static boolean isIncludable(String line) {
-        // NOT Includable:
-        // #version
-        // layout
-        return !(line.startsWith("#version") || line.startsWith("layout"));
     }
 }

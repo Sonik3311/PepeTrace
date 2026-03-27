@@ -1,3 +1,5 @@
+#include "../constants.glsl"
+
 struct HitResult {
     bool isValid;
     vec3 position;

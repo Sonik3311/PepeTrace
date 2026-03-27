@@ -11,7 +11,9 @@ public class ComputeProgram extends Program {
     //  Вдруг при разных типах упаковки (.jar, .class, ...) пути поломаются?
 
     public ComputeProgram(String filepath) throws FileNotFoundException {
-        CharSequence shader_source = SourceReader.readFile(
+        ShaderSourceReader sourceReader = new ShaderSourceReader();
+
+        CharSequence shader_source = sourceReader.readFile(
             filepath + ".comp",
             false
         );

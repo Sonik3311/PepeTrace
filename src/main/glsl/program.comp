@@ -1,27 +1,23 @@
 #version 460 core
 
-const float EPSILON = 0.000001;
-const float INFINITY = 1.0f / 0.0f;
-const int KERNEL_SIZE = 16;
+#include "util/intersections.glsl"
+#include "util/random.glsl"
+#include "util/gradient.glsl"
+#include "constants.glsl"
 
-layout (local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1) in; // Используем 8x8x1=64 так как оптимальный размер рабочей группы на AMD = 64*n, на Nvidia = 32*n
+layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1) in; // Используем 8x8x1=64 так как оптимальный размер рабочей группы на AMD = 64*n, на Nvidia = 32*n
 layout(rgba32f, binding = 0) uniform image2D imgOutput;
 layout(std430, binding = 1) readonly buffer DataBuffer {
     float vertices[];
 };
-layout (std140, binding = 2) uniform RenderInts {
+layout(std140, binding = 2) uniform RenderInts {
     int tick;
 };
 
-layout (std140, binding = 3) uniform CameraData {
+layout(std140, binding = 3) uniform CameraData {
     vec3 camPos;
     vec2 camYawPitch;
 } camera;
-
-#include "util/intersections.glsl"
-#include "util/sobolBlueNoise.glsl"
-#include "util/random.glsl"
-#include "util/gradient.glsl"
 
 HitResult checkSceneIntersection(vec3 ro, vec3 rd) {
     float min_dist = INFINITY;
@@ -30,24 +26,24 @@ HitResult checkSceneIntersection(vec3 ro, vec3 rd) {
     min_hit.position = vec3(0);
     min_hit.normal = vec3(0);
     min_hit.distance = -1.0;
-    for (int i=0; i<vertices.length() / 9; i++) {
+    for (int i = 0; i < vertices.length() / 9; i++) {
         int index = i * 9;
         vec3 A = vec3(
-            vertices[0 + index],
-            vertices[1 + index],
-            vertices[2 + index]
-        );
+                vertices[0 + index],
+                vertices[1 + index],
+                vertices[2 + index]
+            );
         vec3 B = vec3(
-            vertices[3 + index],
-            vertices[4 + index],
-            vertices[5 + index]
-        );
+                vertices[3 + index],
+                vertices[4 + index],
+                vertices[5 + index]
+            );
 
         vec3 C = vec3(
-            vertices[6 + index],
-            vertices[7 + index],
-            vertices[8 + index]
-        );
+                vertices[6 + index],
+                vertices[7 + index],
+                vertices[8 + index]
+            );
         HitResult hit = rayTriangleIntersect(ro, rd, A, B, C);
 
         if (hit.distance < min_dist && hit.isValid) {
@@ -62,10 +58,10 @@ HitResult checkSceneIntersection(vec3 ro, vec3 rd) {
 }
 
 vec3 getSkyColor(vec3 direction) {
-    vec3 light_dir = normalize(vec3(0.5, cos(float(50)/100),sin(float(50)/100)));
+    vec3 light_dir = normalize(vec3(0.5, cos(float(50) / 100), sin(float(50) / 100)));
     vec3 lower_sky = vec3(0.01, 0.1, 0.2);
     vec3 upper_sky = vec3(0.65, 0.7, 0.8);
-    return dot(direction, light_dir) < 0.95 ? mix(lower_sky, upper_sky,dot(direction, vec3(0,1,0))) : vec3(5);
+    return dot(direction, light_dir) < 0.95 ? mix(lower_sky, upper_sky, dot(direction, vec3(0, 1, 0))) : vec3(5);
 }
 
 void main() {
@@ -74,8 +70,8 @@ void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
 
     vec2 uv;
-    uv.x = float(texelCoord.x)/(gl_NumWorkGroups.x * KERNEL_SIZE);
-    uv.y = float(texelCoord.y)/(gl_NumWorkGroups.y * KERNEL_SIZE);
+    uv.x = float(texelCoord.x) / (gl_NumWorkGroups.x * KERNEL_SIZE);
+    uv.y = float(texelCoord.y) / (gl_NumWorkGroups.y * KERNEL_SIZE);
     uv = ((uv - 0.5) * 2);
 
     float aspect_ratio = float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
@@ -89,10 +85,10 @@ void main() {
     vec3 forward = vec3(0.0, 0.0, 1.0);
 
     vec3 origray_dir = normalize(vec3(
-        cos(pitchRad) * sin(yawRad),
-        sin(pitchRad),
-        cos(pitchRad) * cos(yawRad)
-    ));
+                cos(pitchRad) * sin(yawRad),
+                sin(pitchRad),
+                cos(pitchRad) * cos(yawRad)
+            ));
 
     vec3 right = normalize(cross(origray_dir, vec3(0.0, 1.0, 0.0)));
     vec3 up = cross(right, origray_dir);
@@ -102,7 +98,7 @@ void main() {
     int total_samples = 16;
     int total_refl = 4;
 
-    for (int samples=0; samples < total_samples; samples++) {
+    for (int samples = 0; samples < total_samples; samples++) {
         vec3 ray_pos = origray_pos;
         vec3 ray_dir = origray_dir;
         vec3 color = vec3(0);
@@ -155,7 +151,6 @@ void main() {
         final_color = prev_frame_color * (1.0 - alpha) + final_color * alpha;
     }
 
-
-    value.xyz = final_color;//vec3(random(rngState));
+    value.xyz = final_color; //vec3(random(rngState));
     imageStore(imgOutput, texelCoord, value);
 }
