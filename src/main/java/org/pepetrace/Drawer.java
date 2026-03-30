@@ -7,7 +7,6 @@ import imgui.flag.ImGuiCond;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import java.io.FileNotFoundException;
-
 import imgui.type.ImInt;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
@@ -17,33 +16,54 @@ import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
 import org.pepetrace.Util.Passport;
 
-public class Drawer {
+public class Drawer implements Window.ResizeListener {
 
     private ImGuiImplGlfw imGuiGlfw;
     private ImGuiImplGl3 imGuiGl3;
     private Window window;
-
     private ComputeProgram pathTracingProgram;
     private Program windowTextureDrawerProgram;
     private int drawVAO;
     private Camera camera;
-
     private SSBO TEST_SSBO;
     private UBORenderInts ubo;
-
     private int frame = 0;
-    private ImInt samples = new ImInt(1);
+    private ImInt samples = new ImInt(5);
     private ImInt reflections = new ImInt(2);
-
     private Texture pathTracingTexture;
+    private int currentWidth;
+    private int currentHeight;
 
     public Drawer(Window window) throws FileNotFoundException {
         this.window = window;
+        window.setResizeListener(this);
+        this.currentWidth = window.getWidth();
+        this.currentHeight = window.getHeight();
 
         this.initImGUI();
         this.initGL();
 
         window.setCursorMode(Window.CURSOR_DISABLED);
+    }
+
+    @Override
+    public void onResize(int newWidth, int newHeight) {
+        if (newWidth == currentWidth && newHeight == currentHeight) return;
+        currentWidth = newWidth;
+        currentHeight = newHeight;
+
+        // Пересоздаём текстуру
+        if (pathTracingTexture != null) {
+            glDeleteTextures(pathTracingTexture.id);
+        }
+        pathTracingTexture = new Texture(
+                currentWidth,
+                currentHeight,
+                GL_RGBA,
+                GL_FLOAT,
+                GL_RGBA32F
+        );
+        resetRender();
     }
 
     public void setCamera(Camera camera) {
@@ -73,13 +93,12 @@ public class Drawer {
 
     public void renderFrame() {
         // 1. Запуск compute шейдера
+        glViewport(0, 0, currentWidth, currentHeight);
         ubo.updateBuffer(frame, samples.get(), reflections.get());
         pathTracingProgram.use();
-        glDispatchCompute(
-            window.getWidth() / 16,
-            window.getHeight() / 16 + 1,
-            1
-        );
+        int groupsX = (currentWidth + 15) / 16;
+        int groupsY = (currentHeight + 15) / 16;
+        glDispatchCompute(groupsX, groupsY, 1);
 
         // 2. Барьер памяти - важно для синхронизации
         glMemoryBarrier(

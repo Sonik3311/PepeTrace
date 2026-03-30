@@ -15,80 +15,93 @@ public class Window {
     private double lastMouseX, lastMouseY;
     private boolean firstMouse = true;
     private double scrollY = 0.0;
+    private ResizeListener resizeListener;
 
     public static final int CURSOR_NORMAL = GLFW_CURSOR_NORMAL;
     public static final int CURSOR_DISABLED = GLFW_CURSOR_DISABLED;
     public static final int MOUSE_BUTTON_LEFT = GLFW_MOUSE_BUTTON_LEFT;
 
+    public interface ResizeListener {
+        void onResize(int newWidth, int newHeight);
+    }
+
+    public void setResizeListener(ResizeListener listener) {
+        this.resizeListener = listener;
+    }
+
     public Window() {
         initGLFW();
-        glfwDefaultWindowHints(); // Загружаем настройки окна GLFW по умолчания
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // OpenGL 4.6
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6); // OpenGL 4.6
-        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE); // Делаем окно видимым
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); // Делает окно меняемым по размеру
-
-        // Первая попытка ИГНОРИТЬ скейлинг системы (DPI)
+        glfwDefaultWindowHints();
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
         glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
 
-        this.id = glfwCreateWindow(1600, 900, "PepeTrace", NULL, NULL);
         this.width = 1600;
         this.height = 900;
+        this.id = glfwCreateWindow(width, height, "PepeTrace", NULL, NULL);
         if (this.id == NULL) throw new RuntimeException("Failed to create window");
+
+        // Коллбек на изменение размера фреймбуфера
+        glfwSetFramebufferSizeCallback(id, (window, w, h) -> {
+            this.width = w;
+            this.height = h;
+            if (resizeListener != null) {
+                resizeListener.onResize(w, h);
+            }
+        });
 
         glfwSetScrollCallback(id, (window, xoffset, yoffset) -> {
             scrollY += yoffset;
         });
 
-        //Вторая попытка
+        // Коррекция DPI
         float[] xscale = {0};
         float[] yscale = {0};
         glfwGetWindowContentScale(id, xscale, yscale);
         glfwSetWindowSize(id,
                 (int) (width / xscale[0]),
                 (int) (height / yscale[0]));
-
     }
 
     public Window(int width, int height, boolean resizable, String title) {
         initGLFW();
-        glfwDefaultWindowHints(); // Загружаем настройки окна GLFW по умолчания
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // OpenGL 4.6
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6); // OpenGL 4.6
-        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE); // Делаем окно видимым
-        glfwWindowHint(GLFW_RESIZABLE, resizable ? GLFW_TRUE : GLFW_FALSE); // Делает окно меняемым по размеру
+        glfwDefaultWindowHints();
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+        glfwWindowHint(GLFW_RESIZABLE, resizable ? GLFW_TRUE : GLFW_FALSE);
 
-        this.id = glfwCreateWindow(width, height, title, NULL, NULL);
         this.width = width;
         this.height = height;
-        if (this.id == NULL) throw new RuntimeException(
-            "Failed to create window"
-        );
+        this.id = glfwCreateWindow(width, height, title, NULL, NULL);
+        if (this.id == NULL) throw new RuntimeException("Failed to create window");
+
+        glfwSetFramebufferSizeCallback(id, (window, w, h) -> {
+            this.width = w;
+            this.height = h;
+            if (resizeListener != null) {
+                resizeListener.onResize(w, h);
+            }
+        });
     }
 
-    // Инициализирует библиотеку GLFW
     private void initGLFW() {
         if (glfw_initialized) return;
-
         GLFWErrorCallback errorCallback;
-        glfwSetErrorCallback(
-            errorCallback = GLFWErrorCallback.createPrint(System.err)
-        );
-
+        glfwSetErrorCallback(errorCallback = GLFWErrorCallback.createPrint(System.err));
         if (!glfwInit()) {
             throw new IllegalStateException("Unable to initialize GLFW");
         }
-
         glfw_initialized = true;
     }
 
-    // Делает данное окно "основным"
-    // команды GLFW и GL будут работать по отношению к данному
     public void setActive() {
-        glfwMakeContextCurrent(this.id); // некоторым функциям (таким как glfwSwapInterval) необходимо знать, к какому окну (контексту) мы обращаемся, иначе ошибка NO_CURRENT_CONTEXT
-        GL.createCapabilities(); // Даём lwjgl понять что мы хотим использовать данный контекст для отрисовки
-        glfwSwapInterval(1); // Vertical Sync
-        glfwShowWindow(this.id); // Показывает окно на экране
+        glfwMakeContextCurrent(this.id);
+        GL.createCapabilities();
+        glfwSwapInterval(1);
+        glfwShowWindow(this.id);
     }
 
     public void resetMouse() {
@@ -97,7 +110,7 @@ public class Window {
         glfwGetCursorPos(id, xpos, ypos);
         lastMouseX = xpos[0];
         lastMouseY = ypos[0];
-        firstMouse = false; // гарантируем, что следующий getMouseDelta не будет сбрасывать
+        firstMouse = false;
     }
 
     public double getScrollDelta() {
@@ -118,8 +131,8 @@ public class Window {
             lastMouseY = ypos[0];
             firstMouse = false;
         } else {
-            dx = (float)(lastMouseX - xpos[0]); // Инвертируем для OpenGL
-            dy = (float)(lastMouseY - ypos[0]); // Инвертируем для OpenGL
+            dx = (float)(lastMouseX - xpos[0]);
+            dy = (float)(lastMouseY - ypos[0]);
             lastMouseX = xpos[0];
             lastMouseY = ypos[0];
         }
