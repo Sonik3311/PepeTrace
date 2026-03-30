@@ -7,6 +7,8 @@ import imgui.flag.ImGuiCond;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import java.io.FileNotFoundException;
+
+import imgui.type.ImInt;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.pepetrace.Buffers.SSBO;
@@ -30,6 +32,8 @@ public class Drawer {
     private UBORenderInts ubo;
 
     private int frame = 0;
+    private ImInt samples = new ImInt(1);
+    private ImInt reflections = new ImInt(2);
 
     private Texture pathTracingTexture;
 
@@ -69,7 +73,7 @@ public class Drawer {
 
     public void renderFrame() {
         // 1. Запуск compute шейдера
-        ubo.updateBuffer(frame);
+        ubo.updateBuffer(frame, samples.get(), reflections.get());
         pathTracingProgram.use();
         glDispatchCompute(
             window.getWidth() / 16,
@@ -149,6 +153,20 @@ public class Drawer {
         );
         if (ImGui.button("Set frame to 0")) {
             frame = 0;
+        }
+        ImGui.end();
+
+        ImGui.setNextWindowPos(0, 190, ImGuiCond.FirstUseEver);
+        ImGui.begin("Render Settings");
+        if (ImGui.inputInt("Samples", samples)) {
+            int min = 1, max = 16384;
+            int clamped = Math.max(min, Math.min(max, samples.get()));
+            samples.set(clamped);
+        }
+        if (ImGui.inputInt("Reflections", reflections)) {
+            int min = 2, max = 16384;
+            int clamped = Math.max(min, Math.min(max, reflections.get()));
+            reflections.set(clamped);
         }
         ImGui.end();
 
