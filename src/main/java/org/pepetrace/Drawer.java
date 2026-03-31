@@ -4,9 +4,13 @@ import static org.lwjgl.opengl.GL46.*;
 
 import imgui.*;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import java.io.FileNotFoundException;
+
+import imgui.type.ImBoolean;
+import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
@@ -30,6 +34,8 @@ public class Drawer implements Window.ResizeListener {
     private int frame = 0;
     private ImInt samples = new ImInt(5);
     private ImInt reflections = new ImInt(2);
+    private ImBoolean accumulating = new ImBoolean(false);
+    private ImFloat roughness = new ImFloat(1.0f);
     private Texture pathTracingTexture;
     private int currentWidth;
     private int currentHeight;
@@ -94,7 +100,7 @@ public class Drawer implements Window.ResizeListener {
     public void renderFrame() {
         // 1. Запуск compute шейдера
         glViewport(0, 0, currentWidth, currentHeight);
-        ubo.updateBuffer(frame, samples.get(), reflections.get());
+        ubo.updateBuffer(frame, samples.get(), reflections.get(), roughness.get());
         pathTracingProgram.use();
         int groupsX = (currentWidth + 15) / 16;
         int groupsY = (currentHeight + 15) / 16;
@@ -117,13 +123,14 @@ public class Drawer implements Window.ResizeListener {
         // Start a new ImGui frame
         renderImGUI();
 
-        //frame++;
+        if (accumulating.get()) {frame++;}
     }
 
     private void renderImGUI() {
         imGuiGl3.newFrame();
         imGuiGlfw.newFrame();
         ImGui.newFrame();
+        int windowFlags = ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse;
 
         //if (cursorLocked) {
         //    ImGui.getIO().setMousePos(-Float.MAX_VALUE, -Float.MAX_VALUE);
@@ -134,7 +141,7 @@ public class Drawer implements Window.ResizeListener {
 
         //ImGui.setNextWindowSize(300, 150, ImGuiCond.FirstUseEver);
         ImGui.setNextWindowPos(0, 0, ImGuiCond.FirstUseEver);
-        ImGui.begin("Build info");
+        ImGui.begin("Build info", windowFlags);
         if (camera != null) {
             ImGui.text(
                 String.format(
@@ -170,22 +177,38 @@ public class Drawer implements Window.ResizeListener {
                 Passport.INSTANCE.getGitBranchHash()
             )
         );
-        if (ImGui.button("Set frame to 0")) {
-            frame = 0;
-        }
         ImGui.end();
 
         ImGui.setNextWindowPos(0, 190, ImGuiCond.FirstUseEver);
-        ImGui.begin("Render Settings");
+        ImGui.begin("Render Settings", windowFlags);
         if (ImGui.inputInt("Samples", samples)) {
             int min = 1, max = 16384;
-            int clamped = Math.max(min, Math.min(max, samples.get()));
+            int clamped = Math.clamp(samples.get(), min, max);
             samples.set(clamped);
+            frame = 0;
         }
         if (ImGui.inputInt("Reflections", reflections)) {
-            int min = 2, max = 16384;
-            int clamped = Math.max(min, Math.min(max, reflections.get()));
+            int min = 1, max = 16384;
+            int clamped = Math.clamp(reflections.get(), min, max);
             reflections.set(clamped);
+            frame = 0;
+        }
+        if (ImGui.checkbox("Accumulate frames", accumulating)) {
+            // Optional: Add code here to execute immediately when the state changes.
+            //System.out.println("Checkbox state changed to: " + accumulating.get());
+            if (!accumulating.get()) {
+                frame = 0;
+            }
+        }
+
+        if (ImGui.inputFloat("roughness", roughness)) {
+            int min = 0, max = 1;
+            float clamped = Math.clamp(roughness.get(), min, max);
+            roughness.set(clamped);
+            frame = 0;
+        }
+        if (ImGui.button("Reset Accumulation")) {
+            frame = 0;
         }
         ImGui.end();
 
@@ -214,42 +237,42 @@ public class Drawer implements Window.ResizeListener {
         //TODO: Убрать и сделать нормально
         TEST_SSBO = new SSBO(GL_STATIC_DRAW, 1);
         float[] sphereVertices = {
-            0.500000f,
-            -0.866025f,
-            0.000000f,
-            0.000000f,
-            -1.000000f,
-            0.000000f,
-            0.000000f,
-            -1.000000f,
-            0.000000f,
-            0.250000f,
-            -0.866025f,
-            0.433013f,
-            0.500000f,
-            -0.866025f,
-            0.000000f,
-            0.000000f,
-            -1.000000f,
-            0.000000f,
-            0.250000f,
-            -0.866025f,
-            0.433013f,
-            0.000000f,
-            -1.000000f,
-            0.000000f,
-            -0.000000f,
-            -1.000000f,
-            0.000000f,
-            -0.250000f,
-            -0.866025f,
-            0.433013f,
-            0.250000f,
-            -0.866025f,
-            0.433013f,
-            -0.000000f,
-            -1.000000f,
-            0.000000f,
+                0.500000f,
+                -0.866025f,
+                0.000000f,
+                0.000000f,
+                -1.000000f,
+                0.000000f,
+                0.000000f,
+                -1.000000f,
+                0.000000f,
+                0.250000f,
+                -0.866025f,
+                0.433013f,
+                0.500000f,
+                -0.866025f,
+                0.000000f,
+                0.000000f,
+                -1.000000f,
+                0.000000f,
+                0.250000f,
+                -0.866025f,
+                0.433013f,
+                0.000000f,
+                -1.000000f,
+                0.000000f,
+                -0.000000f,
+                -1.000000f,
+                0.000000f,
+                -0.250000f,
+                -0.866025f,
+                0.433013f,
+                0.250000f,
+                -0.866025f,
+                0.433013f,
+                -0.000000f,
+                -1.000000f,
+                0.000000f,
             -0.250000f,
             -0.866025f,
             0.433013f,
@@ -844,24 +867,24 @@ public class Drawer implements Window.ResizeListener {
             0.250000f,
             0.866025f,
             -0.433013f,
-            0.000000f,
-            1.000000f,
-            -0.000000f,
-            0.250000f,
-            0.866025f,
-            -0.433013f,
-            0.500000f,
-            0.866025f,
-            -0.000000f,
-            0.000000f,
-            1.000000f,
-            -0.000000f,
-            0.000000f,
-            1.000000f,
-            -0.000000f,
-            0.500000f,
-            0.866025f,
-            -0.000000f,
+                0.000000f,
+                1.000000f,
+                -0.000000f,
+                0.250000f,
+                0.866025f,
+                -0.433013f,
+                0.500000f,
+                0.866025f,
+                -0.000000f,
+                0.000000f,
+                1.000000f,
+                -0.000000f,
+                0.000000f,
+                1.000000f,
+                -0.000000f,
+                0.500000f,
+                0.866025f,
+                -0.000000f,
             // Пол
             5f,
             -1f,
@@ -882,7 +905,6 @@ public class Drawer implements Window.ResizeListener {
             -1,
             -5,
         };
-
         TEST_SSBO.fillBuffer(sphereVertices);
 
         ubo = new UBORenderInts(2);
