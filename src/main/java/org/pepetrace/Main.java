@@ -7,6 +7,7 @@ import org.joml.Vector3f;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
+import org.pepetrace.Scene.Scene;
 import org.pepetrace.Util.GPUTimeQuerier;
 import org.pepetrace.Util.Passport;
 
@@ -24,6 +25,9 @@ public class Main {
         Drawer drawer = new Drawer(window);
         Camera camera = new Camera();
         drawer.setCamera(camera);
+
+        Scene scene = new Scene();
+        scene.packTriangles(drawer.getTriangleBuffer());
 
         GPUTimeQuerier timer = new GPUTimeQuerier();
 
