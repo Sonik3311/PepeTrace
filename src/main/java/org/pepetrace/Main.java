@@ -38,9 +38,9 @@ public class Main {
             }
             drawer.renderFrame();
             long duration = timer.stopTimer();
-            //System.out.println(
-            //    "Рендер занял " + (double) (duration) / 1000000 + " мс"
-            //);
+            System.out.println(
+                "Рендер занял " + (double) (duration) / 1000000 + " мс"
+            );
 
             glfwSwapBuffers(window.getId());
 

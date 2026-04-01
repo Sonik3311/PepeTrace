@@ -43,7 +43,7 @@ public class Drawer implements Window.ResizeListener {
     private ImBoolean accumulating = new ImBoolean(false);
     private ImFloat roughness = new ImFloat(1.0f);
     private Texture pathTracingTexture;
-    private final Texture skybox = Texture.createFromFile(6, GL_READ_ONLY,"./src/main/java/org/pepetrace/skybox.jpg");
+    private final Texture skybox = Texture.createFromFileHDR(6, GL_READ_ONLY,"./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr");
     private int currentWidth;
     private int currentHeight;
 

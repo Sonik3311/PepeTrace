@@ -62,11 +62,18 @@ HitResult checkSceneIntersection(vec3 ro, vec3 rd) {
     return min_hit;
 }
 
-vec3 getSkyColor(vec3 direction) {
-    vec3 light_dir = normalize(vec3(0.5, cos(float(50) / 100), sin(float(50) / 100)));
-    vec3 lower_sky = vec3(0.01, 0.1, 0.2);
-    vec3 upper_sky = vec3(0.65, 0.7, 0.8);
-    return dot(direction, light_dir) < 0.95 ? mix(lower_sky, upper_sky, dot(direction, vec3(0, 1, 0))) : vec3(5);
+vec3 getSkyColor(vec3 direction, bool useProcedural) {
+    if (useProcedural) {
+        vec3 light_dir = normalize(vec3(0.5, cos(float(50) / 100), sin(float(50) / 100)));
+        vec3 lower_sky = vec3(0.01, 0.1, 0.2);
+        vec3 upper_sky = vec3(0.65, 0.7, 0.8);
+        return dot(direction, light_dir) < 0.95 ? mix(lower_sky, upper_sky, dot(direction, vec3(0, 1, 0))) : vec3(5);
+    } else {
+        vec2 uv = vec2(0.5 + atan(direction.x, direction.z)/(2*PI), 0.5 + asin(direction.y)/PI);
+        ivec2 imgsize = imageSize(skybox);
+        vec3 col = imageLoad(skybox, ivec2(imgsize.xy * uv)).xyz;
+        return col;
+    }
 }
 
 void main() {
@@ -102,7 +109,7 @@ void main() {
     vec3 final_color = vec3(0);
     int total_samples = 16;
     int total_refl = 4;
-    /*
+
     for (int samples = 0; samples < max_samples; samples++) {
         vec3 ray_pos = origray_pos;
         vec3 ray_dir = origray_dir;
@@ -116,7 +123,7 @@ void main() {
 
             if (!hit.isValid) {
                 // Луч ушел в небо - добавляем фоновое освещение
-                color += throughput * getSkyColor(ray_dir);
+                color += throughput * getSkyColor(ray_dir, false);
                 break;
             }
 
@@ -155,8 +162,7 @@ void main() {
         float alpha = 1.0f / tick;
         final_color = prev_frame_color * (1.0 - alpha) + final_color * alpha;
     }
-*/
-
-    value.xyz = imageLoad(skybox, ivec2(gl_NumWorkGroups.xy * KERNEL_SIZE * origray_dir.xy)).rgb;
+    value.xyz = final_color.rgb;
+    //value.xyz = getSkyColor(origray_dir, false);//imageLoad(skybox, ivec2(gl_NumWorkGroups.xy * KERNEL_SIZE * origray_dir.xy)).rgb;
     imageStore(imgOutput, texelCoord, value);
 }

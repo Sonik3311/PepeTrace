@@ -6,6 +6,7 @@ import static org.lwjgl.stb.STBImage.*;
 
 import org.lwjgl.system.MemoryStack;
 import java.nio.ByteBuffer;
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 
 /**
@@ -63,6 +64,44 @@ public class Texture {
     }
 
     /**
+     * Фабричный метод для загрузки HDR текстуры из файла.
+     * Изображение загружается как RGBA (4 канала) и помещается в текстуру с форматом GL_RGBA32F.
+     * Текстура привязывается как image unit с форматом GL_RGBA32F (возможна запись из compute-шейдера).
+     *
+     * @param path    путь к файлу изображения (HDR, EXR, ...)
+     * @param access  режим доступа (GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE)
+     * @return новый объект Texture с загруженными данными
+     * @throws RuntimeException если загрузка изображения не удалась
+     */
+    public static Texture createFromFileHDR(int binding, int access, String path) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer w = stack.mallocInt(1);
+            IntBuffer h = stack.mallocInt(1);
+            IntBuffer channels = stack.mallocInt(1);
+
+            stbi_set_flip_vertically_on_load(true);
+
+            FloatBuffer data = stbi_loadf(path, w, h, channels, 4); // принудительно RGBA
+            if (data == null) {
+                throw new RuntimeException("Не удалось загрузить изображение: " + stbi_failure_reason());
+            }
+
+            int width = w.get();
+            int height = h.get();
+
+            // Создаём текстуру с форматом GL_RGBA8 (подходит и для записи из compute-шейдера)
+            Texture texture = new Texture(width, height, binding, GL_RGBA32F, GL_RGBA, GL_FLOAT, GL_RGBA32F, access);
+
+            // Загружаем пиксельные данные
+            glBindTexture(GL_TEXTURE_2D, texture.id);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, data);
+
+            stbi_image_free(data);
+            return texture;
+        }
+    }
+
+    /**
      * Фабричный метод для загрузки текстуры из файла.
      * Изображение загружается как RGBA (4 канала) и помещается в текстуру с форматом GL_RGBA8.
      * Текстура привязывается как image unit с форматом GL_RGBA8 (возможна запись из compute-шейдера).
@@ -79,6 +118,7 @@ public class Texture {
             IntBuffer channels = stack.mallocInt(1);
 
             stbi_set_flip_vertically_on_load(true);
+
             ByteBuffer data = stbi_load(path, w, h, channels, 4); // принудительно RGBA
             if (data == null) {
                 throw new RuntimeException("Не удалось загрузить изображение: " + stbi_failure_reason());
