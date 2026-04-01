@@ -17,6 +17,8 @@ layout(std140, binding = 2) uniform RenderInts {
     float roughness;
 };
 
+layout(rgba32f, binding = 6) readonly uniform image2D skybox;
+
 layout(std140, binding = 3) uniform CameraData {
     vec3 camPos;
     vec2 camYawPitch;
@@ -100,7 +102,7 @@ void main() {
     vec3 final_color = vec3(0);
     int total_samples = 16;
     int total_refl = 4;
-
+    /*
     for (int samples = 0; samples < max_samples; samples++) {
         vec3 ray_pos = origray_pos;
         vec3 ray_dir = origray_dir;
@@ -153,7 +155,8 @@ void main() {
         float alpha = 1.0f / tick;
         final_color = prev_frame_color * (1.0 - alpha) + final_color * alpha;
     }
+*/
 
-    value.xyz = final_color; //vec3(random(rngState));
+    value.xyz = imageLoad(skybox, ivec2(gl_NumWorkGroups.xy * KERNEL_SIZE * origray_dir.xy)).rgb;
     imageStore(imgOutput, texelCoord, value);
 }

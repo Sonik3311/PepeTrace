@@ -43,6 +43,7 @@ public class Drawer implements Window.ResizeListener {
     private ImBoolean accumulating = new ImBoolean(false);
     private ImFloat roughness = new ImFloat(1.0f);
     private Texture pathTracingTexture;
+    private final Texture skybox = Texture.createFromFile(6, GL_READ_ONLY,"./src/main/java/org/pepetrace/skybox.jpg");
     private int currentWidth;
     private int currentHeight;
 
@@ -68,13 +69,7 @@ public class Drawer implements Window.ResizeListener {
         if (pathTracingTexture != null) {
             glDeleteTextures(pathTracingTexture.id);
         }
-        pathTracingTexture = new Texture(
-                currentWidth,
-                currentHeight,
-                GL_RGBA,
-                GL_FLOAT,
-                GL_RGBA32F
-        );
+        pathTracingTexture = new Texture(currentWidth, currentHeight, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT, GL_RGBA32F, GL_READ_WRITE);
         resetRender();
     }
 
@@ -95,7 +90,7 @@ public class Drawer implements Window.ResizeListener {
         // 2. Базовая конфигурация
         ImGuiIO io = ImGui.getIO();
         io.setIniFilename(null); // Выключаем .ini файл, чтобы избежать сохранения состояния окон ImGUI
-        io.setDisplaySize(1600, 900); // Изначальный размер окна GLFW (Не нужно судя по всему, так как наследует от GLFW автоматически под капотом)
+        io.setDisplaySize(currentWidth, currentHeight); // Изначальный размер окна GLFW (Не нужно судя по всему, так как наследует от GLFW автоматически под капотом)
         io.getFonts().addFontDefault(); // Загрузить стандартный шрифт текста.
 
         // 3. Инициализировать байндинги GLFW и OpenGL 4.6
@@ -225,14 +220,7 @@ public class Drawer implements Window.ResizeListener {
 
     private void initGL() throws FileNotFoundException {
         glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-        pathTracingTexture = new Texture(
-            1600,
-            900,
-            GL_RGBA,
-            GL_FLOAT,
-            GL_RGBA32F
-        );
-
+        pathTracingTexture = new Texture(currentWidth, currentHeight, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT, GL_RGBA32F, GL_READ_WRITE);
         pathTracingProgram = new ComputeProgram("./src/main/glsl/program");
 
         windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
