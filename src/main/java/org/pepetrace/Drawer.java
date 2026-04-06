@@ -1,22 +1,22 @@
 package org.pepetrace;
 
 import static org.lwjgl.opengl.GL46.*;
-import org.pepetrace.Scene.TestTriangleScene;
 
 import imgui.*;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
-import java.io.FileNotFoundException;
-
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
+import java.io.FileNotFoundException;
+import java.util.Arrays;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Buffers.Texture;
+import org.pepetrace.Scene.TestTriangleScene;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
 import org.pepetrace.Util.Passport;
@@ -35,7 +35,18 @@ public class Drawer implements Window.ResizeListener {
         return triangleBuffer;
     }
 
-    private SSBO triangleBuffer;
+    public SSBO getNormalBuffer() {
+        return normalBuffer;
+    }
+
+    public SSBO getUVBuffer() {
+        return UVBuffer;
+    }
+
+    private SSBO triangleBuffer = new SSBO(GL_STATIC_DRAW, 4);
+    private SSBO normalBuffer = new SSBO(GL_STATIC_DRAW, 5);
+    private SSBO UVBuffer = new SSBO(GL_STATIC_DRAW, 6);
+    private ImInt renderMode = new ImInt(ViewportRenderMode.SHADED.ordinal());
     private UBORenderInts ubo;
     private int frame = 0;
     private ImInt samples = new ImInt(5);
@@ -43,7 +54,11 @@ public class Drawer implements Window.ResizeListener {
     private ImBoolean accumulating = new ImBoolean(false);
     private ImFloat roughness = new ImFloat(1.0f);
     private Texture pathTracingTexture;
-    private final Texture skybox = Texture.createFromFileHDR(6, GL_READ_ONLY,"./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr");
+    private final Texture skybox = Texture.createFromFile(
+        3,
+        GL_READ_ONLY,
+        "./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr"
+    );
     private int currentWidth;
     private int currentHeight;
 
@@ -69,8 +84,20 @@ public class Drawer implements Window.ResizeListener {
         if (pathTracingTexture != null) {
             glDeleteTextures(pathTracingTexture.id);
         }
-        pathTracingTexture = new Texture(currentWidth, currentHeight, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT, GL_RGBA32F, GL_READ_WRITE);
+        pathTracingTexture = new Texture(
+            currentWidth,
+            currentHeight,
+            0,
+            GL_RGBA32F,
+            GL_RGBA,
+            GL_FLOAT,
+            GL_RGBA32F,
+            GL_READ_WRITE
+        );
         resetRender();
+
+        ImGuiIO io = ImGui.getIO();
+        io.setDisplaySize(currentWidth, currentHeight);
     }
 
     public void setCamera(Camera camera) {
@@ -101,7 +128,13 @@ public class Drawer implements Window.ResizeListener {
     public void renderFrame() {
         // 1. Запуск compute шейдера
         glViewport(0, 0, currentWidth, currentHeight);
-        ubo.updateBuffer(frame, samples.get(), reflections.get(), roughness.get());
+        ubo.updateBuffer(
+            frame,
+            samples.get(),
+            reflections.get(),
+            roughness.get(),
+            ViewportRenderMode.values()[renderMode.get()]
+        );
         pathTracingProgram.use();
         int groupsX = (currentWidth + 15) / 16;
         int groupsY = (currentHeight + 15) / 16;
@@ -124,14 +157,19 @@ public class Drawer implements Window.ResizeListener {
         // Start a new ImGui frame
         renderImGUI();
 
-        if (accumulating.get()) {frame++;}
+        if (accumulating.get()) {
+            frame++;
+        }
     }
 
     private void renderImGUI() {
         imGuiGl3.newFrame();
         imGuiGlfw.newFrame();
         ImGui.newFrame();
-        int windowFlags = ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse;
+        int windowFlags =
+            ImGuiWindowFlags.NoMove |
+            ImGuiWindowFlags.NoResize |
+            ImGuiWindowFlags.NoCollapse;
 
         //if (cursorLocked) {
         //    ImGui.getIO().setMousePos(-Float.MAX_VALUE, -Float.MAX_VALUE);
@@ -183,13 +221,15 @@ public class Drawer implements Window.ResizeListener {
         ImGui.setNextWindowPos(0, 190, ImGuiCond.FirstUseEver);
         ImGui.begin("Render Settings", windowFlags);
         if (ImGui.inputInt("Samples", samples)) {
-            int min = 1, max = 16384;
+            int min = 1,
+                max = 16384;
             int clamped = Math.clamp(samples.get(), min, max);
             samples.set(clamped);
             frame = 0;
         }
         if (ImGui.inputInt("Reflections", reflections)) {
-            int min = 1, max = 16384;
+            int min = 1,
+                max = 16384;
             int clamped = Math.clamp(reflections.get(), min, max);
             reflections.set(clamped);
             frame = 0;
@@ -203,13 +243,25 @@ public class Drawer implements Window.ResizeListener {
         }
 
         if (ImGui.inputFloat("roughness", roughness)) {
-            int min = 0, max = 1;
+            int min = 0,
+                max = 1;
             float clamped = Math.clamp(roughness.get(), min, max);
             roughness.set(clamped);
             frame = 0;
         }
         if (ImGui.button("Reset Accumulation")) {
             frame = 0;
+        }
+
+        String[] modeNames = Arrays.stream(ViewportRenderMode.values())
+            .map(Enum::name)
+            .toArray(String[]::new);
+
+        // Render the combo box
+        if (ImGui.combo("Render Mode", renderMode, modeNames)) {
+            // Update the enum based on the selected index
+            //renderMode.set(ViewportRenderMode.values()[currentIdx];
+            //System.out.println(renderMode.get());
         }
         ImGui.end();
 
@@ -220,16 +272,23 @@ public class Drawer implements Window.ResizeListener {
 
     private void initGL() throws FileNotFoundException {
         glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
-        pathTracingTexture = new Texture(currentWidth, currentHeight, 0, GL_RGBA32F, GL_RGBA, GL_FLOAT, GL_RGBA32F, GL_READ_WRITE);
-        pathTracingProgram = new ComputeProgram("./src/main/glsl/program");
+        pathTracingTexture = new Texture(
+            currentWidth,
+            currentHeight,
+            0,
+            GL_RGBA32F,
+            GL_RGBA,
+            GL_FLOAT,
+            GL_RGBA32F,
+            GL_READ_WRITE
+        );
+        pathTracingProgram = new ComputeProgram(
+            "./src/main/glsl/renderers/viewport/program"
+        );
 
         windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
 
         drawVAO = glGenVertexArrays();
-
-        //ТЕСТ
-        //TODO: Убрать и сделать нормально
-        triangleBuffer = new SSBO(GL_STATIC_DRAW, 1);
 
         //triangleBuffer.fillBuffer(TestTriangleScene.vertices);
 

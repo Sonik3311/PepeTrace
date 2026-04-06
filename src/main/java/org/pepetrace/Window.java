@@ -72,6 +72,7 @@ public class Window {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
         glfwWindowHint(GLFW_RESIZABLE, resizable ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
 
         this.width = width;
         this.height = height;
@@ -85,6 +86,14 @@ public class Window {
                 resizeListener.onResize(w, h);
             }
         });
+
+        // Коррекция DPI
+        float[] xscale = {0};
+        float[] yscale = {0};
+        glfwGetWindowContentScale(id, xscale, yscale);
+        glfwSetWindowSize(id,
+                (int) (width / xscale[0]),
+                (int) (height / yscale[0]));
     }
 
     private void initGLFW() {

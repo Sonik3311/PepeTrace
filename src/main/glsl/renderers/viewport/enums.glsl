@@ -1,0 +1,10 @@
+const int RenderMode_Shaded = 0;
+const int RenderMode_FlatShaded = 1;
+const int RenderMode_TexturelessShaded = 2;
+const int RenderMode_TexutrelessFlatShaded = 3;
+const int RenderMode_Albedo = 4;
+const int RenderMode_Normal = 5;
+const int RenderMode_GeometricNormal = 6;
+const int RenderMode_UV = 7;
+const int RenderMode_RayIntersectionCount = 8;
+const int RenderMode_RayIntersectionCheckCount = 9;

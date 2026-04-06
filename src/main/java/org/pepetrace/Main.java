@@ -19,7 +19,7 @@ public class Main {
 
     static void main() throws IOException {
         //Passport build = new Passport();
-        Window window = new Window();
+        Window window = new Window(512, 512, true, "smoll pepetrace");
         window.setActive();
 
         Drawer drawer = new Drawer(window);
@@ -27,7 +27,8 @@ public class Main {
         drawer.setCamera(camera);
 
         Scene scene = new Scene();
-        scene.packTriangles(drawer.getTriangleBuffer());
+        //scene.packTriangles(drawer.getTriangleBuffer());
+        scene.packScene(drawer.getTriangleBuffer(), drawer.getNormalBuffer(), drawer.getUVBuffer());
 
         GPUTimeQuerier timer = new GPUTimeQuerier();
 
@@ -38,9 +39,9 @@ public class Main {
             }
             drawer.renderFrame();
             long duration = timer.stopTimer();
-            System.out.println(
-                "Рендер занял " + (double) (duration) / 1000000 + " мс"
-            );
+            //System.out.println(
+            //    "Рендер занял " + (double) (duration) / 1000000 + " мс"
+            //);
 
             glfwSwapBuffers(window.getId());
 

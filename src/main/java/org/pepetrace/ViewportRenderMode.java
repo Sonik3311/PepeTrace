@@ -1,4 +1,14 @@
 package org.pepetrace;
 
 public enum ViewportRenderMode {
+    SHADED,
+    FLAT_SHADED,
+    TEXTURELESS_SHADED,
+    TEXTURELESS_FLAT_SHADED,
+    ALBEDO,
+    NORMAL,
+    GEOMETRIC_NORMAL,
+    UV,
+    INTERSECTION_COUNT,
+    INTERSECTION_CHECKS,
 }

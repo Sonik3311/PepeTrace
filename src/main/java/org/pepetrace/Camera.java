@@ -1,10 +1,12 @@
 package org.pepetrace;
 
-import org.joml.Vector2f;
-import org.joml.Vector3f;
 import static org.lwjgl.glfw.GLFW.*;
 
+import org.joml.Vector2f;
+import org.joml.Vector3f;
+
 public class Camera {
+
     private static final float MIN_ORBIT_DISTANCE = 1.0f;
     private static final float MAX_ORBIT_DISTANCE = 50.0f;
 
@@ -19,7 +21,7 @@ public class Camera {
     private float orbitPitch = 0.0f;
     private boolean wasLeftMousePressed = false;
     private boolean wasEscapePressed = false;
-    private final UBOCamera ubo = new UBOCamera(3);
+    private final UBOCamera ubo = new UBOCamera(1);
 
     public Camera() {
         position = new Vector3f(0.0f, 0.0f, -5.0f);
@@ -56,7 +58,9 @@ public class Camera {
         switch (cameraMode) {
             case 0 -> shouldUpdateBuffer = freeCameraTransform(inputWindow);
             case 1 -> shouldUpdateBuffer = orbitCameraTransform(inputWindow);
-            default -> throw new IllegalStateException("Unexpected mode: " + cameraMode);
+            default -> throw new IllegalStateException(
+                "Unexpected mode: " + cameraMode
+            );
         }
         if (shouldUpdateBuffer) {
             ubo.updateBuffer(position, yawPitch);
@@ -78,18 +82,25 @@ public class Camera {
             float yawRad = (float) Math.toRadians(yawPitch.x);
             float pitchRad = (float) Math.toRadians(yawPitch.y);
             Vector3f forward = new Vector3f(
-                    (float) (Math.cos(pitchRad) * Math.sin(yawRad)),
-                    (float) Math.sin(pitchRad),
-                    (float) (Math.cos(pitchRad) * Math.cos(yawRad))
+                (float) (Math.cos(pitchRad) * Math.sin(yawRad)),
+                (float) Math.sin(pitchRad),
+                (float) (Math.cos(pitchRad) * Math.cos(yawRad))
             ).normalize();
 
             float delta = (float) -scroll * moveSpeed * 10.0f;
             float newDistance = orbitDistance + delta;
-            newDistance = Math.max(MIN_ORBIT_DISTANCE, Math.min(MAX_ORBIT_DISTANCE, newDistance));
+            newDistance = Math.max(
+                MIN_ORBIT_DISTANCE,
+                Math.min(MAX_ORBIT_DISTANCE, newDistance)
+            );
             if (Math.abs(newDistance - orbitDistance) > 0.001f) {
                 float scale = newDistance / orbitDistance;
-                Vector3f directionToTarget = new Vector3f(orbitTargetPoint).sub(position).normalize();
-                Vector3f newTarget = new Vector3f(position).add(directionToTarget.mul(newDistance, new Vector3f()));
+                Vector3f directionToTarget = new Vector3f(orbitTargetPoint)
+                    .sub(position)
+                    .normalize();
+                Vector3f newTarget = new Vector3f(position).add(
+                    directionToTarget.mul(newDistance, new Vector3f())
+                );
                 orbitTargetPoint.set(newTarget);
                 orbitDistance = newDistance;
                 synchronizeOrbitAnglesFromCamera();
@@ -101,9 +112,9 @@ public class Camera {
         float pitchRad = (float) Math.toRadians(yawPitch.y);
 
         Vector3f forward = new Vector3f(
-                (float) (Math.cos(pitchRad) * Math.sin(yawRad)),
-                (float) Math.sin(pitchRad),
-                (float) (Math.cos(pitchRad) * Math.cos(yawRad))
+            (float) (Math.cos(pitchRad) * Math.sin(yawRad)),
+            (float) Math.sin(pitchRad),
+            (float) (Math.cos(pitchRad) * Math.cos(yawRad))
         ).normalize();
 
         Vector3f worldUp = new Vector3f(0, 1, 0);
@@ -135,8 +146,10 @@ public class Camera {
             position.y += moveSpeed;
             hasUpdated = true;
         }
-        if (inputWindow.isKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
-                inputWindow.isKeyPressed(GLFW_KEY_RIGHT_CONTROL)) {
+        if (
+            inputWindow.isKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
+            inputWindow.isKeyPressed(GLFW_KEY_RIGHT_CONTROL)
+        ) {
             position.y -= moveSpeed;
             hasUpdated = true;
         }
@@ -150,12 +163,17 @@ public class Camera {
         double scroll = inputWindow.getScrollDelta();
         if (scroll != 0) {
             orbitDistance -= scroll * 0.5f;
-            orbitDistance = Math.max(MIN_ORBIT_DISTANCE, Math.min(MAX_ORBIT_DISTANCE, orbitDistance));
+            orbitDistance = Math.max(
+                MIN_ORBIT_DISTANCE,
+                Math.min(MAX_ORBIT_DISTANCE, orbitDistance)
+            );
             hasUpdated = true;
             updateCameraFromOrbitTarget();
         }
 
-        boolean leftMousePressed = inputWindow.isMouseButtonPressed(Window.MOUSE_BUTTON_LEFT);
+        boolean leftMousePressed = inputWindow.isMouseButtonPressed(
+            Window.MOUSE_BUTTON_LEFT
+        );
 
         if (leftMousePressed) {
             float[] mouseDelta = inputWindow.getMouseDelta();
@@ -179,11 +197,18 @@ public class Camera {
             float yawRad = (float) Math.toRadians(orbitYaw);
             float pitchRad = (float) Math.toRadians(orbitPitch);
 
-            position.x = orbitTargetPoint.x + orbitDistance * (float) (Math.cos(pitchRad) * Math.sin(yawRad));
-            position.y = orbitTargetPoint.y + orbitDistance * (float) Math.sin(pitchRad);
-            position.z = orbitTargetPoint.z + orbitDistance * (float) (Math.cos(pitchRad) * Math.cos(yawRad));
+            position.x =
+                orbitTargetPoint.x +
+                orbitDistance * (float) (Math.cos(pitchRad) * Math.sin(yawRad));
+            position.y =
+                orbitTargetPoint.y + orbitDistance * (float) Math.sin(pitchRad);
+            position.z =
+                orbitTargetPoint.z +
+                orbitDistance * (float) (Math.cos(pitchRad) * Math.cos(yawRad));
 
-            Vector3f dirToTarget = new Vector3f(orbitTargetPoint).sub(position).normalize();
+            Vector3f dirToTarget = new Vector3f(orbitTargetPoint)
+                .sub(position)
+                .normalize();
             float newYaw = (float) Math.atan2(dirToTarget.x, dirToTarget.z);
             float newPitch = (float) Math.asin(dirToTarget.y);
             yawPitch.x = (float) Math.toDegrees(newYaw);
@@ -198,16 +223,22 @@ public class Camera {
         float yawRad = (float) Math.toRadians(yawPitch.x);
         float pitchRad = (float) Math.toRadians(yawPitch.y);
         Vector3f forward = new Vector3f(
-                (float) (Math.cos(pitchRad) * Math.sin(yawRad)),
-                (float) Math.sin(pitchRad),
-                (float) (Math.cos(pitchRad) * Math.cos(yawRad))
+            (float) (Math.cos(pitchRad) * Math.sin(yawRad)),
+            (float) Math.sin(pitchRad),
+            (float) (Math.cos(pitchRad) * Math.cos(yawRad))
         ).normalize();
-        orbitTargetPoint = new Vector3f(position).add(forward.mul(orbitDistance, new Vector3f()));
+        orbitTargetPoint = new Vector3f(position).add(
+            forward.mul(orbitDistance, new Vector3f())
+        );
     }
 
     private void synchronizeOrbitAnglesFromCamera() {
-        Vector3f dirFromTargetToCamera = new Vector3f(position).sub(orbitTargetPoint).normalize();
-        orbitYaw = (float) Math.toDegrees(Math.atan2(dirFromTargetToCamera.x, dirFromTargetToCamera.z));
+        Vector3f dirFromTargetToCamera = new Vector3f(position)
+            .sub(orbitTargetPoint)
+            .normalize();
+        orbitYaw = (float) Math.toDegrees(
+            Math.atan2(dirFromTargetToCamera.x, dirFromTargetToCamera.z)
+        );
         orbitPitch = (float) Math.toDegrees(Math.asin(dirFromTargetToCamera.y));
         orbitPitch = Math.max(-89.0f, Math.min(89.0f, orbitPitch));
     }
@@ -216,11 +247,18 @@ public class Camera {
         float yawRad = (float) Math.toRadians(orbitYaw);
         float pitchRad = (float) Math.toRadians(orbitPitch);
 
-        position.x = orbitTargetPoint.x + orbitDistance * (float) (Math.cos(pitchRad) * Math.sin(yawRad));
-        position.y = orbitTargetPoint.y + orbitDistance * (float) Math.sin(pitchRad);
-        position.z = orbitTargetPoint.z + orbitDistance * (float) (Math.cos(pitchRad) * Math.cos(yawRad));
+        position.x =
+            orbitTargetPoint.x +
+            orbitDistance * (float) (Math.cos(pitchRad) * Math.sin(yawRad));
+        position.y =
+            orbitTargetPoint.y + orbitDistance * (float) Math.sin(pitchRad);
+        position.z =
+            orbitTargetPoint.z +
+            orbitDistance * (float) (Math.cos(pitchRad) * Math.cos(yawRad));
 
-        Vector3f dirToTarget = new Vector3f(orbitTargetPoint).sub(position).normalize();
+        Vector3f dirToTarget = new Vector3f(orbitTargetPoint)
+            .sub(position)
+            .normalize();
         float newYaw = (float) Math.atan2(dirToTarget.x, dirToTarget.z);
         float newPitch = (float) Math.asin(dirToTarget.y);
         yawPitch.x = (float) Math.toDegrees(newYaw);
@@ -228,9 +266,23 @@ public class Camera {
         yawPitch.y = Math.max(-89.0f, Math.min(89.0f, yawPitch.y));
     }
 
-    public int getCameraMode() { return cameraMode; }
-    public Vector2f getYawPitch() { return yawPitch; }
-    public Vector3f getPosition() { return position; }
-    public float getOrbitDistance() { return orbitDistance; }
-    public Vector3f getOrbitTargetPoint() { return orbitTargetPoint; }
+    public int getCameraMode() {
+        return cameraMode;
+    }
+
+    public Vector2f getYawPitch() {
+        return yawPitch;
+    }
+
+    public Vector3f getPosition() {
+        return position;
+    }
+
+    public float getOrbitDistance() {
+        return orbitDistance;
+    }
+
+    public Vector3f getOrbitTargetPoint() {
+        return orbitTargetPoint;
+    }
 }

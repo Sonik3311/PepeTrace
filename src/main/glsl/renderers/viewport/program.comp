@@ -1,0 +1,256 @@
+#version 460 core
+
+#include "../../constants.glsl"
+#include "enums.glsl"
+#include "ao.glsl"
+#include "../../util/intersections.glsl"
+#include "../../util/random.glsl"
+#include "../../util/gradient.glsl"
+
+layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1) in; // Используем 8x8x1=64 так как оптимальный размер рабочей группы на AMD = 64*n, на Nvidia = 32*n
+
+layout(rgba32f, binding = 0) uniform image2D imgOutput;
+
+layout(std140, binding = 1) uniform CameraData {
+    vec3 camPos;
+    vec2 camYawPitch;
+} camera;
+
+layout(std140, binding = 2) uniform RenderInts {
+    int tick;
+    int max_samples;
+    int max_reflections;
+    float roughness;
+    int renderMode;
+} renderInts;
+
+layout(rgba32f, binding = 3) readonly uniform image2D skybox;
+
+layout(std430, binding = 4) readonly buffer VertexBuffer {
+    float vertices[];
+};
+
+layout(std430, binding = 5) readonly buffer NormalBuffer {
+    float normals[];
+};
+
+layout(std430, binding = 6) readonly buffer UVBuffer {
+    float uv[];
+};
+
+sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist) {
+    float min_dist = INFINITY;
+    sceneIntersectionResult result;
+    result.checkCount = 0;
+    result.hitCount = 0;
+    TriangleHitResult min_hit;
+    min_hit.isValid = false;
+    min_hit.position = vec3(0);
+    min_hit.normal = vec3(0);
+    min_hit.geometricNormal = vec3(0);
+    min_hit.distance = -1.0;
+    min_hit.uv = vec2(-1);
+    min_hit.baryU = -1;
+    min_hit.baryV = -1;
+    for (int i = 0; i < vertices.length() / 9; i++) {
+        int index = i * 9;
+        int uvindex = index * 2 / 3;
+        vec3 A = vec3(
+                vertices[0 + index],
+                vertices[1 + index],
+                vertices[2 + index]
+            );
+        vec3 B = vec3(
+                vertices[3 + index],
+                vertices[4 + index],
+                vertices[5 + index]
+            );
+
+        vec3 C = vec3(
+                vertices[6 + index],
+                vertices[7 + index],
+                vertices[8 + index]
+            );
+
+        vec3 An = vec3(
+                normals[0 + index],
+                normals[1 + index],
+                normals[2 + index]
+            );
+        vec3 Bn = vec3(
+                normals[3 + index],
+                normals[4 + index],
+                normals[5 + index]
+            );
+
+        vec3 Cn = vec3(
+                normals[6 + index],
+                normals[7 + index],
+                normals[8 + index]
+            );
+
+        vec2 Au = vec2(
+                uv[0 + uvindex],
+                uv[1 + uvindex]
+            );
+        vec2 Bu = vec2(
+                uv[2 + uvindex],
+                uv[3 + uvindex]
+            );
+        vec2 Cu = vec2(
+                uv[4 + uvindex],
+                uv[5 + uvindex]
+            );
+        TriangleHitResult hit = rayTriangleIntersect(ro, rd, A, B, C, An, Bn, Cn, Au, Bu, Cu);
+        result.checkCount++;
+        result.hitCount = hit.isValid ? result.hitCount + 1 : result.hitCount;
+
+        if (hit.distance < min_dist && hit.isValid && hit.distance <= max_dist) {
+            min_dist = hit.distance;
+            min_hit.isValid = true;
+            min_hit.position = hit.position;
+            min_hit.normal = hit.normal;
+            min_hit.geometricNormal = hit.geometricNormal;
+            min_hit.distance = hit.distance;
+            min_hit.baryU = hit.baryU;
+            min_hit.baryV = hit.baryV;
+            min_hit.uv = hit.uv;
+            //min_hit = hit;
+        }
+    }
+    result.hit = min_hit;
+    return result;
+}
+
+float calculateAO(vec3 pos, vec3 normal, vec3 geometricN, inout uvec3 rngState) {
+    int samples = renderInts.max_samples;
+    float total_contribution = 0;
+    float max_dist = 100;
+    for (int i = 0; i < samples; ++i) {
+        vec3 dir = RandomHemisphereUnitVector(rngState, normal);
+        if (dot(dir, geometricN) <= 0) {
+            i--;
+        } else {
+            TriangleHitResult hit = checkSceneIntersection(pos, dir, max_dist).hit;
+            total_contribution += hit.isValid ? 1 - hit.distance / max_dist : 0;
+        }
+    }
+    return total_contribution / samples;
+}
+
+void main() {
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    vec2 cellTexelCoord = round(texelCoord / 2) * 2;
+    uvec3 rngState = uvec3(cellTexelCoord, 0);
+
+    vec2 uv;
+    uv.x = float(texelCoord.x) / (gl_NumWorkGroups.x * KERNEL_SIZE);
+    uv.y = float(texelCoord.y) / (gl_NumWorkGroups.y * KERNEL_SIZE);
+    uv = ((uv - 0.5) * 2);
+
+    float aspect_ratio = float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
+    uv.x *= aspect_ratio;
+
+    vec3 ray_pos = camera.camPos;
+
+    float yawRad = radians(camera.camYawPitch.x);
+    float pitchRad = radians(camera.camYawPitch.y);
+
+    vec3 ray_dir = normalize(vec3(
+                cos(pitchRad) * sin(yawRad),
+                sin(pitchRad),
+                cos(pitchRad) * cos(yawRad)
+            ));
+
+    vec3 right = normalize(cross(ray_dir, vec3(0.0, 1.0, 0.0)));
+    vec3 up = cross(right, ray_dir);
+    ray_dir = normalize(ray_dir + right * uv.x + up * uv.y);
+
+    vec4 final_value;
+    sceneIntersectionResult result = checkSceneIntersection(ray_pos, ray_dir, INFINITY);
+    TriangleHitResult hit = result.hit;
+    switch (renderInts.renderMode) {
+        case RenderMode_Shaded:
+        {
+            if (hit.isValid) {
+                ivec2 imgsize = imageSize(skybox);
+                vec3 albedo = imageLoad(skybox, ivec2(imgsize.xy * hit.uv)).rgb;
+                final_value = vec4(albedo * dot(normalize(vec3(1, 1, 1)), hit.normal), 1);
+                float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.normal, hit.geometricNormal, rngState);
+                final_value.rgb *= (1 - ao);
+            }
+            break;
+        }
+
+        case RenderMode_FlatShaded:
+        {
+            if (hit.isValid) {
+                ivec2 imgsize = imageSize(skybox);
+                vec3 albedo = imageLoad(skybox, ivec2(imgsize.xy * hit.uv)).rgb;
+                final_value = vec4(albedo * dot(normalize(vec3(1, 1, 1)), hit.geometricNormal), 1);
+                float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
+                final_value.rgb *= (1 - ao);
+            }
+            break;
+        }
+
+        case RenderMode_TexturelessShaded:
+        {
+            if (hit.isValid) {
+                final_value = vec4(vec3(dot(normalize(vec3(1, 1, 1)), hit.normal)), 1);
+                float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.normal, hit.geometricNormal, rngState);
+                final_value.rgb *= (1 - ao);
+            }
+            break;
+        }
+
+        case RenderMode_TexutrelessFlatShaded:
+        {
+            if (hit.isValid) {
+                final_value = vec4(vec3(dot(normalize(vec3(1, 1, 1)), hit.geometricNormal)), 1);
+                float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
+                final_value.rgb *= (1 - ao);
+            }
+            break;
+        }
+
+        case RenderMode_Albedo:
+        {
+            ivec2 imgsize = imageSize(skybox);
+            vec3 albedo = imageLoad(skybox, ivec2(imgsize.xy * hit.uv)).rgb;
+            final_value = vec4(albedo, 1);
+            break;
+        }
+        case RenderMode_Normal:
+        {
+            final_value = vec4(hit.normal, 1);
+            break;
+        }
+        case RenderMode_GeometricNormal:
+        {
+            final_value = vec4(hit.geometricNormal, 1);
+            break;
+        }
+        case RenderMode_UV:
+        {
+            final_value = vec4(vec3(hit.uv, 0), 1);
+            break;
+        }
+        case RenderMode_RayIntersectionCount:
+        {
+            float t = float(result.hitCount) / 5;
+            final_value = vec4(hotnessMap(t), 1);
+            break;
+        }
+        case RenderMode_RayIntersectionCheckCount:
+        {
+            float t = float(result.checkCount) / 100;
+            final_value = vec4(hotnessMap(t), 1);
+            break;
+        }
+
+        //default: final_value = vec4(vec3(1), 1);
+    }
+
+    imageStore(imgOutput, texelCoord, final_value);
+}
