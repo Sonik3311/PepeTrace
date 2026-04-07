@@ -22,6 +22,7 @@ public class Scene {
     private int triangleAmount = 0;
 
     public Scene() {
+
         for (float v : TestTriangleScene.vertices) {
             vertices.add(v);
         }
