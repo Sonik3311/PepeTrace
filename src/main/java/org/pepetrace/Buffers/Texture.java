@@ -31,11 +31,12 @@ public class Texture {
      *
      * @param width          ширина текстуры
      * @param height         высота текстуры
+     * @param binding        слот текстуры. Если < 0, то bindless
      * @param internalFormat формат хранения (GL_RGBA32F, GL_RGBA8, ...)
      * @param pixelFormat    формат пикселей для операций загрузки (GL_RGBA, GL_RGB, ...)
      * @param pixelType      тип пикселей для операций загрузки (GL_UNSIGNED_BYTE, GL_FLOAT, ...)
      * @param imageFormat    формат для image unit (GL_RGBA32F, GL_RGBA8, ...)
-     * @param access   режим доступа (GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE)
+     * @param access         режим доступа (GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE)
      */
     public Texture(int width, int height, int binding, int internalFormat, int pixelFormat, int pixelType, int imageFormat, int access) {
         this.width = width;
@@ -60,7 +61,9 @@ public class Texture {
         glTexStorage2D(GL_TEXTURE_2D, 1, internalFormat, width, height);
 
         // Привязываем как image для работы в compute-шейдере (чтение/запись)
-        glBindImageTexture(binding, id, 0, false, 0, access, imageFormat);
+        if (binding >= 0) {
+            glBindImageTexture(binding, id, 0, false, 0, access, imageFormat);
+        }
     }
 
     /**

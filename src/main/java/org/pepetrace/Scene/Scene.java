@@ -8,12 +8,15 @@ import java.util.ArrayList;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.pepetrace.Buffers.SSBO;
+import org.pepetrace.Scene.Material.Material;
 
 public class Scene {
 
     private final ArrayList<Float> vertices = new ArrayList<Float>();
     private final ArrayList<Float> normals = new ArrayList<Float>();
     private final ArrayList<Float> UVCoordinates = new ArrayList<Float>();
+
+    private final ArrayList<Material> materials = new ArrayList<Material>();
 
     public int getTriangleAmount() {
         return triangleAmount;
