@@ -21,7 +21,7 @@ public class Camera {
     private float orbitPitch = 0.0f;
     private boolean wasLeftMousePressed = false;
     private boolean wasEscapePressed = false;
-    private final UBOCamera ubo = new UBOCamera(1);
+    private final UBOCamera ubo = new UBOCamera(2);
 
     public Camera() {
         position = new Vector3f(0.0f, 0.0f, -5.0f);

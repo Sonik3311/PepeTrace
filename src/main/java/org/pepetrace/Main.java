@@ -28,9 +28,11 @@ public class Main {
 
         Scene scene = new Scene();
         //scene.packTriangles(drawer.getTriangleBuffer());
-        scene.packScene(drawer.getTriangleBuffer(), drawer.getNormalBuffer(), drawer.getUVBuffer());
+        scene.packScene(drawer.getGeometryBuffer(), drawer.getMaterialIndicesBuffer(), drawer.getMaterialHandlesBuffer());
 
         GPUTimeQuerier timer = new GPUTimeQuerier();
+        int passed_ticks = 0;
+        double accumulated_time = 0;
 
         while (!window.shouldClose()) {
             timer.startTimer();
@@ -39,9 +41,19 @@ public class Main {
             }
             drawer.renderFrame();
             long duration = timer.stopTimer();
+            accumulated_time += (double) (duration) / 1000000;
+            passed_ticks++;
+            if (passed_ticks == 5) {
+                System.out.println(
+                    "Рендер занял (accum)" + accumulated_time / 5 + " мс"
+                );
+                passed_ticks = 0;
+                accumulated_time = 0;
+            }
             System.out.println(
-                "Рендер занял " + (double) (duration) / 1000000 + " мс"
+                    "Рендер занял " + (double) (duration) / 1000000 + " мс"
             );
+
 
             glfwSwapBuffers(window.getId());
 

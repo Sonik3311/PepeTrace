@@ -1,6 +1,10 @@
 vec3 hotnessMap(float t) {
     t = clamp(t, 0.0, 1.0);
 
+    if (t == 0.0f) {
+        return vec3(1,1,1);
+    }
+
     // 6 equal segments: violet, blue, cyan, green, yellow, red, white
     // Actually 7 colors = 6 segments
     float segment = 1.0 / 6.0; // 0.1666...

@@ -31,21 +31,14 @@ public class Drawer implements Window.ResizeListener {
     private int drawVAO;
     private Camera camera;
 
-    public SSBO getTriangleBuffer() {
-        return triangleBuffer;
-    }
 
-    public SSBO getNormalBuffer() {
-        return normalBuffer;
-    }
+    public SSBO getGeometryBuffer() { return geometryBuffer; }
+    public SSBO getMaterialIndicesBuffer() {return materialIndicesBuffer;}
+    public SSBO getMaterialHandlesBuffer() {return materialHandlesBuffer;}
 
-    public SSBO getUVBuffer() {
-        return UVBuffer;
-    }
-
-    private SSBO triangleBuffer = new SSBO(GL_STATIC_DRAW, 4);
-    private SSBO normalBuffer = new SSBO(GL_STATIC_DRAW, 5);
-    private SSBO UVBuffer = new SSBO(GL_STATIC_DRAW, 6);
+    private SSBO geometryBuffer = new SSBO(GL_STATIC_DRAW, 5);
+    private SSBO materialIndicesBuffer = new SSBO(GL_STATIC_DRAW, 6);
+    private SSBO materialHandlesBuffer = new SSBO(GL_STATIC_DRAW, 7);
     private ImInt renderMode = new ImInt(ViewportRenderMode.SHADED.ordinal());
     private UBORenderInts ubo;
     private int frame = 0;
@@ -55,7 +48,7 @@ public class Drawer implements Window.ResizeListener {
     private ImFloat roughness = new ImFloat(1.0f);
     private Texture pathTracingTexture;
     private final Texture skybox = Texture.createFromFile(
-        3,
+        4,
         GL_READ_ONLY,
         "./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr"
     );
@@ -147,6 +140,8 @@ public class Drawer implements Window.ResizeListener {
 
         // 3. Рендеринг квада
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // чистим прошлый фрэймбуффер (опционально)
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, pathTracingTexture.id);
         windowTextureDrawerProgram.use();
         windowTextureDrawerProgram.setInt("tex", 0);
 
@@ -275,7 +270,7 @@ public class Drawer implements Window.ResizeListener {
         pathTracingTexture = new Texture(
             currentWidth,
             currentHeight,
-            0,
+            1,
             GL_RGBA32F,
             GL_RGBA,
             GL_FLOAT,
@@ -292,6 +287,6 @@ public class Drawer implements Window.ResizeListener {
 
         //triangleBuffer.fillBuffer(TestTriangleScene.vertices);
 
-        ubo = new UBORenderInts(2);
+        ubo = new UBORenderInts(3);
     }
 }

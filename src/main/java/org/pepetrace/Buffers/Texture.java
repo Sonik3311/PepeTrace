@@ -59,11 +59,13 @@ public class Texture {
 
         // Выделяем неизменяемую память
         glTexStorage2D(GL_TEXTURE_2D, 1, internalFormat, width, height);
+        glBindTexture(GL_TEXTURE_2D, 0);
 
         // Привязываем как image для работы в compute-шейдере (чтение/запись)
         if (binding >= 0) {
             glBindImageTexture(binding, id, 0, false, 0, access, imageFormat);
-        }
+        } else {System.out.println("Bindless!");};
+
     }
 
     /**
@@ -98,7 +100,7 @@ public class Texture {
             // Загружаем пиксельные данные
             glBindTexture(GL_TEXTURE_2D, texture.id);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, data);
-
+            glBindTexture(GL_TEXTURE_2D, 0);
             stbi_image_free(data);
             return texture;
         }
@@ -136,7 +138,7 @@ public class Texture {
             // Загружаем пиксельные данные
             glBindTexture(GL_TEXTURE_2D, texture.id);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
-
+            glBindTexture(GL_TEXTURE_2D, 0);
             stbi_image_free(data);
             return texture;
         }
@@ -151,6 +153,7 @@ public class Texture {
     public void updateData(ByteBuffer data) {
         glBindTexture(GL_TEXTURE_2D, id);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, pixelFormat, pixelType, data);
+        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     /**
@@ -182,6 +185,7 @@ public class Texture {
 
             glBindTexture(GL_TEXTURE_2D, id);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            glBindTexture(GL_TEXTURE_2D, 0);
 
             stbi_image_free(data);
         }

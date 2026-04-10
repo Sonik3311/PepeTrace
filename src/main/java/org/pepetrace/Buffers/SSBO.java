@@ -6,6 +6,7 @@ import org.lwjgl.BufferUtils;
 import java.nio.FloatBuffer;
 import java.util.Arrays;
 
+import static org.lwjgl.opengl.GL15.glBufferData;
 import static org.lwjgl.opengl.GL46.*;
 
 /**
@@ -55,6 +56,11 @@ public class SSBO extends Buffer {
                 this.length = doubleData.length;
                 this.sizeBytes = doubleData.length * Double.BYTES;
                 glBufferData(GL_SHADER_STORAGE_BUFFER, doubleData, usage);
+            }
+            case long[] longData -> {
+                this.length = longData.length;
+                this.sizeBytes = longData.length * Long.BYTES;
+                glBufferData(GL_SHADER_STORAGE_BUFFER, longData, usage);
             }
             case null, default -> throw new IllegalArgumentException(
                 "Unsupported type"

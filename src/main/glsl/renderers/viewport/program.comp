@@ -1,4 +1,6 @@
-#version 460 core
+#version 460
+#extension GL_ARB_bindless_texture : require
+
 
 #include "../../constants.glsl"
 #include "enums.glsl"
@@ -6,17 +8,18 @@
 #include "../../util/intersections.glsl"
 #include "../../util/random.glsl"
 #include "../../util/gradient.glsl"
+#include "../../material.glsl"
 
 layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1) in; // Используем 8x8x1=64 так как оптимальный размер рабочей группы на AMD = 64*n, на Nvidia = 32*n
 
-layout(rgba32f, binding = 0) uniform image2D imgOutput;
+layout(rgba32f, binding = 1) uniform image2D imgOutput;
 
-layout(std140, binding = 1) uniform CameraData {
+layout(std140, binding = 2) uniform CameraData {
     vec3 camPos;
     vec2 camYawPitch;
 } camera;
 
-layout(std140, binding = 2) uniform RenderInts {
+layout(std140, binding = 3) uniform RenderInts {
     int tick;
     int max_samples;
     int max_reflections;
@@ -24,23 +27,31 @@ layout(std140, binding = 2) uniform RenderInts {
     int renderMode;
 } renderInts;
 
-layout(rgba32f, binding = 3) readonly uniform image2D skybox;
+layout(rgba32f, binding = 4) readonly uniform image2D skybox;
 
-layout(std430, binding = 4) readonly buffer VertexBuffer {
-    float vertices[];
+struct VertexData { // 32B
+    vec3 position;  // offset 0
+    float u;        // offset 12 (fills the 4‑byte gap)
+    vec3 normal;    // offset 16
+    float v;        // offset 28
 };
 
-layout(std430, binding = 5) readonly buffer NormalBuffer {
-    float normals[];
+layout(std430, binding = 5) readonly buffer GeometryBuffer {
+    VertexData geometry[];
 };
 
-layout(std430, binding = 6) readonly buffer UVBuffer {
-    float uv[];
+layout(std430, binding = 6) readonly buffer MaterialIndicesBuffer {
+    int materialIndices[];
+};
+
+layout(std430, binding = 7) readonly buffer MaterialBuffer {
+    Material materialHandles[];
 };
 
 sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist) {
     float min_dist = INFINITY;
     sceneIntersectionResult result;
+    result.materialIndex = 9;
     result.checkCount = 0;
     result.hitCount = 0;
     TriangleHitResult min_hit;
@@ -52,56 +63,17 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
     min_hit.uv = vec2(-1);
     min_hit.baryU = -1;
     min_hit.baryV = -1;
-    for (int i = 0; i < vertices.length() / 9; i++) {
-        int index = i * 9;
-        int uvindex = index * 2 / 3;
-        vec3 A = vec3(
-                vertices[0 + index],
-                vertices[1 + index],
-                vertices[2 + index]
-            );
-        vec3 B = vec3(
-                vertices[3 + index],
-                vertices[4 + index],
-                vertices[5 + index]
-            );
+    for (int i = 0; i < geometry.length() / 3; i++) {
+        int i3 = i * 3;
+        VertexData vertexA = geometry[i3 + 0];
+        VertexData vertexB = geometry[i3 + 1];
+        VertexData vertexC = geometry[i3 + 2];
+        vec2 uvA = vec2(vertexA.u, vertexA.v);
+        vec2 uvB = vec2(vertexB.u, vertexB.v);
+        vec2 uvC = vec2(vertexC.u, vertexC.v);
 
-        vec3 C = vec3(
-                vertices[6 + index],
-                vertices[7 + index],
-                vertices[8 + index]
-            );
 
-        vec3 An = vec3(
-                normals[0 + index],
-                normals[1 + index],
-                normals[2 + index]
-            );
-        vec3 Bn = vec3(
-                normals[3 + index],
-                normals[4 + index],
-                normals[5 + index]
-            );
-
-        vec3 Cn = vec3(
-                normals[6 + index],
-                normals[7 + index],
-                normals[8 + index]
-            );
-
-        vec2 Au = vec2(
-                uv[0 + uvindex],
-                uv[1 + uvindex]
-            );
-        vec2 Bu = vec2(
-                uv[2 + uvindex],
-                uv[3 + uvindex]
-            );
-        vec2 Cu = vec2(
-                uv[4 + uvindex],
-                uv[5 + uvindex]
-            );
-        TriangleHitResult hit = rayTriangleIntersect(ro, rd, A, B, C, An, Bn, Cn, Au, Bu, Cu);
+        TriangleHitResult hit = rayTriangleIntersect(ro, rd, vertexA.position, vertexB.position, vertexC.position, vertexA.normal, vertexB.normal, vertexC.normal, uvA, uvB, uvC);
         result.checkCount++;
         result.hitCount = hit.isValid ? result.hitCount + 1 : result.hitCount;
 
@@ -109,12 +81,13 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
             min_dist = hit.distance;
             min_hit.isValid = true;
             min_hit.position = hit.position;
-            min_hit.normal = hit.normal;
+            min_hit.normal = -hit.normal;
             min_hit.geometricNormal = hit.geometricNormal;
             min_hit.distance = hit.distance;
             min_hit.baryU = hit.baryU;
             min_hit.baryV = hit.baryV;
             min_hit.uv = hit.uv;
+            result.materialIndex = materialIndices[i];
         }
     }
     result.hit = min_hit;
@@ -123,23 +96,56 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
 
 float calculateAO(vec3 pos, vec3 normal, vec3 geometricN, inout uvec3 rngState) {
     int samples = renderInts.max_samples;
-    float total_contribution = 0;
+    if (samples <= 0) return 0.0;
+
+    float total_contribution = 0.0;
     float max_dist = 1.5;
-    for (int i = 0; i < samples; ++i) {
-        vec3 dir = RandomHemisphereUnitVector(rngState, normal);
-        if (dot(dir, geometricN) <= 0) {
-            i--;
-        } else {
-            TriangleHitResult hit = checkSceneIntersection(pos, dir, max_dist).hit;
-            total_contribution += hit.isValid ? 1 - hit.distance / max_dist : 0;
-        }
+
+    // Build orthonormal basis from shading normal
+    vec3 tangent, bitangent;
+    if (abs(normal.x) > 0.99) {
+        tangent = normalize(cross(normal, vec3(0.0, 1.0, 0.0)));
+    } else {
+        tangent = normalize(cross(normal, vec3(1.0, 0.0, 0.0)));
     }
-    return total_contribution / samples;
+    bitangent = cross(normal, tangent);
+
+    // --- Random rotation around the normal ---
+    float randomAngle = randomOld(rngState) * TWO_PI;
+    float cosA = cos(randomAngle);
+    float sinA = sin(randomAngle);
+
+    // Rotate the tangent vectors in the plane perpendicular to the normal
+    vec3 rotTangent   = tangent * cosA + bitangent * sinA;
+    vec3 rotBitangent = -tangent * sinA + bitangent * cosA;   // FIXED: was '-tangent' → should be '-tangent' (now corrected to '-tangent')
+
+    uint validCount = 0u;
+    uint sampleIdx = 0u;
+    uint maxAttempts = uint(samples) * 100u;
+
+    while (validCount < uint(samples) && sampleIdx < maxAttempts) {
+        vec3 dirTangent = fibonacciHemispherePoint(sampleIdx, uint(samples));
+
+        // Transform to world space using the rotated basis
+        vec3 dir = rotTangent * dirTangent.x + rotBitangent * dirTangent.y + normal * dirTangent.z;
+
+        if (dot(dir, geometricN) <= 0.0) {
+            sampleIdx++;
+            continue;
+        }
+
+        TriangleHitResult hit = checkSceneIntersection(pos, dir, max_dist).hit;
+        total_contribution += hit.isValid ? (1.0 - hit.distance / max_dist) : 0.0;
+        validCount++;
+        sampleIdx++;
+    }
+
+    return validCount > 0u ? total_contribution / float(validCount) : 0.0;
 }
 
 void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
-    vec2 cellTexelCoord = round(texelCoord / 2) * 2;
+    vec2 cellTexelCoord = round(texelCoord / 1) * 1;
     uvec3 rngState = uvec3(cellTexelCoord, 0);
 
     vec2 uv;
@@ -172,10 +178,11 @@ void main() {
         case RenderMode_Shaded:
         {
             if (hit.isValid) {
-                ivec2 imgsize = imageSize(skybox);
-                vec3 albedo = imageLoad(skybox, ivec2(imgsize.xy * hit.uv)).rgb;
+
+                sampler2D albedotex = sampler2D(materialHandles[result.materialIndex].albedoTex_handle);
+                vec3 albedo = texture(albedotex, hit.uv).rgb;
                 final_value = vec4(albedo * dot(normalize(vec3(1, 1, 1)), hit.normal), 1);
-                float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.normal, hit.geometricNormal, rngState);
+                float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
             }
             break;
@@ -184,8 +191,8 @@ void main() {
         case RenderMode_FlatShaded:
         {
             if (hit.isValid) {
-                ivec2 imgsize = imageSize(skybox);
-                vec3 albedo = imageLoad(skybox, ivec2(imgsize.xy * hit.uv)).rgb;
+                sampler2D albedotex = sampler2D(materialHandles[result.materialIndex].albedoTex_handle);
+                vec3 albedo = texture(albedotex, hit.uv).rgb;
                 final_value = vec4(albedo * dot(normalize(vec3(1, 1, 1)), hit.geometricNormal), 1);
                 float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
@@ -215,8 +222,8 @@ void main() {
 
         case RenderMode_Albedo:
         {
-            ivec2 imgsize = imageSize(skybox);
-            vec3 albedo = imageLoad(skybox, ivec2(imgsize.xy * hit.uv)).rgb;
+            sampler2D albedotex = sampler2D(materialHandles[result.materialIndex].albedoTex_handle);
+            vec3 albedo = texture(albedotex, hit.uv).rgb;
             final_value = vec4(albedo, 1);
             break;
         }
