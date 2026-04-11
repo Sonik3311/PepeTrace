@@ -23,9 +23,9 @@ public class TextureMaterial extends Material {
 
     public static TextureMaterial create(String albedoTexturePath, String normalTexturePath, String RMTTexturePath) {
         TextureMaterial texture = new TextureMaterial();
-        texture.albedoTexture = Texture.createFromFile(-1, GL_READ_ONLY, albedoTexturePath);
-        texture.normalTexture = Texture.createFromFile(-1, GL_READ_ONLY, normalTexturePath);
-        texture.RMTTexture = Texture.createFromFile(-1, GL_READ_ONLY, RMTTexturePath);
+        texture.albedoTexture = Texture.createFromFile(-1, false, GL_READ_ONLY, albedoTexturePath);
+        texture.normalTexture = Texture.createFromFile(-1, false, GL_READ_ONLY, normalTexturePath);
+        texture.RMTTexture = Texture.createFromFile(-1, false, GL_READ_ONLY, RMTTexturePath);
 
         texture.albedoTextureHandle = glGetTextureHandleARB(texture.albedoTexture.id);
         texture.normalTextureHandle = glGetTextureHandleARB(texture.normalTexture.id);

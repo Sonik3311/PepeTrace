@@ -27,6 +27,7 @@ layout(std140, binding = 3) uniform RenderInts {
     int renderMode;
 } renderInts;
 
+layout(binding = 5) uniform sampler2D blurrySkybox;
 layout(rgba32f, binding = 4) readonly uniform image2D skybox;
 
 struct VertexData { // 32B
@@ -36,15 +37,15 @@ struct VertexData { // 32B
     float v;        // offset 28
 };
 
-layout(std430, binding = 5) readonly buffer GeometryBuffer {
+layout(std430, binding = 6) readonly buffer GeometryBuffer {
     VertexData geometry[];
 };
 
-layout(std430, binding = 6) readonly buffer MaterialIndicesBuffer {
+layout(std430, binding = 7) readonly buffer MaterialIndicesBuffer {
     int materialIndices[];
 };
 
-layout(std430, binding = 7) readonly buffer MaterialBuffer {
+layout(std430, binding = 8) readonly buffer MaterialBuffer {
     Material materialHandles[];
 };
 
@@ -143,6 +144,20 @@ float calculateAO(vec3 pos, vec3 normal, vec3 geometricN, inout uvec3 rngState) 
     return validCount > 0u ? total_contribution / float(validCount) : 0.0;
 }
 
+vec3 getSkyColor(vec3 direction, bool useProcedural, bool blur) {
+    if (useProcedural) {
+        vec3 light_dir = normalize(vec3(0.5, cos(float(50) / 100), sin(float(50) / 100)));
+        vec3 lower_sky = vec3(0.01, 0.1, 0.2);
+        vec3 upper_sky = vec3(0.65, 0.7, 0.8);
+        return dot(direction, light_dir) < 0.95 ? mix(lower_sky, upper_sky, dot(direction, vec3(0, 1, 0))) : vec3(5);
+    } else {
+        vec2 uv = vec2(0.5 + atan(direction.x, direction.z) / (TWO_PI), 0.5 + asin(direction.y) / PI);
+        //ivec2 imgsize = imageSize(blurrySkybox);
+        vec3 col = textureLod(blurrySkybox, uv, blur ? 10 : 0).rgb;//imageLoad(blurrySkybox, ivec2(imgsize.xy * uv)).xyz;
+        return col;
+    }
+}
+
 void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
     vec2 cellTexelCoord = round(texelCoord / 1) * 1;
@@ -181,9 +196,12 @@ void main() {
 
                 sampler2D albedotex = sampler2D(materialHandles[result.materialIndex].albedoTex_handle);
                 vec3 albedo = texture(albedotex, hit.uv).rgb;
-                final_value = vec4(albedo * dot(normalize(vec3(1, 1, 1)), hit.normal), 1);
+                final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), hit.normal), 0.075), 1);
                 float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
+                final_value.rgb *= getSkyColor(hit.normal, false, true) * 5;
+            } else {
+                final_value.rgb = getSkyColor(ray_dir, false, false);
             }
             break;
         }
@@ -193,9 +211,12 @@ void main() {
             if (hit.isValid) {
                 sampler2D albedotex = sampler2D(materialHandles[result.materialIndex].albedoTex_handle);
                 vec3 albedo = texture(albedotex, hit.uv).rgb;
-                final_value = vec4(albedo * dot(normalize(vec3(1, 1, 1)), hit.geometricNormal), 1);
+                final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), hit.geometricNormal), 0.075), 1);
                 float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
+                final_value.rgb *= getSkyColor(hit.normal, false, true) * 5;
+            } else {
+                final_value.rgb = getSkyColor(ray_dir, false, false);
             }
             break;
         }
@@ -255,7 +276,7 @@ void main() {
             break;
         }
 
-        //default: final_value = vec4(vec3(1), 1);
+        default: final_value = vec4(vec3(1), 1);
     }
 
     imageStore(imgOutput, texelCoord, final_value);

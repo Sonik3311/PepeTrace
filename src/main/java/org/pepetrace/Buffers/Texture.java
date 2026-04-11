@@ -38,7 +38,7 @@ public class Texture {
      * @param imageFormat    формат для image unit (GL_RGBA32F, GL_RGBA8, ...)
      * @param access         режим доступа (GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE)
      */
-    public Texture(int width, int height, int binding, int internalFormat, int pixelFormat, int pixelType, int imageFormat, int access) {
+    public Texture(int width, int height, boolean generateMipmaps, int binding, int internalFormat, int pixelFormat, int pixelType, int imageFormat, int access) {
         this.width = width;
         this.height = height;
         this.binding = binding;
@@ -55,14 +55,26 @@ public class Texture {
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+        if (generateMipmaps) {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            glGenerateMipmap(GL_TEXTURE_2D);
+        } else {
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        }
 
         // Выделяем неизменяемую память
-        glTexStorage2D(GL_TEXTURE_2D, 1, internalFormat, width, height);
-        glBindTexture(GL_TEXTURE_2D, 0);
+        int levels = generateMipmaps ? 1 + (int) Math.floor(Math.log(Math.max(width, height)) / Math.log(2)) : 1;
+        System.out.println(levels);
+        glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, width, height);
 
+
+
+
+        glBindTexture(GL_TEXTURE_2D, 0);
         // Привязываем как image для работы в compute-шейдере (чтение/запись)
         if (binding >= 0) {
+
             glBindImageTexture(binding, id, 0, false, 0, access, imageFormat);
         } else {System.out.println("Bindless!");};
 
@@ -78,7 +90,7 @@ public class Texture {
      * @return новый объект Texture с загруженными данными
      * @throws RuntimeException если загрузка изображения не удалась
      */
-    public static Texture createFromFileHDR(int binding, int access, String path) {
+    public static Texture createFromFileHDR(int binding, boolean generateMipmaps, int access, String path) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer w = stack.mallocInt(1);
             IntBuffer h = stack.mallocInt(1);
@@ -95,11 +107,14 @@ public class Texture {
             int height = h.get();
 
             // Создаём текстуру с форматом GL_RGBA8 (подходит и для записи из compute-шейдера)
-            Texture texture = new Texture(width, height, binding, GL_RGBA32F, GL_RGBA, GL_FLOAT, GL_RGBA32F, access);
+            Texture texture = new Texture(width, height, generateMipmaps, binding, GL_RGBA32F, GL_RGBA, GL_FLOAT, GL_RGBA32F, access);
 
             // Загружаем пиксельные данные
             glBindTexture(GL_TEXTURE_2D, texture.id);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, data);
+            if (generateMipmaps) {
+                glGenerateMipmap(GL_TEXTURE_2D);
+            }
             glBindTexture(GL_TEXTURE_2D, 0);
             stbi_image_free(data);
             return texture;
@@ -116,7 +131,7 @@ public class Texture {
      * @return новый объект Texture с загруженными данными
      * @throws RuntimeException если загрузка изображения не удалась
      */
-    public static Texture createFromFile(int binding, int access, String path) {
+    public static Texture createFromFile(int binding, boolean generateMipmaps, int access, String path) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             IntBuffer w = stack.mallocInt(1);
             IntBuffer h = stack.mallocInt(1);
@@ -133,11 +148,14 @@ public class Texture {
             int height = h.get();
 
             // Создаём текстуру с форматом GL_RGBA8 (подходит и для записи из compute-шейдера)
-            Texture texture = new Texture(width, height, binding, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, GL_RGBA8, access);
+            Texture texture = new Texture(width, height, generateMipmaps, binding, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, GL_RGBA8, access);
 
             // Загружаем пиксельные данные
             glBindTexture(GL_TEXTURE_2D, texture.id);
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            if (generateMipmaps) {
+                glGenerateMipmap(GL_TEXTURE_2D);
+            }
             glBindTexture(GL_TEXTURE_2D, 0);
             stbi_image_free(data);
             return texture;

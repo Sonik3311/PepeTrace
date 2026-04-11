@@ -36,9 +36,9 @@ public class Drawer implements Window.ResizeListener {
     public SSBO getMaterialIndicesBuffer() {return materialIndicesBuffer;}
     public SSBO getMaterialHandlesBuffer() {return materialHandlesBuffer;}
 
-    private SSBO geometryBuffer = new SSBO(GL_STATIC_DRAW, 5);
-    private SSBO materialIndicesBuffer = new SSBO(GL_STATIC_DRAW, 6);
-    private SSBO materialHandlesBuffer = new SSBO(GL_STATIC_DRAW, 7);
+    private SSBO geometryBuffer = new SSBO(GL_STATIC_DRAW, 6);
+    private SSBO materialIndicesBuffer = new SSBO(GL_STATIC_DRAW, 7);
+    private SSBO materialHandlesBuffer = new SSBO(GL_STATIC_DRAW, 8);
     private ImInt renderMode = new ImInt(ViewportRenderMode.SHADED.ordinal());
     private UBORenderInts ubo;
     private int frame = 0;
@@ -49,8 +49,9 @@ public class Drawer implements Window.ResizeListener {
     private Texture pathTracingTexture;
     private final Texture skybox = Texture.createFromFile(
         4,
+        true,
         GL_READ_ONLY,
-        "./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr"
+        "./src/main/java/org/pepetrace/unsplash-purple.jpg"
     );
     private int currentWidth;
     private int currentHeight;
@@ -80,7 +81,8 @@ public class Drawer implements Window.ResizeListener {
         pathTracingTexture = new Texture(
             currentWidth,
             currentHeight,
-            0,
+            false,
+            1,
             GL_RGBA32F,
             GL_RGBA,
             GL_FLOAT,
@@ -121,6 +123,7 @@ public class Drawer implements Window.ResizeListener {
     public void renderFrame() {
         // 1. Запуск compute шейдера
         glViewport(0, 0, currentWidth, currentHeight);
+        //glBindImageTexture(5, skybox.id, 9, false, 0, skybox.getAccess(), skybox.getImageFormat());
         ubo.updateBuffer(
             frame,
             samples.get(),
@@ -129,6 +132,9 @@ public class Drawer implements Window.ResizeListener {
             ViewportRenderMode.values()[renderMode.get()]
         );
         pathTracingProgram.use();
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, skybox.id);
+        glUniform1i(glGetUniformLocation(pathTracingProgram.id, "blurrySkybox"), 1);
         int groupsX = (currentWidth + 15) / 16;
         int groupsY = (currentHeight + 15) / 16;
         glDispatchCompute(groupsX, groupsY, 1);
@@ -270,6 +276,7 @@ public class Drawer implements Window.ResizeListener {
         pathTracingTexture = new Texture(
             currentWidth,
             currentHeight,
+            false,
             1,
             GL_RGBA32F,
             GL_RGBA,

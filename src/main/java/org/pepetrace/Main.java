@@ -50,9 +50,6 @@ public class Main {
                 passed_ticks = 0;
                 accumulated_time = 0;
             }
-            System.out.println(
-                    "Рендер занял " + (double) (duration) / 1000000 + " мс"
-            );
 
 
             glfwSwapBuffers(window.getId());

@@ -59,20 +59,6 @@ public class Scene {
         return array;
     }
 
-    public void packIndices(SSBO indicesBuffer) { indicesBuffer.fillBuffer(IntegerarrayListToArray(indices)); }
-
-    public void packVertices(SSBO vertexBuffer) {
-        vertexBuffer.fillBuffer(FloatarrayListToArray(vertices));
-    }
-
-    public void packNormals(SSBO normalBuffer) {
-        normalBuffer.fillBuffer(FloatarrayListToArray(normals));
-    }
-
-    public void packUVs(SSBO UVBuffer) {
-        UVBuffer.fillBuffer(FloatarrayListToArray(uv));
-    }
-
     public void packMaterials(SSBO TextureMaterialBuffer) {
         long[] handles = new long[materials.size() * 3];
         int i = 0;
