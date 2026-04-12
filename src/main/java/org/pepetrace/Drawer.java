@@ -4,10 +4,7 @@ import static org.lwjgl.glfw.GLFW.glfwSetScrollCallback;
 import static org.lwjgl.opengl.GL46.*;
 
 import imgui.*;
-import imgui.flag.ImGuiCond;
-import imgui.flag.ImGuiDockNodeFlags;
-import imgui.flag.ImGuiStyleVar;
-import imgui.flag.ImGuiWindowFlags;
+import imgui.flag.*;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import imgui.type.ImBoolean;
@@ -114,6 +111,9 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         ImGui.createContext();
 
         ImGuiIO io = ImGui.getIO();
+        //io.addConfigFlags(ImGuiConfigFlags.DockingEnable); // Разрешает перетаскивание окон друг в друга
+        //io.addConfigFlags(ImGuiConfigFlags.ViewportsEnable); // (Опционально) Разрешает выносить окна за пределы главного окна
+
         io.setIniFilename(null); // Выключаем .ini файл, чтобы избежать сохранения состояния окон ImGUI
         io.setDisplaySize(currentWidth, currentHeight); // Изначальный размер окна GLFW (Не нужно судя по всему, так как наследует от GLFW автоматически под капотом)
         io.getFonts().addFontDefault(); // Загрузить стандартный шрифт текста.
@@ -177,6 +177,26 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
 
     private void renderImGUI() {
         imGuiGl3.newFrame();
+        imGuiGlfw.newFrame();
+        ImGui.newFrame();
+        // Меню сверху
+        if (ImGui.beginMainMenuBar()) {
+            if (ImGui.beginMenu("File")) {
+                if (ImGui.menuItem("Save", "Ctrl+S")) {
+                    // handle save
+                }
+                ImGui.endMenu();
+            }
+            if (ImGui.beginMenu("Edit")) {
+                // edit menu items
+                ImGui.endMenu();
+            }
+            // ... other menus
+            ImGui.endMainMenuBar();
+        }
+        ImGui.render();
+        imGuiGl3.renderDrawData(ImGui.getDrawData());
+        /**imGuiGl3.newFrame();
         imGuiGlfw.newFrame();
         ImGui.newFrame();
         int windowFlags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse |
@@ -322,7 +342,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
 
         // Render ImGui
         ImGui.render();
-        imGuiGl3.renderDrawData(ImGui.getDrawData());
+        imGuiGl3.renderDrawData(ImGui.getDrawData());*/
     }
 
     private void initGL() throws FileNotFoundException {
