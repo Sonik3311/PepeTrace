@@ -222,7 +222,7 @@ void main() {
             if (hit.isValid) {
                 sampler2D albedotex = sampler2D(materialHandles[result.materialIndex].albedoTex_handle);
                 vec3 albedo = texture(albedotex, hit.uv).rgb;
-                final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), hit.geometricNormal), 0.075), 1);
+                final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), hit.geometricNormal), 0.02), 1);
                 float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
                 final_value.rgb *= getSkyColor(hit.normal, false, true) * 5;
@@ -235,7 +235,7 @@ void main() {
         case RenderMode_TexturelessShaded:
         {
             if (hit.isValid) {
-                final_value = vec4(vec3(dot(normalize(vec3(1, 1, 1)), hit.normal)), 1);
+                final_value = vec4(vec3(max(dot(normalize(vec3(1, 1, 1)), hit.normal), 0.2)), 1);
                 float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.normal, hit.geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
             }
@@ -245,7 +245,7 @@ void main() {
         case RenderMode_TexutrelessFlatShaded:
         {
             if (hit.isValid) {
-                final_value = vec4(vec3(dot(normalize(vec3(1, 1, 1)), hit.geometricNormal)), 1);
+                final_value = vec4(vec3(max(dot(normalize(vec3(1, 1, 1)), hit.geometricNormal), 0.2)), 1);
                 float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
             }
