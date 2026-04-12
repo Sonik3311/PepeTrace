@@ -5,6 +5,8 @@ import static org.lwjgl.opengl.GL46.*;
 
 import imgui.*;
 import imgui.flag.ImGuiCond;
+import imgui.flag.ImGuiDockNodeFlags;
+import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
@@ -128,6 +130,8 @@ public class Drawer implements Window.ResizeListener {
         });
     }
 
+
+
     public void renderFrame() {
         // 1. Запуск compute шейдера
         glViewport(0, 0, currentWidth, currentHeight);
@@ -175,10 +179,10 @@ public class Drawer implements Window.ResizeListener {
         imGuiGl3.newFrame();
         imGuiGlfw.newFrame();
         ImGui.newFrame();
-        int windowFlags =
-            ImGuiWindowFlags.NoMove |
-            ImGuiWindowFlags.NoResize |
-            ImGuiWindowFlags.NoCollapse;
+        int windowFlags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse |
+                ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove |
+                ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoNavFocus |
+                ImGuiWindowFlags.NoDocking;
 
         //if (cursorLocked) {
         //    ImGui.getIO().setMousePos(-Float.MAX_VALUE, -Float.MAX_VALUE);
@@ -188,7 +192,49 @@ public class Drawer implements Window.ResizeListener {
         //ImGui.showDemoWindow(); // Встроенное демо окно
 
         //ImGui.setNextWindowSize(300, 150, ImGuiCond.FirstUseEver);
-        ImGui.setNextWindowPos(0, 0, ImGuiCond.FirstUseEver);
+
+        // Меню сверху
+        if (ImGui.beginMainMenuBar()) {
+            if (ImGui.beginMenu("File")) {
+                if (ImGui.menuItem("Save", "Ctrl+S")) {
+                    // handle save
+                }
+                ImGui.endMenu();
+            }
+            if (ImGui.beginMenu("Edit")) {
+                // edit menu items
+                ImGui.endMenu();
+            }
+            // ... other menus
+            ImGui.endMainMenuBar();
+        }
+
+        // Создаём основное the main docking space, covering the rest of the window
+        ImGuiViewport viewport = ImGui.getMainViewport();
+        ImGui.setNextWindowPos(viewport.getWorkPos());
+        ImGui.setNextWindowSize(viewport.getWorkSize());
+        ImGui.setNextWindowViewport(viewport.getID());
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
+        windowFlags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse |
+                ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove |
+                ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoNavFocus |
+                ImGuiWindowFlags.NoDocking;
+
+        ImGui.begin("MainDockspace", windowFlags);
+        ImGui.popStyleVar(2);
+        int dockSpaceId = ImGui.getID("MyDockSpace");
+        ImGui.dockSpace(dockSpaceId, 0.0f, 0.0f, ImGuiDockNodeFlags.PassthruCentralNode);
+
+        if (!layoutInitialized) {
+            setupDockLayout(dockSpaceId);
+            layoutInitialized = true;
+        }
+        ImGui.end();
+
+
+
+        ImGui.setNextWindowPos(0, 50, ImGuiCond.FirstUseEver);
         ImGui.begin("Build info", windowFlags);
         if (camera != null) {
             ImGui.text(
@@ -227,7 +273,7 @@ public class Drawer implements Window.ResizeListener {
         );
         ImGui.end();
 
-        ImGui.setNextWindowPos(0, 190, ImGuiCond.FirstUseEver);
+        ImGui.setNextWindowPos(0, 240, ImGuiCond.FirstUseEver);
         ImGui.begin("Render Settings", windowFlags);
         if (ImGui.inputInt("Samples", samples)) {
             int min = 1,
