@@ -33,13 +33,15 @@ public class Drawer implements Window.ResizeListener {
     private Camera camera;
 
 
+    public SSBO getIndexBuffer() { return indexBuffer; }
     public SSBO getGeometryBuffer() { return geometryBuffer; }
     public SSBO getMaterialIndicesBuffer() {return materialIndicesBuffer;}
     public SSBO getMaterialHandlesBuffer() {return materialHandlesBuffer;}
 
     private SSBO geometryBuffer = new SSBO(GL_STATIC_DRAW, 6);
-    private SSBO materialIndicesBuffer = new SSBO(GL_STATIC_DRAW, 7);
-    private SSBO materialHandlesBuffer = new SSBO(GL_STATIC_DRAW, 8);
+    private SSBO indexBuffer = new SSBO(GL_STATIC_DRAW, 7);
+    private SSBO materialIndicesBuffer = new SSBO(GL_STATIC_DRAW, 8);
+    private SSBO materialHandlesBuffer = new SSBO(GL_STATIC_DRAW, 9);
     private ImInt renderMode = new ImInt(ViewportRenderMode.SHADED.ordinal());
     private UBORenderInts ubo;
     private int frame = 0;

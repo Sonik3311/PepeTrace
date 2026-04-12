@@ -28,8 +28,7 @@ public class Main {
 
         Scene scene = new Scene();
         //scene.packTriangles(drawer.getTriangleBuffer());
-        scene.packScene(drawer.getGeometryBuffer(), drawer.getMaterialIndicesBuffer(), drawer.getMaterialHandlesBuffer());
-
+        scene.packScene(drawer.getGeometryBuffer(), drawer.getIndexBuffer(), drawer.getMaterialIndicesBuffer(), drawer.getMaterialHandlesBuffer());
         GPUTimeQuerier timer = new GPUTimeQuerier();
         int passed_ticks = 0;
         double accumulated_time = 0;

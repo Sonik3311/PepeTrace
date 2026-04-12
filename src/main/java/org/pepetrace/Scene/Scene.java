@@ -4,6 +4,7 @@ import static org.lwjgl.opengl.GL42.*;
 import static org.lwjgl.opengl.GL43C.GL_SHADER_STORAGE_BARRIER_BIT;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Scene.Loader.AssimpLoader;
 import org.pepetrace.Scene.Loader.MeshData;
@@ -11,19 +12,18 @@ import org.pepetrace.Scene.Loader.MeshLoader;
 import org.pepetrace.Scene.Material.TextureMaterial;
 
 public class Scene {
-    // Плоские списки атрибутов (без индексов)
     private final ArrayList<Float> vertices = new ArrayList<>();
     private final ArrayList<Float> normals = new ArrayList<>();
     private final ArrayList<Float> uvs = new ArrayList<>();
     private final ArrayList<Float> tangents = new ArrayList<>();
     private final ArrayList<Float> bitangents = new ArrayList<>();
+    private final ArrayList<Integer> indices = new ArrayList<>();
     private final ArrayList<TextureMaterial> materials = new ArrayList<>();
 
-    private int triangleAmount = 0;
+    private int triangleCount = 0;
     private final MeshLoader loader = new AssimpLoader();
 
     public Scene() {
-        // Загружаем тестовую сцену из OBJ (замените путь на свой)
         loadModel("src/main/resources/models/cube.obj", 0);
         materials.add(TextureMaterial.create(
                 "./src/main/java/org/pepetrace/unsplash-purple.jpg",
@@ -34,16 +34,19 @@ public class Scene {
 
     public void loadModel(String path, int materialIndex) {
         MeshData data = loader.load(path);
-        // Добавляем вершины в общие списки
+        int baseIndex = vertices.size() / 3;
         vertices.addAll(data.getVertices());
         normals.addAll(data.getNormals());
         uvs.addAll(data.getUVs());
         tangents.addAll(data.getTangents());
         bitangents.addAll(data.getBitangents());
-        triangleAmount += data.getVertexCount() / 3;
+        for (int idx : data.getIndices()) {
+            indices.add(baseIndex + idx);
+        }
+        triangleCount += data.getTriangleCount();
     }
 
-    public int getTriangleAmount() { return triangleAmount; }
+    public int getTriangleCount() { return triangleCount; }
 
     public void packMaterials(SSBO textureMaterialBuffer) {
         long[] handles = new long[materials.size() * 3];
@@ -56,9 +59,9 @@ public class Scene {
         textureMaterialBuffer.fillBuffer(handles);
     }
 
-    public void packScene(SSBO geometryBuffer, SSBO materialIndicesBuffer, SSBO materialHandlesBuffer) {
-        float[] geometryData = new float[vertices.size() / 3 * 20]; // 5 векторов × 4 float = 20
+    public void packScene(SSBO geometryBuffer, SSBO indexBuffer, SSBO materialIndicesBuffer, SSBO materialHandlesBuffer) {
         int vertexCount = vertices.size() / 3;
+        float[] geometryData = new float[vertexCount * 20];
         for (int i = 0; i < vertexCount; i++) {
             int base = i * 20;
             // position (xyz, 1)
@@ -89,11 +92,14 @@ public class Scene {
         }
         geometryBuffer.fillBuffer(geometryData);
 
-        // materialIndices: один индекс на треугольник
-        int[] materialIndicesData = new int[triangleAmount];
-        for (int i = 0; i < triangleAmount; i++) {
-            materialIndicesData[i] = 0; // пока все треугольники используют материал 0
+        int[] indexData = new int[indices.size()];
+        for (int i = 0; i < indices.size(); i++) {
+            indexData[i] = indices.get(i);
         }
+        indexBuffer.fillBuffer(indexData);
+
+        int[] materialIndicesData = new int[triangleCount];
+        Arrays.fill(materialIndicesData, 0);
         materialIndicesBuffer.fillBuffer(materialIndicesData);
 
         packMaterials(materialHandlesBuffer);

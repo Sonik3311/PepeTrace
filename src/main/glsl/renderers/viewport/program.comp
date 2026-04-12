@@ -37,15 +37,17 @@ struct VertexData {
     vec4 tangent;
     vec4 bitangent;
 };
+
 layout(std430, binding = 6) readonly buffer GeometryBuffer {
     VertexData geometry[];
 };
-
-layout(std430, binding = 7) readonly buffer MaterialIndicesBuffer {
+layout(std430, binding = 7) readonly buffer IndexBuffer {
+    int indices[];
+};
+layout(std430, binding = 8) readonly buffer MaterialIndicesBuffer {
     int materialIndices[];
 };
-
-layout(std430, binding = 8) readonly buffer MaterialBuffer {
+layout(std430, binding = 9) readonly buffer MaterialBuffer {
     Material materialHandles[];
 };
 
@@ -64,11 +66,15 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
     min_hit.uv = vec2(-1);
     min_hit.baryU = -1;
     min_hit.baryV = -1;
-    for (int i = 0; i < geometry.length() / 3; i++) {
+    int triangleCount = indices.length() / 3;
+    for (int i = 0; i < triangleCount; i++) {
         int i3 = i * 3;
-        VertexData vertexA = geometry[i3 + 0];
-        VertexData vertexB = geometry[i3 + 1];
-        VertexData vertexC = geometry[i3 + 2];
+        int iA = indices[i3];
+        int iB = indices[i3 + 1];
+        int iC = indices[i3 + 2];
+        VertexData vertexA = geometry[iA];
+        VertexData vertexB = geometry[iB];
+        VertexData vertexC = geometry[iC];
         vec2 uvA = vertexA.uv.xy;
         vec2 uvB = vertexB.uv.xy;
         vec2 uvC = vertexC.uv.xy;
@@ -77,17 +83,13 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
         vertexA.position.xyz, vertexB.position.xyz, vertexC.position.xyz,
         vertexA.normal.xyz, vertexB.normal.xyz, vertexC.normal.xyz,
         uvA, uvB, uvC);
+        result.checkCount++;
+        result.hitCount += hit.isValid ? 1 : 0;
 
-        if (hit.distance < min_dist && hit.isValid && hit.distance <= max_dist) {
+        if (hit.isValid && hit.distance < min_dist && hit.distance <= max_dist) {
             min_dist = hit.distance;
-            min_hit.isValid = true;
-            min_hit.position = hit.position;
+            min_hit = hit;
             min_hit.normal = -hit.normal;
-            min_hit.geometricNormal = hit.geometricNormal;
-            min_hit.distance = hit.distance;
-            min_hit.baryU = hit.baryU;
-            min_hit.baryV = hit.baryV;
-            min_hit.uv = hit.uv;
             result.materialIndex = materialIndices[i];
         }
     }
