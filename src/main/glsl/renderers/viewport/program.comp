@@ -89,7 +89,7 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
         if (hit.isValid && hit.distance < min_dist && hit.distance <= max_dist) {
             min_dist = hit.distance;
             min_hit = hit;
-            min_hit.normal = -hit.normal;
+            min_hit.normal = hit.normal;
             result.materialIndex = materialIndices[i];
         }
     }
@@ -267,7 +267,7 @@ void main() {
         }
         case RenderMode_RayIntersectionCount:
         {
-            float t = float(result.hitCount) / 5;
+            float t = float(result.hitCount) /12;
             final_value = vec4(hotnessMap(t), 1);
             break;
         }
