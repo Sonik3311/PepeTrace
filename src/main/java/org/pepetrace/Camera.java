@@ -10,6 +10,11 @@ public class Camera {
     private static final float MIN_ORBIT_DISTANCE = 1.0f;
     private static final float MAX_ORBIT_DISTANCE = 50.0f;
 
+    private static final Vector3f DEFAULT_POSITION = new Vector3f(0.0f, 3.0f, -12.0f);
+    private static final Vector2f DEFAULT_YAW_PITCH = new Vector2f(0.0f, -15.0f);
+    private static final Vector3f DEFAULT_ORBIT_TARGET = new Vector3f(0.0f, 0.0f, 0.0f);
+    private static final float DEFAULT_ORBIT_DISTANCE = DEFAULT_POSITION.distance(DEFAULT_ORBIT_TARGET);
+
     private Vector3f position;
     private Vector2f yawPitch;
     private int cameraMode = 0;
@@ -37,11 +42,21 @@ public class Camera {
         ubo.updateBuffer(position, yawPitch);
     }
 
+    public void resetToDefault() {
+        // Сбрасываем позицию и углы
+        position.set(DEFAULT_POSITION);
+        yawPitch.set(DEFAULT_YAW_PITCH);
+        // Сбрасываем орбитальные параметры
+        orbitTargetPoint.set(DEFAULT_ORBIT_TARGET);
+        orbitDistance = DEFAULT_ORBIT_DISTANCE;
+        // Синхронизируем углы орбиты (чтобы при переключении в орбитальный режим камера смотрела на цель)
+        synchronizeOrbitAnglesFromCamera();
+    }
+
     public boolean updateCamera(Window inputWindow) {
         boolean escapePressed = inputWindow.isKeyPressed(GLFW_KEY_ESCAPE);
         if (escapePressed && !wasEscapePressed) {
             cameraMode = (cameraMode == 0) ? 1 : 0;
-
             if (cameraMode == 0) {
                 inputWindow.setCursorMode(Window.CURSOR_DISABLED);
                 inputWindow.resetMouse();
@@ -54,13 +69,18 @@ public class Camera {
         }
         wasEscapePressed = escapePressed;
 
+        // Новая обработка сброса по F1
+        if (inputWindow.isKeyPressed(GLFW_KEY_F1)) {
+            resetToDefault();
+            ubo.updateBuffer(position, yawPitch);  // немедленное обновление UBO
+            return true;  // сообщить Main о необходимости сбросить аккумуляцию (frame=0)
+        }
+
         boolean shouldUpdateBuffer = false;
         switch (cameraMode) {
             case 0 -> shouldUpdateBuffer = freeCameraTransform(inputWindow);
             case 1 -> shouldUpdateBuffer = orbitCameraTransform(inputWindow);
-            default -> throw new IllegalStateException(
-                "Unexpected mode: " + cameraMode
-            );
+            default -> throw new IllegalStateException("Unexpected mode: " + cameraMode);
         }
         if (shouldUpdateBuffer) {
             ubo.updateBuffer(position, yawPitch);

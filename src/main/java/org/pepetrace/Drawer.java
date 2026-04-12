@@ -1,5 +1,6 @@
 package org.pepetrace;
 
+import static org.lwjgl.glfw.GLFW.glfwSetScrollCallback;
 import static org.lwjgl.opengl.GL46.*;
 
 import imgui.*;
@@ -106,10 +107,8 @@ public class Drawer implements Window.ResizeListener {
     private void initImGUI() {
         imGuiGlfw = new ImGuiImplGlfw();
         imGuiGl3 = new ImGuiImplGl3();
-        // 1. Создаём контекст ImGUI
         ImGui.createContext();
 
-        // 2. Базовая конфигурация
         ImGuiIO io = ImGui.getIO();
         io.setIniFilename(null); // Выключаем .ini файл, чтобы избежать сохранения состояния окон ImGUI
         io.setDisplaySize(currentWidth, currentHeight); // Изначальный размер окна GLFW (Не нужно судя по всему, так как наследует от GLFW автоматически под капотом)
@@ -118,6 +117,13 @@ public class Drawer implements Window.ResizeListener {
         // 3. Инициализировать байндинги GLFW и OpenGL 4.6
         imGuiGlfw.init(window.getId(), true); // The boolean is for integrating the callbacks
         imGuiGl3.init("#version 460"); // Your GLSL version
+
+        // После инициализации ImGui ПЕРЕУСТАНАВЛИВАЕМ свой колбэк прокрутки,
+        glfwSetScrollCallback(window.getId(), (win, xoff, yoff) -> {
+            ImGui.getIO().setMouseWheel((float) yoff);
+            // Накапливаем для камеры
+            window.addScrollDelta(yoff);
+        });
     }
 
     public void renderFrame() {

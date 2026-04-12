@@ -29,6 +29,10 @@ public class Window {
         this.resizeListener = listener;
     }
 
+    public void addScrollDelta(double delta) {
+        this.scrollY += delta;
+    }
+
     public Window() {
         initGLFW();
         glfwDefaultWindowHints();
