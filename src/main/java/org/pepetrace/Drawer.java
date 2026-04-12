@@ -24,7 +24,7 @@ import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
 import org.pepetrace.Util.Passport;
 
-public class Drawer implements Window.ResizeListener {
+public class Drawer implements Window.ResizeListener, AutoCloseable {
 
     private ImGuiImplGlfw imGuiGlfw;
     private ImGuiImplGl3 imGuiGl3;
@@ -56,7 +56,7 @@ public class Drawer implements Window.ResizeListener {
         4,
         true,
         GL_READ_ONLY,
-        "./src/main/java/org/pepetrace/unsplash-purple1.jpg"
+        "./src/main/resources/Textures/grey_background.png"
     );
     private int currentWidth;
     private int currentHeight;
@@ -335,5 +335,20 @@ public class Drawer implements Window.ResizeListener {
         windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
         drawVAO = glGenVertexArrays();
         ubo = new UBORenderInts(3);
+    }
+
+    @Override
+    public void close() throws Exception {
+        pathTracingTexture.close();
+        skybox.close();
+        geometryBuffer.close();
+        indexBuffer.close();
+        materialHandlesBuffer.close();
+        materialIndicesBuffer.close();
+        ubo.close();
+        pathTracingProgram.close();
+        imGuiGl3.shutdown();      // Удаляет шейдеры и буферы ImGui из видеопамяти
+        imGuiGlfw.shutdown();     // Отключает обработчики событий GLFW
+        ImGui.destroyContext();
     }
 }

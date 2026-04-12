@@ -7,6 +7,8 @@ public enum ViewportRenderMode {
     TEXTURELESS_FLAT_SHADED,
     ALBEDO,
     NORMAL,
+    TANGENT,
+    BITANGENT,
     GEOMETRIC_NORMAL,
     UV,
     INTERSECTION_COUNT,

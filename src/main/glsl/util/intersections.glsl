@@ -9,12 +9,15 @@ struct TriangleHitResult {
     bool isValid;
     vec3 position;
     vec3 normal; // interpolated vertex normal (smooth)
+    vec3 tangent;
+    vec3 bitangent;
     vec3 geometricNormal;
     float distance;
     vec2 uv; // interpolated texture coordinates
     // optional: barycentric coordinates (u, v) for custom interpolation
     float baryU;
     float baryV;
+
 };
 
 struct sceneIntersectionResult {
@@ -28,6 +31,8 @@ TriangleHitResult rayTriangleIntersect(
     vec3 ro, vec3 rd,
     vec3 v0, vec3 v1, vec3 v2, // positions
     vec3 n0, vec3 n1, vec3 n2, // vertex normals
+    vec3 t0, vec3 t1, vec3 t2,
+    vec3 b0, vec3 b1, vec3 b2,
     vec2 uv0, vec2 uv1, vec2 uv2 // texture coordinates
 ) {
     TriangleHitResult hit_result;
@@ -39,6 +44,8 @@ TriangleHitResult rayTriangleIntersect(
     hit_result.uv = vec2(-1);
     hit_result.baryU = -1;
     hit_result.baryV = -1;
+    hit_result.tangent = vec3(-1);
+    hit_result.bitangent = vec3(-1);
 
     vec3 v0v1 = v1 - v0;
     vec3 v0v2 = v2 - v0;
@@ -70,10 +77,18 @@ TriangleHitResult rayTriangleIntersect(
 
     // Interpolate vertex normals (smooth shading)
     vec3 smoothNormal = normalize(w * n0 + u * n1 + v * n2);
+    vec3 smoothTangent = normalize(w * t0 + u * t1 + v * t2);
+    vec3 smoothBitangent = normalize(w * b0 + u * b1 + v * b2);
     // If the ray hits the back face (det < 0), flip the normal
     // so it always points toward the ray origin.
-    if (det < 0.0) smoothNormal = -smoothNormal;
+    if (det < 0.0) {
+        smoothNormal = -smoothNormal;
+        smoothTangent = -smoothTangent;
+        smoothBitangent = -smoothBitangent;
+    }
     hit_result.normal = smoothNormal;
+    hit_result.tangent = smoothTangent;
+    hit_result.bitangent = smoothBitangent;
 
     // Interpolate texture coordinates
     hit_result.uv = w * uv0 + u * uv1 + v * uv2;

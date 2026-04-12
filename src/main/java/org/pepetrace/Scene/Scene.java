@@ -9,9 +9,10 @@ import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Scene.Loader.AssimpLoader;
 import org.pepetrace.Scene.Loader.MeshData;
 import org.pepetrace.Scene.Loader.MeshLoader;
+import org.pepetrace.Scene.Material.Material;
 import org.pepetrace.Scene.Material.TextureMaterial;
 
-public class Scene {
+public class Scene implements AutoCloseable {
     private final ArrayList<Float> vertices = new ArrayList<>();
     private final ArrayList<Float> normals = new ArrayList<>();
     private final ArrayList<Float> uvs = new ArrayList<>();
@@ -24,12 +25,19 @@ public class Scene {
     private final MeshLoader loader = new AssimpLoader();
 
     public Scene() {
-        loadModel("src/main/resources/models/dragon87k.obj", 0);
+        loadModel("./src/main/resources/models/ValorantPIstol.fbx", 0);
         materials.add(TextureMaterial.create(
-                "./src/main/java/org/pepetrace/unsplash-purple.jpg",
-                "./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr",
+                "./src/main/java/org/pepetrace/DefaultMaterial_Base_Color.png",
+                "./src/main/java/org/pepetrace/DefaultMaterial_Normal_OpenGL.png",
                 "./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr"
         ));
+    }
+
+    @Override
+    public void close() throws Exception {
+        for (Material m: materials) {
+            m.close();
+        }
     }
 
     public void loadModel(String path, int materialIndex) {

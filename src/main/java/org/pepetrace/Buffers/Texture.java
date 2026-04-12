@@ -1,5 +1,7 @@
 package org.pepetrace.Buffers;
 
+import static org.lwjgl.opengl.ARBBindlessTexture.glGetTextureHandleARB;
+import static org.lwjgl.opengl.ARBBindlessTexture.glMakeTextureHandleNonResidentARB;
 import static org.lwjgl.opengl.GL46.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 import static org.lwjgl.stb.STBImage.*;
@@ -13,17 +15,19 @@ import java.nio.IntBuffer;
  * Класс для создания и управления Текстурами OpenGL.
  * Поддерживает создание пустых текстур (для изменений в compute-шейдере) и загрузку из файлов.
  */
-public class Texture {
+public class Texture implements AutoCloseable {
 
     public int id;
     private final int width;
     private final int height;
-    private int binding;
+    private long binding;
+    private boolean isBindless;
     private final int internalFormat;   // формат хранения в видеопамяти (GL_RGBA32F, GL_RGBA8, ...)
     private final int pixelFormat;      // формат пикселей при загрузке данных (GL_RGBA, GL_RGB, ...)
     private final int pixelType;        // тип пикселей при загрузке данных (GL_UNSIGNED_BYTE, GL_FLOAT, ...)
     private final int imageFormat;      // формат для image unit (GL_RGBA32F, GL_RGBA8, ...)
     private int access;
+    private boolean isReleased = false;
 
     /**
      * Конструктор для создания пустой текстуры (без начальных данных).
@@ -42,6 +46,7 @@ public class Texture {
         this.width = width;
         this.height = height;
         this.binding = binding;
+        this.isBindless = binding < 0;
         this.internalFormat = internalFormat;
         this.pixelFormat = pixelFormat;
         this.pixelType = pixelType;
@@ -68,16 +73,27 @@ public class Texture {
         System.out.println(levels);
         glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, width, height);
 
-
-
-
         glBindTexture(GL_TEXTURE_2D, 0);
         // Привязываем как image для работы в compute-шейдере (чтение/запись)
         if (binding >= 0) {
-
             glBindImageTexture(binding, id, 0, false, 0, access, imageFormat);
-        } else {System.out.println("Bindless!");};
+        } else {
+            this.binding = glGetTextureHandleARB(id);
+        };
 
+    }
+
+    /**
+     * Освобождает ресурсы текстуры в видеопамяти.
+     * Должен вызываться в потоке с активным OpenGL контекстом.
+     */
+    @Override
+    public void close() throws Exception {
+        if (!isReleased) {
+            if (isBindless) glMakeTextureHandleNonResidentARB(binding);
+            glDeleteTextures(id);
+            isReleased = true;
+        }
     }
 
     /**
@@ -240,7 +256,7 @@ public class Texture {
     // Геттеры
     public int getWidth() { return width; }
     public int getHeight() { return height; }
-    public int getBinding() { return binding; }
+    public long getBinding() { return binding; }
     public int getInternalFormat() { return internalFormat; }
     public int getPixelFormat() { return pixelFormat; }
     public int getPixelType() { return pixelType; }

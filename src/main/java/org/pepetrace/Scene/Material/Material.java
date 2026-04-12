@@ -1,6 +1,6 @@
 package org.pepetrace.Scene.Material;
 
-public class Material {
+public class Material implements AutoCloseable {
     private long id;
     private static long nextMaterialID = 0;
 
@@ -10,4 +10,7 @@ public class Material {
     }
 
     public void destroy() {}
+
+    @Override
+    public void close() throws Exception {}
 }

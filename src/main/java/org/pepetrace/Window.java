@@ -6,9 +6,9 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.opengl.GL;
 
-public class Window {
+public class Window implements AutoCloseable {
 
-    private static boolean glfw_initialized = false;
+    private static boolean glfwInitialized = false;
     private long id;
     private int width;
     private int height;
@@ -20,6 +20,11 @@ public class Window {
     public static final int CURSOR_NORMAL = GLFW_CURSOR_NORMAL;
     public static final int CURSOR_DISABLED = GLFW_CURSOR_DISABLED;
     public static final int MOUSE_BUTTON_LEFT = GLFW_MOUSE_BUTTON_LEFT;
+
+    @Override
+    public void close() throws Exception {
+        glfwDestroyWindow(id);
+    }
 
     public interface ResizeListener {
         void onResize(int newWidth, int newHeight);
@@ -101,13 +106,13 @@ public class Window {
     }
 
     private void initGLFW() {
-        if (glfw_initialized) return;
+        if (glfwInitialized) return;
         GLFWErrorCallback errorCallback;
         glfwSetErrorCallback(errorCallback = GLFWErrorCallback.createPrint(System.err));
         if (!glfwInit()) {
             throw new IllegalStateException("Unable to initialize GLFW");
         }
-        glfw_initialized = true;
+        glfwInitialized = true;
     }
 
     public void setActive() {

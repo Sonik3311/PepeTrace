@@ -13,9 +13,6 @@ public class TextureMaterial extends Material {
     protected Texture albedoTexture;
     protected Texture normalTexture;
     protected Texture RMTTexture;
-    protected long albedoTextureHandle;
-    protected long normalTextureHandle;
-    protected long RMTTextureHandle;
 
     public TextureMaterial() {
         super();
@@ -27,29 +24,21 @@ public class TextureMaterial extends Material {
         texture.normalTexture = Texture.createFromFile(-1, false, GL_READ_ONLY, normalTexturePath);
         texture.RMTTexture = Texture.createFromFile(-1, false, GL_READ_ONLY, RMTTexturePath);
 
-        texture.albedoTextureHandle = glGetTextureHandleARB(texture.albedoTexture.id);
-        texture.normalTextureHandle = glGetTextureHandleARB(texture.normalTexture.id);
-        texture.RMTTextureHandle = glGetTextureHandleARB(texture.RMTTexture.id);
-
-        glMakeTextureHandleResidentARB(texture.albedoTextureHandle);
-        glMakeTextureHandleResidentARB(texture.normalTextureHandle);
-        glMakeTextureHandleResidentARB(texture.RMTTextureHandle);
+        glMakeTextureHandleResidentARB(texture.albedoTexture.getBinding());
+        glMakeTextureHandleResidentARB(texture.normalTexture.getBinding());
+        glMakeTextureHandleResidentARB(texture.RMTTexture.getBinding());
 
         return texture;
     }
 
     public List<Long> getTextureHandles() {
-        return List.of(albedoTextureHandle, normalTextureHandle, RMTTextureHandle);
+        return List.of(albedoTexture.getBinding(), normalTexture.getBinding(), RMTTexture.getBinding());
     }
 
     @Override
-    public void destroy() {
-        if (albedoTextureHandle != 0) {glMakeTextureHandleNonResidentARB(albedoTextureHandle);}
-        if (normalTextureHandle != 0) {glMakeTextureHandleNonResidentARB(normalTextureHandle);}
-        if (RMTTextureHandle != 0) {glMakeTextureHandleNonResidentARB(RMTTextureHandle);}
-
-        if (albedoTexture.id != 0) {glDeleteTextures(albedoTexture.id);}
-        if (normalTexture.id != 0) {glDeleteTextures(normalTexture.id);}
-        if (RMTTexture.id != 0) {glDeleteTextures(RMTTexture.id);}
+    public void close() throws Exception {
+        albedoTexture.close();
+        normalTexture.close();
+        RMTTexture.close();
     }
 }
