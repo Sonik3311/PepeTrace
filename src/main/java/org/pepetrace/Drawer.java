@@ -30,6 +30,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
     private Program windowTextureDrawerProgram;
     private int drawVAO;
     private Camera camera;
+    private boolean isLayoutInitialized = false;
 
 
     public SSBO getIndexBuffer() { return indexBuffer; }
@@ -70,9 +71,13 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         window.setCursorMode(Window.CURSOR_DISABLED);
     }
 
+    public boolean sizeChanged(int newWidth, int newHeight) {
+        return (newWidth != currentWidth || newHeight != currentHeight);
+    }
+
     @Override
     public void onResize(int newWidth, int newHeight) {
-        if (newWidth == currentWidth && newHeight == currentHeight) return;
+        if (!sizeChanged(newWidth, newHeight)) return;
         currentWidth = newWidth;
         currentHeight = newHeight;
 
@@ -111,10 +116,9 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         ImGui.createContext();
 
         ImGuiIO io = ImGui.getIO();
-        //io.addConfigFlags(ImGuiConfigFlags.DockingEnable); // Разрешает перетаскивание окон друг в друга
-        //io.addConfigFlags(ImGuiConfigFlags.ViewportsEnable); // (Опционально) Разрешает выносить окна за пределы главного окна
+        io.addConfigFlags(ImGuiConfigFlags.DockingEnable); // Разрешает перетаскивание окон друг в друга
 
-        io.setIniFilename(null); // Выключаем .ini файл, чтобы избежать сохранения состояния окон ImGUI
+        io.setIniFilename("guilayout.ini"); // Выключаем .ini файл, чтобы избежать сохранения состояния окон ImGUI
         io.setDisplaySize(currentWidth, currentHeight); // Изначальный размер окна GLFW (Не нужно судя по всему, так как наследует от GLFW автоматически под капотом)
         io.getFonts().addFontDefault(); // Загрузить стандартный шрифт текста.
 
@@ -157,15 +161,15 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         );
 
         // 3. Рендеринг квада
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // чистим прошлый фрэймбуффер (опционально)
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, pathTracingTexture.id);
-        windowTextureDrawerProgram.use();
-        windowTextureDrawerProgram.setInt("tex", 0);
+        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // чистим прошлый фрэймбуффер (опционально)
+        //glActiveTexture(GL_TEXTURE0);
+        //glBindTexture(GL_TEXTURE_2D, pathTracingTexture.id);
+        //windowTextureDrawerProgram.use();
+        //windowTextureDrawerProgram.setInt("tex", 0);
 
         // Убедимся, что текстура привязана (опционально)
-        glBindVertexArray(drawVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        //glBindVertexArray(drawVAO);
+        //glDrawArrays(GL_TRIANGLES, 0, 3);
 
         // Start a new ImGui frame
         renderImGUI();
@@ -194,6 +198,74 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
             // ... other menus
             ImGui.endMainMenuBar();
         }
+        // Основное пространство
+
+
+        ImGui.dockSpaceOverViewport();
+        ImGui.begin("Build info", ImGuiWindowFlags.NoCollapse);
+        ImGui.text(String.format("Build No. %s", Passport.INSTANCE.getBuildNumber()));
+        ImGui.text(String.format("OS: %s", Passport.INSTANCE.getBuildOS()));
+        ImGui.text(String.format("Build timestamp: %s", Passport.INSTANCE.getBuildTime()));
+        ImGui.text(String.format("Java: %s", Passport.INSTANCE.getJavaVersion()));
+        ImGui.text(String.format("Git branch: %s", Passport.INSTANCE.getGitBranchHash()));
+        ImGui.end();
+
+        ImGui.begin("Camera Info", ImGuiWindowFlags.NoCollapse);
+        if (camera != null) {
+            ImGui.text(
+                    String.format(
+                            "Mode: %s",
+                            camera.getCameraMode() == 0 ? "Free" : "Orbit"
+                    )
+            );
+            Vector3f pos = camera.getPosition();
+            Vector2f rot = camera.getYawPitch();
+            ImGui.text(String.format("Pos: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z));
+            ImGui.text(String.format("Yaw: %.2f Pitch: %.2f", rot.x, rot.y));
+        }
+        ImGui.end();
+
+        ImGui.begin("Viewport");
+        // Параметры: ID текстуры, ширина, высота
+        // Получаем размер текущего окна ImGui
+        float renderViewportWidth = ImGui.getContentRegionAvailX();
+        float renderViewportHeight = ImGui.getContentRegionAvailY();
+
+        // Это ужас, нужно править
+        if (sizeChanged((int) renderViewportWidth, (int) renderViewportHeight)) {
+            onResize((int) renderViewportWidth, (int) renderViewportHeight);
+        }
+        ImGui.image(pathTracingTexture.id, renderViewportWidth, renderViewportHeight, 0, 1, 1, 0);
+        ImGui.end();
+
+        ImGui.begin("Render Settings");
+        if (ImGui.inputInt("Samples", samples)) {
+            int min = 1, max = 16384;
+            int clamped = Math.clamp(samples.get(), min, max);
+            samples.set(clamped);
+            frame = 0;
+        }
+        if (ImGui.checkbox("Accumulate frames", accumulating)) {
+            if (!accumulating.get()) {
+                frame = 0;
+            }
+        }
+        if (ImGui.button("Reset Accumulation")) {
+            frame = 0;
+        }
+        String[] modeNames = Arrays.stream(ViewportRenderMode.values())
+                .map(Enum::name)
+                .toArray(String[]::new);
+
+        // Render the combo box
+        if (ImGui.combo("Render Mode", renderMode, modeNames)) {
+            // Update the enum based on the selected index
+            frame = 0;
+            //renderMode.set(ViewportRenderMode.values()[currentIdx];
+            //System.out.println(renderMode.get());
+        }
+        ImGui.end();
+
         ImGui.render();
         imGuiGl3.renderDrawData(ImGui.getDrawData());
         /**imGuiGl3.newFrame();

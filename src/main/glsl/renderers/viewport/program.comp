@@ -166,7 +166,7 @@ vec3 getSkyColor(vec3 direction, bool useProcedural, bool blur) {
 void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
     vec2 cellTexelCoord = round(texelCoord / 1) * 1;
-    uvec3 rngState = uvec3(cellTexelCoord, 0);
+    uvec3 rngState = uvec3(cellTexelCoord, renderInts.tick);
 
     vec2 uv;
     uv.x = float(texelCoord.x) / (gl_NumWorkGroups.x * KERNEL_SIZE);
@@ -191,7 +191,7 @@ void main() {
     vec3 up = cross(right, ray_dir);
     ray_dir = normalize(ray_dir + right * uv.x + up * uv.y);
 
-    vec4 final_value;
+    vec4 final_value = vec4(0,0,0,1);
     sceneIntersectionResult result = checkSceneIntersection(ray_pos, ray_dir, INFINITY);
     TriangleHitResult hit = result.hit;
     switch (renderInts.renderMode) {
@@ -262,10 +262,8 @@ void main() {
         case RenderMode_Normal:
         {
             sampler2D normaltex = sampler2D(materialHandles[result.materialIndex].normalTex_handle);
-            vec3 textureNormal = texture(normaltex, hit.uv).rgb * 2 - 1;
-            mat3 TBN = mat3(hit.tangent, hit.bitangent, hit.normal);
-            vec3 worldNormal = normalize(TBN * textureNormal);
-            final_value = vec4(worldNormal, 1);
+            vec3 textureNormal = texture(normaltex, hit.uv).rgb;
+            final_value = vec4(textureNormal, 1);
             break;
         }
         case RenderMode_Tangent:
@@ -302,6 +300,12 @@ void main() {
         }
 
         default: final_value = vec4(vec3(1), 1);
+    }
+
+    if (renderInts.tick != 0) {
+        vec3 prev_frame_color = imageLoad(imgOutput, texelCoord).rgb;
+        float alpha = 1.0f / renderInts.tick;
+        final_value.rgb = prev_frame_color * (1.0 - alpha) + final_value.rgb * alpha;
     }
 
     imageStore(imgOutput, texelCoord, final_value);
