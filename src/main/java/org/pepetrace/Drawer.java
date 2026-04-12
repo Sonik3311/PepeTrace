@@ -301,5 +301,8 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         materialIndicesBuffer.close();
         ubo.close();
         pathTracingProgram.close();
+        imGuiGl3.shutdown();      // Удаляет шейдеры и буферы ImGui из видеопамяти
+        imGuiGlfw.shutdown();     // Отключает обработчики событий GLFW
+        ImGui.destroyContext();
     }
 }
