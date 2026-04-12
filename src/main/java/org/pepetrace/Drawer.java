@@ -54,7 +54,7 @@ public class Drawer implements Window.ResizeListener {
         4,
         true,
         GL_READ_ONLY,
-        "./src/main/java/org/pepetrace/unsplash-purple1.jpg"
+        "./src/main/resources/Textures/grey_background.png"
     );
     private int currentWidth;
     private int currentHeight;
