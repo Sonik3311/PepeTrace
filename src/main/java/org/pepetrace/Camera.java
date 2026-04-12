@@ -5,7 +5,7 @@ import static org.lwjgl.glfw.GLFW.*;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 
-public class Camera {
+public class Camera implements AutoCloseable {
 
     private static final float MIN_ORBIT_DISTANCE = 1.0f;
     private static final float MAX_ORBIT_DISTANCE = 50.0f;
@@ -304,5 +304,10 @@ public class Camera {
 
     public Vector3f getOrbitTargetPoint() {
         return orbitTargetPoint;
+    }
+
+    @Override
+    public void close() throws Exception {
+        ubo.close();
     }
 }

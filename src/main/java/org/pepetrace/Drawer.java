@@ -22,7 +22,7 @@ import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
 import org.pepetrace.Util.Passport;
 
-public class Drawer implements Window.ResizeListener {
+public class Drawer implements Window.ResizeListener, AutoCloseable {
 
     private ImGuiImplGlfw imGuiGlfw;
     private ImGuiImplGl3 imGuiGl3;
@@ -289,5 +289,17 @@ public class Drawer implements Window.ResizeListener {
         windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
         drawVAO = glGenVertexArrays();
         ubo = new UBORenderInts(3);
+    }
+
+    @Override
+    public void close() throws Exception {
+        pathTracingTexture.close();
+        skybox.close();
+        geometryBuffer.close();
+        indexBuffer.close();
+        materialHandlesBuffer.close();
+        materialIndicesBuffer.close();
+        ubo.close();
+        pathTracingProgram.close();
     }
 }

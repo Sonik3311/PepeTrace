@@ -5,11 +5,12 @@ import static org.lwjgl.opengl.GL46.*;
 /**
  * Класс для создания и управления буферами OpenGL.
  */
-public abstract class Buffer {
+public abstract class Buffer implements AutoCloseable {
 
     protected final int id = glGenBuffers();
     protected int binding;
     protected final int bufferType;
+    private boolean isReleased = false;
 
     /**
      * Конструктор для создания буфера OpenGL.
@@ -20,6 +21,18 @@ public abstract class Buffer {
     public Buffer(int bufferType, int binding) {
         this.binding = binding;
         this.bufferType = bufferType;
+    }
+
+    /**
+     * Освобождает ресурсы буфера в видеопамяти.
+     * Должен вызываться в потоке с активным OpenGL контекстом.
+     */
+    @Override
+    public void close() throws Exception {
+        if (!isReleased) {
+            glDeleteBuffers(id);
+            isReleased = true;
+        }
     }
 
     /**

@@ -2,14 +2,8 @@ package org.pepetrace;
 
 import static org.lwjgl.glfw.GLFW.*;
 
-import org.joml.Vector3f;
-
-import java.io.FileNotFoundException;
-import java.io.IOException;
-
 import org.pepetrace.Scene.Scene;
 import org.pepetrace.Util.GPUTimeQuerier;
-import org.pepetrace.Util.Passport;
 
 public class Main {
 
@@ -17,7 +11,7 @@ public class Main {
         return true;
     }
 
-    static void main() throws IOException {
+    static void main() throws Exception {
         //Passport build = new Passport();
         Window window = new Window(512, 512, true, "smoll pepetrace");
         window.setActive();
@@ -56,6 +50,10 @@ public class Main {
             glfwPollEvents();
         }
 
+        scene.close();
+        drawer.close();
+        camera.close();
+        window.close();
         glfwTerminate();
         System.out.println("Finished");
     }

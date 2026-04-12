@@ -7,9 +7,10 @@ import java.io.FileNotFoundException;
 /**
  * Класс для создания и управления программой-шейдером.
  */
-public class Program {
+public class Program implements AutoCloseable {
 
     public int id;
+    private boolean isReleased = false;
 
     // TODO: Использовать вместо типа String для filepath что-то иное?
     //  Вдруг при разных типах упаковки (.jar, .class, ...) пути поломаются?
@@ -160,5 +161,18 @@ public class Program {
      */
     public void setFloat(final String name, float value) {
         glUniform1f(glGetUniformLocation(id, name), value);
+    }
+
+    @Override
+    public void close() throws Exception {
+        if (!isReleased) {
+            // Если программа сейчас используется, лучше её "выключить"
+            if (glGetInteger(GL_CURRENT_PROGRAM) == id) {
+                glUseProgram(0);
+            }
+            glDeleteProgram(id);
+            isReleased = true;
+        }
+
     }
 }
