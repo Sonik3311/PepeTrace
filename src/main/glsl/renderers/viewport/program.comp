@@ -30,13 +30,13 @@ layout(std140, binding = 3) uniform RenderInts {
 layout(binding = 5) uniform sampler2D blurrySkybox;
 layout(rgba32f, binding = 4) readonly uniform image2D skybox;
 
-struct VertexData { // 32B
-    vec3 position;  // offset 0
-    float u;        // offset 12 (fills the 4‑byte gap)
-    vec3 normal;    // offset 16
-    float v;        // offset 28
+struct VertexData {
+    vec4 position;
+    vec4 normal;
+    vec4 uv;
+    vec4 tangent;
+    vec4 bitangent;
 };
-
 layout(std430, binding = 6) readonly buffer GeometryBuffer {
     VertexData geometry[];
 };
@@ -69,14 +69,14 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
         VertexData vertexA = geometry[i3 + 0];
         VertexData vertexB = geometry[i3 + 1];
         VertexData vertexC = geometry[i3 + 2];
-        vec2 uvA = vec2(vertexA.u, vertexA.v);
-        vec2 uvB = vec2(vertexB.u, vertexB.v);
-        vec2 uvC = vec2(vertexC.u, vertexC.v);
+        vec2 uvA = vertexA.uv.xy;
+        vec2 uvB = vertexB.uv.xy;
+        vec2 uvC = vertexC.uv.xy;
 
-
-        TriangleHitResult hit = rayTriangleIntersect(ro, rd, vertexA.position, vertexB.position, vertexC.position, vertexA.normal, vertexB.normal, vertexC.normal, uvA, uvB, uvC);
-        result.checkCount++;
-        result.hitCount = hit.isValid ? result.hitCount + 1 : result.hitCount;
+        TriangleHitResult hit = rayTriangleIntersect(ro, rd,
+        vertexA.position.xyz, vertexB.position.xyz, vertexC.position.xyz,
+        vertexA.normal.xyz, vertexB.normal.xyz, vertexC.normal.xyz,
+        uvA, uvB, uvC);
 
         if (hit.distance < min_dist && hit.isValid && hit.distance <= max_dist) {
             min_dist = hit.distance;

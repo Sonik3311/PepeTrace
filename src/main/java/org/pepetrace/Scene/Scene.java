@@ -4,101 +4,98 @@ import static org.lwjgl.opengl.GL42.*;
 import static org.lwjgl.opengl.GL43C.GL_SHADER_STORAGE_BARRIER_BIT;
 
 import java.util.ArrayList;
-import java.util.Arrays;
-
 import org.pepetrace.Buffers.SSBO;
+import org.pepetrace.Scene.Loader.AssimpLoader;
+import org.pepetrace.Scene.Loader.MeshData;
+import org.pepetrace.Scene.Loader.MeshLoader;
 import org.pepetrace.Scene.Material.TextureMaterial;
 
 public class Scene {
-
-    private final ArrayList<Integer> indices = new ArrayList<Integer>();
-    private final ArrayList<Float> vertices = new ArrayList<Float>();
-    private final ArrayList<Float> normals = new ArrayList<Float>();
-    private final ArrayList<Float> uv = new ArrayList<Float>();
-
-    private final ArrayList<TextureMaterial> materials = new ArrayList<TextureMaterial>();
-
-    public int getTriangleAmount() {
-        return triangleAmount;
-    }
+    // Плоские списки атрибутов (без индексов)
+    private final ArrayList<Float> vertices = new ArrayList<>();
+    private final ArrayList<Float> normals = new ArrayList<>();
+    private final ArrayList<Float> uvs = new ArrayList<>();
+    private final ArrayList<Float> tangents = new ArrayList<>();
+    private final ArrayList<Float> bitangents = new ArrayList<>();
+    private final ArrayList<TextureMaterial> materials = new ArrayList<>();
 
     private int triangleAmount = 0;
+    private final MeshLoader loader = new AssimpLoader();
 
     public Scene() {
-        for (int i : TestTriangleScene.indices) {
-            indices.add(i);
-        }
-        for (float v : TestTriangleScene.vertices) {
-            vertices.add(v);
-        }
-        for (float n : TestTriangleScene.normals) {
-            normals.add(n);
-        }
-        for (float uvCoord : TestTriangleScene.uvs) {
-            uv.add(uvCoord);
-        }
-
-        materials.add(TextureMaterial.create("./src/main/java/org/pepetrace/unsplash-purple.jpg","./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr","./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr"));
-        materials.add(TextureMaterial.create("./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr","./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr","./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr"));
-        triangleAmount = TestTriangleScene.indices.length;
+        // Загружаем тестовую сцену из OBJ (замените путь на свой)
+        loadModel("src/main/resources/models/cube.obj", 0);
+        materials.add(TextureMaterial.create(
+                "./src/main/java/org/pepetrace/unsplash-purple.jpg",
+                "./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr",
+                "./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr"
+        ));
     }
 
-    private static float[] FloatarrayListToArray(ArrayList<Float> list) {
-        float[] array = new float[list.size()];
-        for (int i = 0; i < list.size(); i++) {
-            array[i] = list.get(i);
-        }
-        return array;
+    public void loadModel(String path, int materialIndex) {
+        MeshData data = loader.load(path);
+        // Добавляем вершины в общие списки
+        vertices.addAll(data.getVertices());
+        normals.addAll(data.getNormals());
+        uvs.addAll(data.getUVs());
+        tangents.addAll(data.getTangents());
+        bitangents.addAll(data.getBitangents());
+        triangleAmount += data.getVertexCount() / 3;
     }
 
-    private static int[] IntegerarrayListToArray(ArrayList<Integer> list) {
-        int[] array = new int[list.size()];
-        for (int i = 0; i < list.size(); i++) {
-            array[i] = list.get(i);
-        }
-        return array;
-    }
+    public int getTriangleAmount() { return triangleAmount; }
 
-    public void packMaterials(SSBO TextureMaterialBuffer) {
+    public void packMaterials(SSBO textureMaterialBuffer) {
         long[] handles = new long[materials.size() * 3];
         int i = 0;
         for (TextureMaterial mat : materials) {
             for (long handle : mat.getTextureHandles()) {
-                handles[i] = handle;
-                i++;
+                handles[i++] = handle;
             }
         }
-        TextureMaterialBuffer.fillBuffer(handles);
+        textureMaterialBuffer.fillBuffer(handles);
     }
 
     public void packScene(SSBO geometryBuffer, SSBO materialIndicesBuffer, SSBO materialHandlesBuffer) {
-        float[] geometryData = new float[indices.size() * 8];
-        for (int i = 0; i < indices.size(); i++) {
-            int index = indices.get(i);
-            float vertexX = vertices.get(index * 3 + 0);
-            float vertexY = vertices.get(index * 3 + 1);
-            float vertexZ = vertices.get(index * 3 + 2);
-            float normalX = normals.get(index * 3 + 0);
-            float normalY = normals.get(index * 3 + 1);
-            float normalZ = normals.get(index * 3 + 2);
-            float uvX = uv.get(index * 2 + 0);
-            float uvY = uv.get(index * 2 + 1);
-
-            geometryData[i * 8 + 0] = vertexX;
-            geometryData[i * 8 + 1] = vertexY;
-            geometryData[i * 8 + 2] = vertexZ;
-            geometryData[i * 8 + 3] = uvX;
-            geometryData[i * 8 + 4] = normalX;
-            geometryData[i * 8 + 5] = normalY;
-            geometryData[i * 8 + 6] = normalZ;
-            geometryData[i * 8 + 7] = uvY;
+        float[] geometryData = new float[vertices.size() / 3 * 20]; // 5 векторов × 4 float = 20
+        int vertexCount = vertices.size() / 3;
+        for (int i = 0; i < vertexCount; i++) {
+            int base = i * 20;
+            // position (xyz, 1)
+            geometryData[base + 0] = vertices.get(i * 3);
+            geometryData[base + 1] = vertices.get(i * 3 + 1);
+            geometryData[base + 2] = vertices.get(i * 3 + 2);
+            geometryData[base + 3] = 1.0f;
+            // normal (xyz, 0)
+            geometryData[base + 4] = normals.get(i * 3);
+            geometryData[base + 5] = normals.get(i * 3 + 1);
+            geometryData[base + 6] = normals.get(i * 3 + 2);
+            geometryData[base + 7] = 0.0f;
+            // uv (u, v, 0, 0)
+            geometryData[base + 8] = uvs.get(i * 2);
+            geometryData[base + 9] = uvs.get(i * 2 + 1);
+            geometryData[base + 10] = 0.0f;
+            geometryData[base + 11] = 0.0f;
+            // tangent (xyz, 0)
+            geometryData[base + 12] = tangents.get(i * 3);
+            geometryData[base + 13] = tangents.get(i * 3 + 1);
+            geometryData[base + 14] = tangents.get(i * 3 + 2);
+            geometryData[base + 15] = 0.0f;
+            // bitangent (xyz, 0)
+            geometryData[base + 16] = bitangents.get(i * 3);
+            geometryData[base + 17] = bitangents.get(i * 3 + 1);
+            geometryData[base + 18] = bitangents.get(i * 3 + 2);
+            geometryData[base + 19] = 0.0f;
         }
         geometryBuffer.fillBuffer(geometryData);
-        int[] materialIndicesData = new int[indices.size() / 3];
-        for (int i = 0; i < indices.size() /3; i++) {
-            materialIndicesData[i] = i > (indices.size() /3 - 4) ? 1: 0;
+
+        // materialIndices: один индекс на треугольник
+        int[] materialIndicesData = new int[triangleAmount];
+        for (int i = 0; i < triangleAmount; i++) {
+            materialIndicesData[i] = 0; // пока все треугольники используют материал 0
         }
         materialIndicesBuffer.fillBuffer(materialIndicesData);
+
         packMaterials(materialHandlesBuffer);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
     }

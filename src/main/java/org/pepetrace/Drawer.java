@@ -17,7 +17,7 @@ import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Buffers.Texture;
-import org.pepetrace.Scene.TestTriangleScene;
+import org.pepetrace.Scene.Scene;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
 import org.pepetrace.Util.Passport;
@@ -52,7 +52,7 @@ public class Drawer implements Window.ResizeListener {
         4,
         true,
         GL_READ_ONLY,
-        "./src/main/java/org/pepetrace/unsplash-purple.jpg"
+        "./src/main/java/org/pepetrace/unsplash-purple1.jpg"
     );
     private int currentWidth;
     private int currentHeight;
@@ -280,26 +280,12 @@ public class Drawer implements Window.ResizeListener {
     private void initGL() throws FileNotFoundException {
         glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
         pathTracingTexture = new Texture(
-            currentWidth,
-            currentHeight,
-            false,
-            1,
-            GL_RGBA32F,
-            GL_RGBA,
-            GL_FLOAT,
-            GL_RGBA32F,
-            GL_READ_WRITE
+                currentWidth, currentHeight, false, 1,
+                GL_RGBA32F, GL_RGBA, GL_FLOAT, GL_RGBA32F, GL_READ_WRITE
         );
-        pathTracingProgram = new ComputeProgram(
-            "./src/main/glsl/renderers/viewport/program"
-        );
-
+        pathTracingProgram = new ComputeProgram("./src/main/glsl/renderers/viewport/program");
         windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
-
         drawVAO = glGenVertexArrays();
-
-        //triangleBuffer.fillBuffer(TestTriangleScene.vertices);
-
         ubo = new UBORenderInts(3);
     }
 }
