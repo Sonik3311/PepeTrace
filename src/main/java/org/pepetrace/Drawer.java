@@ -2,6 +2,8 @@ package org.pepetrace;
 
 import static org.lwjgl.glfw.GLFW.glfwSetScrollCallback;
 import static org.lwjgl.opengl.GL46.*;
+import static org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_messageBox;
+import static org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog;
 
 import imgui.*;
 import imgui.flag.*;
@@ -14,12 +16,16 @@ import java.io.FileNotFoundException;
 import java.util.Arrays;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.MemoryStack;
+import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Scene.Scene;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
 import org.pepetrace.Util.Passport;
+import org.lwjgl.util.tinyfd.TinyFileDialogs.*;
 
 public class Drawer implements Window.ResizeListener, AutoCloseable {
 
@@ -58,6 +64,8 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
     );
     private int currentWidth;
     private int currentHeight;
+
+    private GlobalState programState = GlobalState.getInstance();
 
     public Drawer(Window window) throws FileNotFoundException {
         this.window = window;
@@ -189,9 +197,35 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
                 if (ImGui.menuItem("Save", "Ctrl+S")) {
                     // handle save
                 }
+
                 ImGui.endMenu();
-            }
-            if (ImGui.beginMenu("Edit")) {
+            }if (ImGui.beginMenu("Edit")) {
+                if (ImGui.menuItem("Open Model", "Ctrl+K+O")) {
+                    Scene scene = (Scene) programState.getArbitraryData("Scene");
+
+                    try (MemoryStack stack = MemoryStack.stackPush()) {
+                        // 1. Окно сообщения (title, message, dialogType, iconType, defaultButton)
+                        tinyfd_messageBox("Внимание", "Продолжить выполнение?", "yesno", "question", 1);
+                        // 1. Создаем буфер указателей на строки расширений
+                        PointerBuffer filters = stack.mallocPointer(2); // Резервируем место под 3 фильтра
+                        filters.put(stack.UTF8("*.obj"));
+                        filters.put(stack.UTF8("*.fbx"));
+                        filters.flip(); // Переключаем буфер в режим чтения
+
+                        // 2. Вызываем диалог, передав наш буфер
+                        String filePath = tinyfd_openFileDialog(
+                                "Выберите модель",
+                                "~",
+                                filters,            // Передаем список фильтров
+                                "Модели",      // Описание (будет видно в выпадающем списке)
+                                false
+                        );
+
+                        if (filePath != null) {
+                            System.out.println("Выбран: " + filePath);
+                        }
+                    }
+                }
                 // edit menu items
                 ImGui.endMenu();
             }
@@ -239,7 +273,20 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         //drawList.addText(windowPosX + 100, windowPosY + 100, ImGui.getColorU32(1.0f, 1.0f, 1.0f, 1.0f), "Hello, Image!");
         ImDrawList dl = ImGui.getWindowDrawList();
         float x = 13 + windowPosX, y = 30 + windowPosY;
-        String text = "Hello, Image!";
+        float xc = x + 0, yc = y + 20;
+        float xt = x + 0, yt = yc + 20;
+
+        double gpu = (double) programState.getArbitraryData("GPURenderTime");
+        double cpu = (double) programState.getArbitraryData("CPURenderTime");
+        int triangleCount = ((Scene) programState.getArbitraryData("Scene")).getTriangleCount();
+        String gpuvalue = String.format("%.2f", Math.floor(gpu * 100) / 100);
+        String cpuvalue = String.format("%.2f", Math.floor(cpu * 100) / 100);
+        String trivalue = triangleCount >= 1000 ? String.format("%.2f", Math.floor((float) triangleCount / 1000 * 100) / 100) + "k" : Integer.toString(triangleCount);
+        String gputext = "GPU Render Time: " + gpuvalue + " ms";
+        String cputext = "CPU Render Time: " + cpuvalue + " ms";
+        String tritext = "Triangle Count: " + trivalue;
+
+
         int textColor = ImGui.getColorU32(1,1,1,1);   // white
         int outlineColor = ImGui.getColorU32(0,0,0,1); // black
         int thickness = 2;
@@ -247,10 +294,27 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
             for (int dy = -thickness; dy <= thickness; dy++) {
                 // Skip the center (where the main text will go)
                 if (dx == 0 && dy == 0) continue;
-                dl.addText(x + dx, y + dy, outlineColor, text);
+                dl.addText(xc + dx, yc + dy, outlineColor, cputext);
             }
         }
-        dl.addText(x, y, textColor, text);
+        dl.addText(xc, yc, textColor, cputext);
+        for (int dx = -thickness; dx <= thickness; dx++) {
+            for (int dy = -thickness; dy <= thickness; dy++) {
+                // Skip the center (where the main text will go)
+                if (dx == 0 && dy == 0) continue;
+                dl.addText(x + dx, y + dy, outlineColor, gputext);
+            }
+        }
+        dl.addText(x, y, textColor, gputext);
+        dl.addText(xc, yc, textColor, cputext);
+        for (int dx = -thickness; dx <= thickness; dx++) {
+            for (int dy = -thickness; dy <= thickness; dy++) {
+                // Skip the center (where the main text will go)
+                if (dx == 0 && dy == 0) continue;
+                dl.addText(xt + dx, yt + dy, outlineColor, tritext);
+            }
+        }
+        dl.addText(xt, yt, textColor, tritext);
 
         ImGui.end();
 

@@ -79,6 +79,9 @@ dependencies {
 	implementation("org.lwjgl:lwjgl-opengl::$lwjglNatives")
 	implementation("org.lwjgl:lwjgl-stb::$lwjglNatives")
 
+    implementation("org.lwjgl:lwjgl-tinyfd:$lwjglVersion")
+    runtimeOnly("org.lwjgl:lwjgl-tinyfd:$lwjglVersion:$lwjglNatives")
+
 	implementation ("io.github.spair:imgui-java-binding:$imguiVersion")
     implementation ("io.github.spair:imgui-java-lwjgl3:$imguiVersion")
     implementation ("io.github.spair:imgui-java-$lwjglNatives:$imguiVersion")
