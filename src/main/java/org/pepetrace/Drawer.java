@@ -226,16 +226,32 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         ImGui.end();
 
         ImGui.begin("Viewport");
-        // Параметры: ID текстуры, ширина, высота
-        // Получаем размер текущего окна ImGui
         float renderViewportWidth = ImGui.getContentRegionAvailX();
         float renderViewportHeight = ImGui.getContentRegionAvailY();
+        float windowPosX = ImGui.getWindowPosX();
+        float windowPosY = ImGui.getWindowPosY();
 
-        // Это ужас, нужно править
         if (sizeChanged((int) renderViewportWidth, (int) renderViewportHeight)) {
-            onResize((int) renderViewportWidth, (int) renderViewportHeight);
+            onResize((int) renderViewportWidth, (int) renderViewportHeight); // Это ужас, нужно править путём создания отдельного метода. Но оно работает и норм.
         }
         ImGui.image(pathTracingTexture.id, renderViewportWidth, renderViewportHeight, 0, 1, 1, 0);
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        //drawList.addText(windowPosX + 100, windowPosY + 100, ImGui.getColorU32(1.0f, 1.0f, 1.0f, 1.0f), "Hello, Image!");
+        ImDrawList dl = ImGui.getWindowDrawList();
+        float x = 13 + windowPosX, y = 30 + windowPosY;
+        String text = "Hello, Image!";
+        int textColor = ImGui.getColorU32(1,1,1,1);   // white
+        int outlineColor = ImGui.getColorU32(0,0,0,1); // black
+        int thickness = 2;
+        for (int dx = -thickness; dx <= thickness; dx++) {
+            for (int dy = -thickness; dy <= thickness; dy++) {
+                // Skip the center (where the main text will go)
+                if (dx == 0 && dy == 0) continue;
+                dl.addText(x + dx, y + dy, outlineColor, text);
+            }
+        }
+        dl.addText(x, y, textColor, text);
+
         ImGui.end();
 
         ImGui.begin("Render Settings");

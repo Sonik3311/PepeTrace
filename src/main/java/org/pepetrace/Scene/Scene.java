@@ -25,9 +25,9 @@ public class Scene implements AutoCloseable {
     private final MeshLoader loader = new AssimpLoader();
 
     public Scene() {
-        loadModel("./src/main/resources/models/ValorantPIstol.fbx", 0);
+        loadModel("./src/main/resources/models/Wall/Wall.obj", 0);
         materials.add(TextureMaterial.create(
-                "./src/main/java/org/pepetrace/DefaultMaterial_Base_Color.png",
+                "./src/main/resources/models/Wall/albedo.png",
                 "./src/main/java/org/pepetrace/DefaultMaterial_Normal_OpenGL.png",
                 "./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr"
         ));
