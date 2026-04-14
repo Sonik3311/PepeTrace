@@ -1,4 +1,4 @@
-package org.pepetrace;
+package org.pepetrace.Util;
 
 public enum ViewportRenderMode {
     SHADED,

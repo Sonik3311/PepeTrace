@@ -1,6 +1,7 @@
 package org.pepetrace;
 
 import org.pepetrace.Buffers.UBO;
+import org.pepetrace.Util.ViewportRenderMode;
 
 public class UBORenderInts extends UBO {
 

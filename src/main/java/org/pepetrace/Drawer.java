@@ -13,22 +13,14 @@ import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import java.io.FileNotFoundException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import org.joml.Vector2f;
-import org.joml.Vector3f;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.system.MemoryStack;
-import org.lwjgl.util.tinyfd.TinyFileDialogs;
+
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.GUI.*;
-import org.pepetrace.Scene.Material.TextureMaterial;
 import org.pepetrace.Scene.Scene;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
-import org.pepetrace.Util.Passport;
-import org.lwjgl.util.tinyfd.TinyFileDialogs.*;
+import org.pepetrace.Util.ViewportRenderMode;
 
 public class Drawer implements Window.ResizeListener, AutoCloseable {
 
@@ -119,7 +111,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         resetRender();
 
         ImGuiIO io = ImGui.getIO();
-        io.setDisplaySize(currentWidth, currentHeight);
+        //io.setDisplaySize(currentWidth, currentHeight);
     }
 
     public void setCamera(Camera camera) {

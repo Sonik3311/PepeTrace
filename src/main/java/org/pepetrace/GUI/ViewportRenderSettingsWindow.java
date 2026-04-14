@@ -2,7 +2,7 @@ package org.pepetrace.GUI;
 
 import imgui.ImGui;
 import org.pepetrace.Drawer;
-import org.pepetrace.ViewportRenderMode;
+import org.pepetrace.Util.ViewportRenderMode;
 
 import java.util.Arrays;
 

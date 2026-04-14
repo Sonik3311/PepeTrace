@@ -28,8 +28,8 @@ public class Scene implements AutoCloseable {
         //loadModel("./src/main/resources/models/Wall/Wall.obj", 0);
         materials.add(TextureMaterial.create(
                 "./src/main/resources/models/Wall/albedo.png",
-                "./src/main/java/org/pepetrace/DefaultMaterial_Normal_OpenGL.png",
-                "./src/main/java/org/pepetrace/sunny_rose_garden_2k.hdr"
+                "./src/main/resources/DefaultMaterial_Normal_OpenGL.png",
+                "./src/main/resources/sunny_rose_garden_2k.hdr"
         ));
     }
 

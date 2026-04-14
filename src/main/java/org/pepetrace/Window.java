@@ -66,8 +66,8 @@ public class Window implements AutoCloseable {
         });
 
         // Коррекция DPI
-        float[] xscale = {0};
-        float[] yscale = {0};
+        float[] xscale = {100};
+        float[] yscale = {100};
         glfwGetWindowContentScale(id, xscale, yscale);
         glfwSetWindowSize(id,
                 (int) (width / xscale[0]),
