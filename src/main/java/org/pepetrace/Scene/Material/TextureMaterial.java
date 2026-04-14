@@ -35,6 +35,10 @@ public class TextureMaterial extends Material {
         return List.of(albedoTexture.getBinding(), normalTexture.getBinding(), RMTTexture.getBinding());
     }
 
+    public Texture getAlbedoTexture() { return albedoTexture; }
+    public Texture getNormalTexture() { return normalTexture; }
+    public Texture getRMTTexture() { return RMTTexture; }
+
     @Override
     public void close() throws Exception {
         albedoTexture.close();

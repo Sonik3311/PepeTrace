@@ -25,7 +25,7 @@ public class Scene implements AutoCloseable {
     private final MeshLoader loader = new AssimpLoader();
 
     public Scene() {
-        loadModel("./src/main/resources/models/Wall/Wall.obj", 0);
+        //loadModel("./src/main/resources/models/Wall/Wall.obj", 0);
         materials.add(TextureMaterial.create(
                 "./src/main/resources/models/Wall/albedo.png",
                 "./src/main/java/org/pepetrace/DefaultMaterial_Normal_OpenGL.png",
@@ -55,6 +55,7 @@ public class Scene implements AutoCloseable {
     }
 
     public int getTriangleCount() { return triangleCount; }
+    public ArrayList<TextureMaterial> getMaterials() { return materials; }
 
     public void packMaterials(SSBO textureMaterialBuffer) {
         long[] handles = new long[materials.size() * 3];

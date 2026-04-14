@@ -13,6 +13,7 @@ import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import java.io.FileNotFoundException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
@@ -21,6 +22,7 @@ import org.lwjgl.system.MemoryStack;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Buffers.Texture;
+import org.pepetrace.Scene.Material.TextureMaterial;
 import org.pepetrace.Scene.Scene;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
@@ -188,6 +190,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
     }
 
     private void renderImGUI() {
+        Scene scene = (Scene) programState.getArbitraryData("Scene");
         imGuiGl3.newFrame();
         imGuiGlfw.newFrame();
         ImGui.newFrame();
@@ -201,16 +204,13 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
                 ImGui.endMenu();
             }if (ImGui.beginMenu("Edit")) {
                 if (ImGui.menuItem("Open Model", "Ctrl+K+O")) {
-                    Scene scene = (Scene) programState.getArbitraryData("Scene");
+
 
                     try (MemoryStack stack = MemoryStack.stackPush()) {
-                        // 1. Окно сообщения (title, message, dialogType, iconType, defaultButton)
-                        tinyfd_messageBox("Внимание", "Продолжить выполнение?", "yesno", "question", 1);
-                        // 1. Создаем буфер указателей на строки расширений
-                        PointerBuffer filters = stack.mallocPointer(2); // Резервируем место под 3 фильтра
+                        PointerBuffer filters = stack.mallocPointer(2);
                         filters.put(stack.UTF8("*.obj"));
                         filters.put(stack.UTF8("*.fbx"));
-                        filters.flip(); // Переключаем буфер в режим чтения
+                        filters.flip();
 
                         // 2. Вызываем диалог, передав наш буфер
                         String filePath = tinyfd_openFileDialog(
@@ -223,6 +223,8 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
 
                         if (filePath != null) {
                             System.out.println("Выбран: " + filePath);
+                            scene.loadModel(filePath, 0);
+                            scene.packScene(geometryBuffer, indexBuffer, materialIndicesBuffer, materialHandlesBuffer);
                         }
                     }
                 }
@@ -242,6 +244,99 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         ImGui.text(String.format("Build timestamp: %s", Passport.INSTANCE.getBuildTime()));
         ImGui.text(String.format("Java: %s", Passport.INSTANCE.getJavaVersion()));
         ImGui.text(String.format("Git branch: %s", Passport.INSTANCE.getGitBranchHash()));
+        ImGui.end();
+
+        ImGui.begin("Material List", ImGuiWindowFlags.NoCollapse);
+        ImGui.beginChild("MaterialListRegion", 0, -40, true);
+        ArrayList<TextureMaterial> mats = scene.getMaterials();
+        int selectedMaterialIndex = 0;
+        int THUMB_SIZE = 64;
+        final float rowHeight = THUMB_SIZE + 12.0f;
+        for (int i = 0; i < mats.size(); i++) {
+            TextureMaterial mat = mats.get(i);
+            boolean isSelected = (i == selectedMaterialIndex);
+
+            ImGui.pushID(i);
+
+            // Store the starting cursor position for this row
+            float startX = ImGui.getCursorPosX();
+            float startY = ImGui.getCursorPosY();
+
+            // 1. Draw an invisible selectable that defines the clickable area and highlights the row
+            ImGui.selectable("##material" + i, isSelected,
+                    imgui.flag.ImGuiSelectableFlags.SpanAllColumns |
+                            imgui.flag.ImGuiSelectableFlags.AllowItemOverlap,
+                    ImGui.getContentRegionAvailX(), rowHeight);
+
+            // Handle selection when the row is clicked
+            if (ImGui.isItemClicked()) {
+                selectedMaterialIndex = i;
+            }
+
+            // 2. Reset cursor back to the row's starting position before drawing content
+            ImGui.setCursorPos(startX, startY);
+
+            // 3. Draw thumbnails vertically centred
+            float contentY = startY + (rowHeight - THUMB_SIZE) * 0.5f;
+            ImGui.setCursorPosY(contentY);
+            ImGui.setCursorPosX(startX + (rowHeight - THUMB_SIZE) * 0.5f);
+
+            // Albedo thumbnail
+            ImGui.image(mat.getAlbedoTexture().id, THUMB_SIZE, THUMB_SIZE);
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Albedo: " + getShortPath(mat.getAlbedoTexture()));
+            }
+
+            ImGui.sameLine();
+
+            // Normal thumbnail
+            ImGui.image(mat.getNormalTexture().id, THUMB_SIZE, THUMB_SIZE);
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Normal: " + getShortPath(mat.getNormalTexture()));
+            }
+
+            ImGui.sameLine();
+
+            // RMT thumbnail
+            ImGui.image(mat.getRMTTexture().id, THUMB_SIZE, THUMB_SIZE);
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("RMT: " + getShortPath(mat.getRMTTexture()));
+            }
+
+            // 4. Draw material label (vertically centred for text)
+            ImGui.sameLine();
+            ImGui.setCursorPosY(startY + (rowHeight - ImGui.getFontSize()) * 0.5f);
+            ImGui.text("Material " + i);
+
+            // 5. Move cursor to the start of the next row
+            ImGui.setCursorPos(startX, startY + rowHeight);
+
+            ImGui.popID();
+
+
+        }
+
+        ImGui.endChild();
+        if (ImGui.button("Add Material")) {
+            //showAddMaterialPopup = true;
+            //albedoPath.set("");
+            //normalPath.set("");
+            //rmtPath.set("");
+        }
+
+        ImGui.sameLine();
+
+        if (ImGui.button("Remove Selected")) {
+            if (selectedMaterialIndex >= 0 && selectedMaterialIndex < mats.size()) {
+                try {
+                    mats.get(selectedMaterialIndex).close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                mats.remove(selectedMaterialIndex);
+                selectedMaterialIndex = -1;
+            }
+        }
         ImGui.end();
 
         ImGui.begin("Camera Info", ImGuiWindowFlags.NoCollapse);
@@ -337,164 +432,19 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
                 .map(Enum::name)
                 .toArray(String[]::new);
 
-        // Render the combo box
         if (ImGui.combo("Render Mode", renderMode, modeNames)) {
-            // Update the enum based on the selected index
             frame = 0;
-            //renderMode.set(ViewportRenderMode.values()[currentIdx];
-            //System.out.println(renderMode.get());
         }
         ImGui.end();
 
         ImGui.render();
         imGuiGl3.renderDrawData(ImGui.getDrawData());
-        /**imGuiGl3.newFrame();
-        imGuiGlfw.newFrame();
-        ImGui.newFrame();
-        int windowFlags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse |
-                ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove |
-                ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoNavFocus |
-                ImGuiWindowFlags.NoDocking;
+    }
 
-        //if (cursorLocked) {
-        //    ImGui.getIO().setMousePos(-Float.MAX_VALUE, -Float.MAX_VALUE);
-        //}
-
-        // Здесь строится UI
-        //ImGui.showDemoWindow(); // Встроенное демо окно
-
-        //ImGui.setNextWindowSize(300, 150, ImGuiCond.FirstUseEver);
-
-        // Меню сверху
-        if (ImGui.beginMainMenuBar()) {
-            if (ImGui.beginMenu("File")) {
-                if (ImGui.menuItem("Save", "Ctrl+S")) {
-                    // handle save
-                }
-                ImGui.endMenu();
-            }
-            if (ImGui.beginMenu("Edit")) {
-                // edit menu items
-                ImGui.endMenu();
-            }
-            // ... other menus
-            ImGui.endMainMenuBar();
-        }
-
-        // Создаём основное the main docking space, covering the rest of the window
-        ImGuiViewport viewport = ImGui.getMainViewport();
-        ImGui.setNextWindowPos(viewport.getWorkPos());
-        ImGui.setNextWindowSize(viewport.getWorkSize());
-        ImGui.setNextWindowViewport(viewport.getID());
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowRounding, 0.0f);
-        ImGui.pushStyleVar(ImGuiStyleVar.WindowBorderSize, 0.0f);
-        windowFlags = ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoCollapse |
-                ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove |
-                ImGuiWindowFlags.NoBringToFrontOnFocus | ImGuiWindowFlags.NoNavFocus |
-                ImGuiWindowFlags.NoDocking;
-
-        ImGui.begin("MainDockspace", windowFlags);
-        ImGui.popStyleVar(2);
-        int dockSpaceId = ImGui.getID("MyDockSpace");
-        ImGui.dockSpace(dockSpaceId, 0.0f, 0.0f, ImGuiDockNodeFlags.PassthruCentralNode);
-
-        if (!layoutInitialized) {
-            setupDockLayout(dockSpaceId);
-            layoutInitialized = true;
-        }
-        ImGui.end();
-
-
-
-        ImGui.setNextWindowPos(0, 50, ImGuiCond.FirstUseEver);
-        ImGui.begin("Build info", windowFlags);
-        if (camera != null) {
-            ImGui.text(
-                String.format(
-                    "Mode: %s",
-                    camera.getCameraMode() == 0 ? "Free" : "Orbit"
-                )
-            );
-            Vector3f pos = camera.getPosition();
-            Vector2f rot = camera.getYawPitch();
-            ImGui.text(
-                String.format("Pos: (%.2f, %.2f, %.2f)", pos.x, pos.y, pos.z)
-            );
-            ImGui.text(String.format("Yaw: %.2f Pitch: %.2f", rot.x, rot.y));
-        }
-        //ImGui.text(String.format("Camera: (%.2f, %.2f, %.2f)", cameraPosition.x, cameraPosition.y, cameraPosition.z));
-        //ImGui.text(String.format("Yaw: %.2f Pitch: %.2f", cameraRotation[0], cameraRotation[1]));
-        ImGui.text(
-            String.format("Build No. %s", Passport.INSTANCE.getBuildNumber())
-        );
-        ImGui.text(String.format("OS: %s", Passport.INSTANCE.getBuildOS()));
-        ImGui.text(
-            String.format(
-                "Build timestamp: %s",
-                Passport.INSTANCE.getBuildTime()
-            )
-        );
-        ImGui.text(
-            String.format("Java: %s", Passport.INSTANCE.getJavaVersion())
-        );
-        ImGui.text(
-            String.format(
-                "Git branch: %s",
-                Passport.INSTANCE.getGitBranchHash()
-            )
-        );
-        ImGui.end();
-
-        ImGui.setNextWindowPos(0, 240, ImGuiCond.FirstUseEver);
-        ImGui.begin("Render Settings", windowFlags);
-        if (ImGui.inputInt("Samples", samples)) {
-            int min = 1,
-                max = 16384;
-            int clamped = Math.clamp(samples.get(), min, max);
-            samples.set(clamped);
-            frame = 0;
-        }
-        if (ImGui.inputInt("Reflections", reflections)) {
-            int min = 1,
-                max = 16384;
-            int clamped = Math.clamp(reflections.get(), min, max);
-            reflections.set(clamped);
-            frame = 0;
-        }
-        if (ImGui.checkbox("Accumulate frames", accumulating)) {
-            // Optional: Add code here to execute immediately when the state changes.
-            //System.out.println("Checkbox state changed to: " + accumulating.get());
-            if (!accumulating.get()) {
-                frame = 0;
-            }
-        }
-
-        if (ImGui.inputFloat("roughness", roughness)) {
-            int min = 0,
-                max = 1;
-            float clamped = Math.clamp(roughness.get(), min, max);
-            roughness.set(clamped);
-            frame = 0;
-        }
-        if (ImGui.button("Reset Accumulation")) {
-            frame = 0;
-        }
-
-        String[] modeNames = Arrays.stream(ViewportRenderMode.values())
-            .map(Enum::name)
-            .toArray(String[]::new);
-
-        // Render the combo box
-        if (ImGui.combo("Render Mode", renderMode, modeNames)) {
-            // Update the enum based on the selected index
-            //renderMode.set(ViewportRenderMode.values()[currentIdx];
-            //System.out.println(renderMode.get());
-        }
-        ImGui.end();
-
-        // Render ImGui
-        ImGui.render();
-        imGuiGl3.renderDrawData(ImGui.getDrawData());*/
+    private String getShortPath(Object texture) {
+        // Helper to extract filename from full path
+        // Implementation depends on your Texture class
+        return "texture.png"; // Placeholder
     }
 
     private void initGL() throws FileNotFoundException {
