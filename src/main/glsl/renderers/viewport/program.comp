@@ -203,7 +203,7 @@ void main() {
                 vec3 albedo = texture(albedotex, hit.uv).rgb;
 
                 sampler2D normaltex = sampler2D(materialHandles[result.materialIndex].normalTex_handle);
-                vec3 textureNormal = texture(normaltex, hit.uv).rgb * 2 - 1;
+                vec3 textureNormal = normalize(texture(normaltex, hit.uv).rgb * 2 - 1);
                 mat3 TBN = mat3(hit.tangent, hit.bitangent, hit.normal);
                 vec3 worldNormal = normalize(TBN * textureNormal);
 

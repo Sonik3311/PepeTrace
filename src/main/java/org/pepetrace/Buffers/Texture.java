@@ -28,6 +28,7 @@ public class Texture implements AutoCloseable {
     private final int imageFormat;      // формат для image unit (GL_RGBA32F, GL_RGBA8, ...)
     private int access;
     private boolean isReleased = false;
+    protected String sourceFilePath;
 
     /**
      * Конструктор для создания пустой текстуры (без начальных данных).
@@ -124,6 +125,7 @@ public class Texture implements AutoCloseable {
 
             // Создаём текстуру с форматом GL_RGBA8 (подходит и для записи из compute-шейдера)
             Texture texture = new Texture(width, height, generateMipmaps, binding, GL_RGBA32F, GL_RGBA, GL_FLOAT, GL_RGBA32F, access);
+            texture.sourceFilePath = path;
 
             // Загружаем пиксельные данные
             glBindTexture(GL_TEXTURE_2D, texture.id);
@@ -165,6 +167,7 @@ public class Texture implements AutoCloseable {
 
             // Создаём текстуру с форматом GL_RGBA8 (подходит и для записи из compute-шейдера)
             Texture texture = new Texture(width, height, generateMipmaps, binding, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, GL_RGBA8, access);
+            texture.sourceFilePath = path;
 
             // Загружаем пиксельные данные
             glBindTexture(GL_TEXTURE_2D, texture.id);
@@ -187,6 +190,7 @@ public class Texture implements AutoCloseable {
     public void updateData(ByteBuffer data) {
         glBindTexture(GL_TEXTURE_2D, id);
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, pixelFormat, pixelType, data);
+        this.sourceFilePath = "";
         glBindTexture(GL_TEXTURE_2D, 0);
     }
 
@@ -221,6 +225,7 @@ public class Texture implements AutoCloseable {
             glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
             glBindTexture(GL_TEXTURE_2D, 0);
 
+            this.sourceFilePath = path;
             stbi_image_free(data);
         }
     }
@@ -262,4 +267,5 @@ public class Texture implements AutoCloseable {
     public int getPixelType() { return pixelType; }
     public int getImageFormat() { return imageFormat; }
     public int getAccess() { return access; }
+    public String getSourceFilePath() { return sourceFilePath; }
 }

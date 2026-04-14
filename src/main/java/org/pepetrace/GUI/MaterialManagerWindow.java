@@ -1,6 +1,7 @@
 package org.pepetrace.GUI;
 
 import imgui.ImGui;
+import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Scene.Material.TextureMaterial;
 import org.pepetrace.Scene.Scene;
 
@@ -12,9 +13,6 @@ public class MaterialManagerWindow implements GuiWindow {
 
     public MaterialManagerWindow() {
         programState.initializeArbitraryData("selectedMaterialIndex", 0);
-        //if (Objects.equals(programState.getArbitraryData("selectedMaterialIndex"), new Double(0))) {
-        //    programState.setArbitraryData("selectedMaterialIndex", 0);
-        //}
     }
 
     public void render(int windowFlags) {
@@ -77,7 +75,7 @@ public class MaterialManagerWindow implements GuiWindow {
             float blockHeight = linesNeeded * lineHeight;
 
             // --- 3. Draw invisible selectable covering the whole block ---
-            float startX = ImGui.getCursorPosX();
+            float startX = ImGui.getCursorPosX() + (itemSpacing * 0.5f);
             float startY = ImGui.getCursorPosY();
 
             ImGui.selectable("##material" + i, isSelected,
@@ -130,7 +128,7 @@ public class MaterialManagerWindow implements GuiWindow {
                         ImGui.setTooltip("RMT: " + getShortPath(mat.getRMTTexture()));
                     }
                 } else {
-                    // Label – centre it vertically using font size
+                    // Label – center it vertically using font size
                     ImGui.setCursorPosY(currentY + (lineHeight - ImGui.getFontSize()) * 0.5f);
                     ImGui.text(label);
                 }
@@ -149,9 +147,9 @@ public class MaterialManagerWindow implements GuiWindow {
         ImGui.endChild();
     }
 
-    private String getShortPath(Object texture) {
+    private String getShortPath(Texture texture) {
         // Helper to extract filename from full path
         // Implementation depends on your Texture class
-        return "texture.png"; // Placeholder
+        return texture.getSourceFilePath(); // Placeholder
     }
 }
