@@ -1,6 +1,6 @@
 package org.pepetrace;
 
-import static org.lwjgl.glfw.GLFW.glfwSetScrollCallback;
+import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL46.*;
 import static org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_messageBox;
 import static org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog;
@@ -132,7 +132,14 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
 
         io.setIniFilename("guilayout.ini"); // Выключаем .ini файл, чтобы избежать сохранения состояния окон ImGUI
         io.setDisplaySize(currentWidth, currentHeight); // Изначальный размер окна GLFW (Не нужно судя по всему, так как наследует от GLFW автоматически под капотом)
-        io.getFonts().addFontDefault(); // Загрузить стандартный шрифт текста.
+
+        float[] scalex_factor = {0};
+        float[] scaley_factor = {0};
+        glfwGetMonitorContentScale(glfwGetPrimaryMonitor(), scalex_factor, scaley_factor);
+        ImFontConfig config = new ImFontConfig();
+        config.setPixelSnapH(true);
+        config.setRasterizerDensity(scalex_factor[0]);
+        io.getFonts().addFontFromFileTTF("./src/main/resources/Fonts/GoogleSansCode-VariableFont_wght.ttf", 14, config);
 
         // 3. Инициализировать байндинги GLFW и OpenGL 4.6
         imGuiGlfw.init(window.getId(), true); // The boolean is for integrating the callbacks
