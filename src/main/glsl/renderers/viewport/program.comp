@@ -210,7 +210,7 @@ void main() {
                 final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), worldNormal), 0.2), 1);
                 float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
-                final_value.rgb *= getSkyColor(worldNormal, false, true) * 10;
+                final_value.rgb *= getSkyColor(worldNormal, false, true) * SKYBOX_BRIGHTNESS;
             } else {
                 final_value.rgb = getSkyColor(ray_dir, false, false);
             }
@@ -225,7 +225,7 @@ void main() {
                 final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), hit.geometricNormal), 0.2), 1);
                 float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
-                final_value.rgb *= getSkyColor(hit.normal, false, true) * 5;
+                final_value.rgb *= getSkyColor(hit.normal, false, true) * SKYBOX_BRIGHTNESS;
             } else {
                 final_value.rgb = getSkyColor(ray_dir, false, false);
             }
