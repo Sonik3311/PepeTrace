@@ -27,6 +27,7 @@ public class Main {
         GlobalState ProgramState = GlobalState.getInstance();
         ProgramState.setScene(scene);
         ProgramState.setCamera(camera);
+        ProgramState.setViewportDrawer(drawer);
         ProgramState.setArbitraryData("Scene", scene);
 
 
