@@ -167,11 +167,15 @@ void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
     vec2 cellTexelCoord = round(texelCoord / 1) * 1;
     uvec3 rngState = uvec3(cellTexelCoord, renderInts.tick);
+    uvec3 pixelRngState = uvec3(0,0,renderInts.tick);
 
     vec2 uv;
+    vec2 randomJitterUV = (vec2(random(pixelRngState), random(pixelRngState)) - 0.5) * 2;
+    randomJitterUV /= (log(gl_NumWorkGroups.x*gl_NumWorkGroups.y) * 80);
     uv.x = float(texelCoord.x) / (gl_NumWorkGroups.x * KERNEL_SIZE);
     uv.y = float(texelCoord.y) / (gl_NumWorkGroups.y * KERNEL_SIZE);
     uv = ((uv - 0.5) * 2);
+    uv += randomJitterUV;
 
     float aspect_ratio = float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
     uv.x *= aspect_ratio;
