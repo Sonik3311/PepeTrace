@@ -32,34 +32,29 @@ public class Main {
 
 
         GPUTimeQuerier timer = new GPUTimeQuerier();
-        int passed_ticks = 0;
-        int samples = 15;
-        double accumulated_gpu_time = 0;
-        double accumulated_cpu_time = 0;
 
         while (!window.shouldClose()) {
             long cpuStart = System.nanoTime();
 
-            timer.startTimer();
+
+
             if (camera.updateCamera(window)) {
                 drawer.resetRender();
             }
+
+            timer.startTimer();
             drawer.renderFrame();
-            long gpu_duration = timer.stopTimer();
-            accumulated_gpu_time += (double) (gpu_duration) / 1_000_000;
+
+            timer.stopTimerAsync();
             long cpuEnd = System.nanoTime();
-            accumulated_cpu_time += (double) ((cpuEnd - cpuStart) - gpu_duration) / 1_000_000 ;
-            passed_ticks++;
-            if (passed_ticks == samples) {
-                ProgramState.setArbitraryData("GPURenderTime", accumulated_gpu_time / samples);
-                ProgramState.setArbitraryData("CPURenderTime", accumulated_cpu_time / samples);
-                passed_ticks = 0;
-                accumulated_gpu_time = 0;
-                accumulated_cpu_time = 0;
+            ProgramState.setArbitraryData("CPURenderTime", (double) (cpuEnd - cpuStart) / 1_000_000);
+            boolean isTimerReady = timer.isResultReady();
+            if (isTimerReady) {
+                long gpuTimeNs = timer.getResult();
+                ProgramState.setArbitraryData("GPURenderTime", (double) gpuTimeNs / 1_000_000);
             }
 
             glfwSwapBuffers(window.getId());
-
             glfwPollEvents();
         }
 
