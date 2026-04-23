@@ -9,15 +9,24 @@ import java.util.ArrayList;
 import java.util.Objects;
 
 public class MaterialManagerWindow implements GuiWindow {
-    private int THUMB_SIZE = 64;
+    private final int THUMB_SIZE = 64;
+    private final CreateMaterialPopup createMaterialPopup;
 
     public MaterialManagerWindow() {
         programState.initializeArbitraryData("selectedMaterialIndex", 0);
+        createMaterialPopup = new CreateMaterialPopup(mat -> {
+            Scene scene = programState.getScene();
+            scene.addMaterial(mat);
+            int newIndex = scene.getMaterials().size() - 1;
+            programState.setArbitraryData("selectedMaterialIndex", newIndex);
+        });
     }
 
     public void render(int windowFlags) {
         ImGui.begin("Material Manager", windowFlags);
         renderMaterialList();
+        renderActionButtons();
+        createMaterialPopup.render(0);
         ImGui.end();
     }
 
@@ -85,6 +94,7 @@ public class MaterialManagerWindow implements GuiWindow {
 
             if (ImGui.isItemClicked()) {
                 selectedMaterialIndex = i;
+                programState.setArbitraryData("selectedMaterialIndex", selectedMaterialIndex);
             }
 
             // --- 4. Reset cursor to start and draw elements with wrapping ---
@@ -139,13 +149,52 @@ public class MaterialManagerWindow implements GuiWindow {
             }
 
             // --- 5. Move cursor to the end of the block ---
-            ImGui.setCursorPos(startX, startY + blockHeight);
+            ImGui.setCursorPos(startX - itemSpacing / 2, startY + blockHeight);
 
             ImGui.popID();
         }
 
         ImGui.endChild();
     }
+
+    private void renderActionButtons() {
+        Scene scene = programState.getScene();
+        ArrayList<TextureMaterial> materials = scene.getMaterials();
+        int selectedMaterialIndex = (int) programState.getArbitraryData("selectedMaterialIndex");
+
+        // A small horizontal layout
+        ImGui.beginGroup();
+        if (ImGui.button("Create Material")) {
+            // Add a new default material – adjust the constructor to suit your project
+            //TextureMaterial newMat = new TextureMaterial();
+            //materials.add(newMat);
+            // Select the newly created material
+            //selectedMaterialIndex = materials.size() - 1;
+            //programState.setArbitraryData("selectedMaterialIndex", selectedMaterialIndex);
+            createMaterialPopup.open();
+        }
+
+        ImGui.sameLine();
+
+        // Disable remove button if no material is selected or list is empty
+        boolean canRemove = !materials.isEmpty() && selectedMaterialIndex >= 0;
+        if (!canRemove) ImGui.beginDisabled();
+        if (ImGui.button("Remove Selected")) {
+            scene.removeMaterial(selectedMaterialIndex);
+            //materials.remove(selectedMaterialIndex);
+            // Adjust selection
+            if (!materials.isEmpty()) {
+                selectedMaterialIndex = Math.min(selectedMaterialIndex, materials.size() - 1);
+                programState.setArbitraryData("selectedMaterialIndex", selectedMaterialIndex);
+            } else {
+                programState.setArbitraryData("selectedMaterialIndex", 0);
+            }
+        }
+        if (!canRemove) ImGui.endDisabled();
+
+        ImGui.endGroup();
+    }
+
 
     private String getShortPath(Texture texture) {
         // Helper to extract filename from full path

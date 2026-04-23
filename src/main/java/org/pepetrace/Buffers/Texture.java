@@ -71,7 +71,7 @@ public class Texture implements AutoCloseable {
 
         // Выделяем неизменяемую память
         int levels = generateMipmaps ? 1 + (int) Math.floor(Math.log(Math.max(width, height)) / Math.log(2)) : 1;
-        System.out.println(levels);
+        //System.out.println(levels);
         glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, width, height);
 
         glBindTexture(GL_TEXTURE_2D, 0);

@@ -55,7 +55,17 @@ public class Scene implements AutoCloseable {
     }
 
     public int getTriangleCount() { return triangleCount; }
-    public ArrayList<TextureMaterial> getMaterials() { return materials; }
+    public ArrayList<TextureMaterial> getMaterials() { return (ArrayList<TextureMaterial>) materials.clone(); }
+
+    public void addMaterial(String albedoTexPath, String normalTexPath, String RMTTexPath) {
+        materials.add(TextureMaterial.create(albedoTexPath, normalTexPath, RMTTexPath));
+    }
+    public void addMaterial(TextureMaterial mat) {
+        materials.add(mat);
+    }
+    public void removeMaterial(int index) {
+        materials.remove(index);
+    }
 
     public void packMaterials(SSBO textureMaterialBuffer) {
         long[] handles = new long[materials.size() * 3];
