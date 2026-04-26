@@ -20,6 +20,7 @@ public class Scene implements AutoCloseable {
     private final ArrayList<Float> bitangents = new ArrayList<>();
     private final ArrayList<Integer> indices = new ArrayList<>();
     private final ArrayList<TextureMaterial> materials = new ArrayList<>();
+    private final ArrayList<Integer> modelIndices = new ArrayList<>();
 
     private int triangleCount = 0;
     private final MeshLoader loader = new AssimpLoader();
@@ -51,6 +52,7 @@ public class Scene implements AutoCloseable {
         for (int idx : data.getIndices()) {
             indices.add(baseIndex + idx);
         }
+        modelIndices.add(triangleCount * 3); // Кол-во треугольников в сцене численно равно индексу последнего треугольника + 1. Умножаем на 3 т.к считаем не треугольники, а их вершины
         triangleCount += data.getTriangleCount();
     }
 
