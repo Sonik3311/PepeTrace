@@ -166,6 +166,9 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
             roughness.get(),
             ViewportRenderMode.values()[renderMode.get()]
         );
+
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
+
         pathTracingProgram.use();
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, skybox.id);
@@ -175,9 +178,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         glDispatchCompute(groupsX, groupsY, 1);
 
         // 2. Барьер памяти - важно для синхронизации
-        glMemoryBarrier(
-            GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT
-        );
+        glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
 
         // 3. Рендеринг квада
         //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // чистим прошлый фрэймбуффер (опционально)

@@ -48,6 +48,7 @@ public class MainMenuBar implements GuiWindow {
                                     drawer.getMaterialIndicesBuffer(),
                                     drawer.getMaterialHandlesBuffer()
                             );
+                            drawer.resetRender();
                         }
                     }
                 }

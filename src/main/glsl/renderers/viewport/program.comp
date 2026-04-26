@@ -208,9 +208,16 @@ void main() {
 
                 sampler2D normaltex = sampler2D(materialHandles[result.materialIndex].normalTex_handle);
                 vec3 textureNormal = normalize(texture(normaltex, hit.uv).rgb * 2 - 1);
-                mat3 TBN = mat3(hit.tangent, hit.bitangent, hit.normal);
-                vec3 worldNormal = normalize(TBN * textureNormal);
-
+                vec3 tangent = hit.tangent;
+                vec3 bitangent = hit.bitangent;
+                vec3 worldNormal;
+                if (length(tangent) < 0.001 || length(bitangent) < 0.001) {
+                    // нет тангентов – используем геометрическую нормаль без normal mapping
+                    worldNormal = hit.normal;
+                } else {
+                    mat3 TBN = mat3(tangent, bitangent, hit.normal);
+                    worldNormal = normalize(TBN * textureNormal);
+                }
                 final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), worldNormal), 0.2), 1);
                 float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);

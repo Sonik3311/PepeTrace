@@ -122,6 +122,6 @@ public class Scene implements AutoCloseable {
         materialIndicesBuffer.fillBuffer(materialIndicesData);
 
         packMaterials(materialHandlesBuffer);
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
     }
 }
