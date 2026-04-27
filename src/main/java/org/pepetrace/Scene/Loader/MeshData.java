@@ -48,6 +48,14 @@ public class MeshData {
     public int getVertexCount() { return vertices.size() / 3; }
     public int getTriangleCount() { return indices.size() / 3; }
 
+    public void translate(float dx, float dy, float dz) {
+        for (int i = 0; i < vertices.size(); i += 3) {
+            vertices.set(i, vertices.get(i) + dx);
+            vertices.set(i+1, vertices.get(i+1) + dy);
+            vertices.set(i+2, vertices.get(i+2) + dz);
+        }
+    }
+
     // ----- Генерация отсутствующих данных -----
 
     /**

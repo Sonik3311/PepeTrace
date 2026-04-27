@@ -53,7 +53,7 @@ public class Camera implements AutoCloseable {
         synchronizeOrbitAnglesFromCamera();
     }
 
-    public boolean updateCamera(Window inputWindow) {
+    public boolean updateCamera(Window inputWindow, boolean blockInput) {
         boolean escapePressed = inputWindow.isKeyPressed(GLFW_KEY_ESCAPE);
         if (escapePressed && !wasEscapePressed) {
             cameraMode = (cameraMode == 0) ? 1 : 0;
@@ -78,8 +78,8 @@ public class Camera implements AutoCloseable {
 
         boolean shouldUpdateBuffer = false;
         switch (cameraMode) {
-            case 0 -> shouldUpdateBuffer = freeCameraTransform(inputWindow);
-            case 1 -> shouldUpdateBuffer = orbitCameraTransform(inputWindow);
+            case 0 -> shouldUpdateBuffer = freeCameraTransform(inputWindow, blockInput);
+            case 1 -> shouldUpdateBuffer = orbitCameraTransform(inputWindow, blockInput);
             default -> throw new IllegalStateException("Unexpected mode: " + cameraMode);
         }
         if (shouldUpdateBuffer) {
@@ -88,14 +88,15 @@ public class Camera implements AutoCloseable {
         return shouldUpdateBuffer;
     }
 
-    private boolean freeCameraTransform(Window inputWindow) {
+    private boolean freeCameraTransform(Window inputWindow, boolean blockInput) {
         boolean hasUpdated = false;
-
-        float[] mouseDelta = inputWindow.getMouseDelta();
-        yawPitch.x += mouseDelta[0] * mouseSensitivity;
-        yawPitch.y += mouseDelta[1] * mouseSensitivity;
-        yawPitch.y = Math.max(-89.0f, Math.min(89.0f, yawPitch.y));
-        if (mouseDelta[0] != 0 || mouseDelta[1] != 0) hasUpdated = true;
+        if (!blockInput) {
+            float[] mouseDelta = inputWindow.getMouseDelta();
+            yawPitch.x += mouseDelta[0] * mouseSensitivity;
+            yawPitch.y += mouseDelta[1] * mouseSensitivity;
+            yawPitch.y = Math.max(-89.0f, Math.min(89.0f, yawPitch.y));
+            if (mouseDelta[0] != 0 || mouseDelta[1] != 0) hasUpdated = true;
+        }
 
         double scroll = inputWindow.getScrollDelta();
         if (scroll != 0) {
@@ -177,9 +178,8 @@ public class Camera implements AutoCloseable {
         return hasUpdated;
     }
 
-    private boolean orbitCameraTransform(Window inputWindow) {
+    private boolean orbitCameraTransform(Window inputWindow, boolean blockInput) {
         boolean hasUpdated = false;
-
         double scroll = inputWindow.getScrollDelta();
         if (scroll != 0) {
             orbitDistance -= scroll * 0.5f;
@@ -195,22 +195,18 @@ public class Camera implements AutoCloseable {
             Window.MOUSE_BUTTON_LEFT
         );
 
-        if (leftMousePressed) {
+        if (!blockInput && leftMousePressed) {
             float[] mouseDelta = inputWindow.getMouseDelta();
-
-            if (!wasLeftMousePressed) {
-                wasLeftMousePressed = true;
-            } else {
+            if (!wasLeftMousePressed) wasLeftMousePressed = true;
+            else {
                 orbitYaw += mouseDelta[0] * mouseSensitivity;
                 orbitPitch -= mouseDelta[1] * mouseSensitivity;
                 orbitPitch = Math.max(-89.0f, Math.min(89.0f, orbitPitch));
-
-                if (mouseDelta[0] != 0 || mouseDelta[1] != 0) {
-                    hasUpdated = true;
-                }
+                if (mouseDelta[0] != 0 || mouseDelta[1] != 0) hasUpdated = true;
             }
-        } else {
+        }else {
             wasLeftMousePressed = false;
+            if (hasUpdated) updateCameraFromOrbitTarget();
         }
 
         if (hasUpdated) {

@@ -25,7 +25,7 @@ public class AssimpLoader implements MeshLoader {
         Assimp.aiReleaseImport(scene);
 
         // ----- Генерация недостающих данных -----
-        boolean hasValidNormals = true; // предполагаем, что есть
+        boolean hasValidNormals = true;
         for (int i = 0; i < data.getNormals().size(); i += 3) {
             float nx = data.getNormals().get(i);
             float ny = data.getNormals().get(i+1);
@@ -37,19 +37,8 @@ public class AssimpLoader implements MeshLoader {
             }
         }
         if (!hasValidNormals) {
+            System.out.println("No valid normals found, computing from geometry.");
             data.computeNormals();
-        }
-
-        boolean hasValidTangents = false;
-        if (data.getVertexCount() > 0 && data.getTangents().size() >= 3) {
-            for (int i = 0; i < data.getTangents().size(); i += 3) {
-                if (Math.abs(data.getTangents().get(i)) > 0.001f ||
-                        Math.abs(data.getTangents().get(i+1)) > 0.001f ||
-                        Math.abs(data.getTangents().get(i+2)) > 0.001f) {
-                    hasValidTangents = true;
-                    break;
-                }
-            }
         }
 
         boolean hasUV = data.getUVs() != null && data.getUVs().size() >= 2;
@@ -61,17 +50,16 @@ public class AssimpLoader implements MeshLoader {
                     break;
                 }
             }
-            if (!hasValidTangents && uvNonZero) {
-                System.out.println("No valid tangents found, computing from UV and normals.");
+            if (uvNonZero) {
+                // Принудительно пересчитываем тангенты для гарантии корректности (проблема 6)
+                System.out.println("Computing tangents and bitangents (Mikkelsen).");
                 data.computeTangentsAndBitangents();
-            } else if (!hasValidTangents) {
+            } else {
                 System.out.println("UVs exist but are zero – cannot compute tangents.");
             }
         } else {
             System.out.println("No UV coordinates – skipping tangent generation.");
         }
-
-        System.out.println("Loaded vertices: " + data.getVertexCount() + ", triangles: " + data.getTriangleCount());
         return data;
     }
 

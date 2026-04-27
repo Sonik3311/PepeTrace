@@ -13,10 +13,13 @@ import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import java.io.FileNotFoundException;
+import java.util.List;
 
+import org.joml.Matrix4f;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.GUI.*;
+import org.pepetrace.Scene.ModelMetadata;
 import org.pepetrace.Scene.Scene;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
@@ -32,17 +35,29 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
     private int drawVAO;
     private Camera camera;
     private boolean isLayoutInitialized = false;
+    private boolean guiWantsMouse = false;
+    private boolean isViewportHovered = false;
 
+    public boolean isViewportHovered() {
+        return isViewportHovered;
+    }
 
+    public void setViewportHovered(boolean hovered) {
+        this.isViewportHovered = hovered;
+    }
+    public boolean isGuiWantsMouse() { return guiWantsMouse; }
     public SSBO getIndexBuffer() { return indexBuffer; }
     public SSBO getGeometryBuffer() { return geometryBuffer; }
     public SSBO getMaterialIndicesBuffer() {return materialIndicesBuffer;}
     public SSBO getMaterialHandlesBuffer() {return materialHandlesBuffer;}
+    public SSBO getTriangleModelIndicesBuffer() { return triangleModelIndicesBuffer; }
 
     private SSBO geometryBuffer = new SSBO(GL_STATIC_DRAW, 6);
     private SSBO indexBuffer = new SSBO(GL_STATIC_DRAW, 7);
     private SSBO materialIndicesBuffer = new SSBO(GL_STATIC_DRAW, 8);
     private SSBO materialHandlesBuffer = new SSBO(GL_STATIC_DRAW, 9);
+    private SSBO modelMatricesBuffer = new SSBO(GL_DYNAMIC_DRAW, 10);
+    private SSBO triangleModelIndicesBuffer = new SSBO(GL_STATIC_DRAW, 11);
     public ImInt renderMode = new ImInt(ViewportRenderMode.SHADED.ordinal());
     private UBORenderInts ubo;
     public int frame = 0;
@@ -80,6 +95,13 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         this.initGL();
 
         window.setCursorMode(Window.CURSOR_DISABLED);
+    }
+
+    public void refreshSceneBuffers() {
+        Scene scene = programState.getScene();
+        scene.packScene(geometryBuffer, indexBuffer, materialIndicesBuffer, materialHandlesBuffer, triangleModelIndicesBuffer);
+        updateModelMatricesOnGPU(scene.getModels());
+        resetRender();
     }
 
     public boolean sizeChanged(int newWidth, int newHeight) {
@@ -195,6 +217,10 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         // Start a new ImGui frame
         renderImGUI();
 
+        boolean blockInput = guiWantsMouse && !isViewportHovered;
+        if (camera.updateCamera(window, blockInput)) {
+            resetRender();
+        }
         if (accumulating.get()) {
             frame++;
         }
@@ -220,6 +246,18 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
 
         ImGui.render();
         imGuiGl3.renderDrawData(ImGui.getDrawData());
+        guiWantsMouse = ImGui.getIO().getWantCaptureMouse();
+
+        if (!guiWantsMouse && ImGui.isKeyPressed(ImGuiKey.Delete)) {
+            int selected = programState.getSelectedModelIndex();
+            scene = programState.getScene();
+            if (selected >= 0 && selected < scene.getModels().size()) {
+                scene.removeModel(selected);
+                refreshSceneBuffers();
+                programState.setSelectedModelIndex(-1);
+                resetRender();
+            }
+        }
     }
 
 
@@ -234,6 +272,17 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
         drawVAO = glGenVertexArrays();
         ubo = new UBORenderInts(3);
+        modelMatricesBuffer.fillBuffer(new float[0]); // временно пустой
+        triangleModelIndicesBuffer.fillBuffer(new int[0]); // временно пустой
+    }
+
+    public void updateModelMatricesOnGPU(List<ModelMetadata> models) {
+        float[] matricesData = new float[models.size() * 16];
+        for (int i = 0; i < models.size(); i++) {
+            Matrix4f m = models.get(i).getInverseModelMatrix();
+            m.get(matricesData, i * 16);  // изменён порядок аргументов
+        }
+        modelMatricesBuffer.fillBuffer(matricesData);
     }
 
     @Override
@@ -249,5 +298,6 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         imGuiGl3.shutdown();      // Удаляет шейдеры и буферы ImGui из видеопамяти
         imGuiGlfw.shutdown();     // Отключает обработчики событий GLFW
         ImGui.destroyContext();
+        triangleModelIndicesBuffer.close();
     }
 }

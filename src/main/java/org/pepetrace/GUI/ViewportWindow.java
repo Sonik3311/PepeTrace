@@ -3,6 +3,7 @@ package org.pepetrace.GUI;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiMouseButton;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
@@ -155,6 +156,8 @@ public class ViewportWindow implements GuiWindow {
             drawer.onResize((int) renderViewportWidth, (int) renderViewportHeight); // Это ужас, нужно править путём создания отдельного метода. Но оно работает и норм.
         }
         ImGui.image(pathTracingTexture.id, renderViewportWidth, renderViewportHeight, 0, 1, 1, 0);
+        boolean hovered = ImGui.isItemHovered();
+        programState.getViewportDrawer().setViewportHovered(hovered);
 
         ImDrawList dl = ImGui.getWindowDrawList();
         float x = 13 + windowPosX, y = 30 + windowPosY;
@@ -206,6 +209,18 @@ public class ViewportWindow implements GuiWindow {
         float yaw = (float) (camera.getYawPitch().x / 180 * Math.PI);
         float pitch = (float) (camera.getYawPitch().y / 180 * Math.PI);
         drawRotatedAxisWidget(yaw, pitch, 80, 27, 30, 2);
+        if (ImGui.isItemHovered() && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+            float mouseX = ImGui.getMousePosX() - ImGui.getItemRectMinX();
+            float mouseY = ImGui.getMousePosY() - ImGui.getItemRectMinY();
+            if (mouseX >= 0 && mouseX <= renderViewportWidth && mouseY >= 0 && mouseY <= renderViewportHeight) {
+                Scene scene = programState.getScene();
+                Camera cam = programState.getCamera();
+                int modelIdx = scene.pickModel(mouseX, mouseY, cam, (int)renderViewportWidth, (int)renderViewportHeight);
+                if (modelIdx != -1) {
+                    programState.setSelectedModelIndex(modelIdx);
+                }
+            }
+        }
         ImGui.end();
 
     }

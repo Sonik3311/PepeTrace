@@ -50,6 +50,12 @@ layout(std430, binding = 8) readonly buffer MaterialIndicesBuffer {
 layout(std430, binding = 9) readonly buffer MaterialBuffer {
     Material materialHandles[];
 };
+layout(std430, binding = 10) readonly buffer ModelMatrices {
+    mat4 inverseModelMatrices[]; // обратные матрицы преобразования моделей
+};
+layout(std430, binding = 11) readonly buffer TriangleModelIndices {
+    int triangleModelIndices[];
+};
 
 sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist) {
     float min_dist = INFINITY;
@@ -70,6 +76,13 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
     min_hit.bitangent = vec3(-1);
     int triangleCount = indices.length() / 3;
     for (int i = 0; i < triangleCount; i++) {
+        // получаем модель для текущего треугольника (через отдельный буфер triangleModelIndices[i])
+        int modelIdx = triangleModelIndices[i];
+        mat4 invModelMat = inverseModelMatrices[modelIdx];
+        // преобразуем луч в локальное пространство модели
+        vec4 localRo = invModelMat * vec4(ro, 1.0);
+        vec4 localRd = invModelMat * vec4(rd, 0.0);
+
         int i3 = i * 3;
         int iA = indices[i3];
         int iB = indices[i3 + 1];

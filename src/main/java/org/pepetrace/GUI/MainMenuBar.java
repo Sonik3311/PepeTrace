@@ -5,6 +5,9 @@ import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
 import org.pepetrace.Drawer;
 import org.pepetrace.Scene.Scene;
+
+import java.io.File;
+
 import static org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog;
 
 public class MainMenuBar implements GuiWindow {
@@ -41,14 +44,12 @@ public class MainMenuBar implements GuiWindow {
 
                         if (filePath != null) {
                             System.out.println("Выбран: " + filePath);
-                            scene.loadModel(filePath, 0);
-                            scene.packScene(
-                                    drawer.getGeometryBuffer(),
-                                    drawer.getIndexBuffer(),
-                                    drawer.getMaterialIndicesBuffer(),
-                                    drawer.getMaterialHandlesBuffer()
-                            );
-                            drawer.resetRender();
+                            String modelName = new File(filePath).getName();
+                            if (modelName.lastIndexOf('.') > 0)
+                                modelName = modelName.substring(0, modelName.lastIndexOf('.'));
+                            scene.loadModel(filePath, 0, modelName);
+                            programState.getViewportDrawer().refreshSceneBuffers();
+                            programState.getViewportDrawer().resetRender();
                         }
                     }
                 }

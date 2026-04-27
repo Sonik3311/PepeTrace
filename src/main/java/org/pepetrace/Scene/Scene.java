@@ -4,8 +4,13 @@ import static org.lwjgl.opengl.GL42.*;
 import static org.lwjgl.opengl.GL43C.GL_SHADER_STORAGE_BARRIER_BIT;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 import org.pepetrace.Buffers.SSBO;
+import org.pepetrace.Camera;
 import org.pepetrace.Scene.Loader.AssimpLoader;
 import org.pepetrace.Scene.Loader.MeshData;
 import org.pepetrace.Scene.Loader.MeshLoader;
@@ -20,13 +25,14 @@ public class Scene implements AutoCloseable {
     private final ArrayList<Float> bitangents = new ArrayList<>();
     private final ArrayList<Integer> indices = new ArrayList<>();
     private final ArrayList<TextureMaterial> materials = new ArrayList<>();
-    private final ArrayList<Integer> modelIndices = new ArrayList<>();
-
+    private final ArrayList<Integer> materialIndicesPerTriangle = new ArrayList<>();
     private int triangleCount = 0;
+    private int modelCount = 0;
     private final MeshLoader loader = new AssimpLoader();
+    private final ArrayList<ModelMetadata> models = new ArrayList<>();
+    private final ArrayList<Integer> modelTriangleStartIndices = new ArrayList<>();
 
     public Scene() {
-        //loadModel("./src/main/resources/models/Wall/Wall.obj", 0);
         materials.add(TextureMaterial.create(
                 "./src/main/resources/models/Wall/albedo.png",
                 "./src/main/resources/DefaultMaterial_Normal_OpenGL.png",
@@ -36,13 +42,17 @@ public class Scene implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        for (Material m: materials) {
+        for (Material m : materials) {
             m.close();
         }
     }
 
-    public void loadModel(String path, int materialIndex) {
+    public void loadModel(String path, int materialIndex, String modelName) {
         MeshData data = loader.load(path);
+
+        float offsetX = modelCount * 2.0f;
+        data.translate(offsetX, 0, 0);
+
         int baseIndex = vertices.size() / 3;
         vertices.addAll(data.getVertices());
         normals.addAll(data.getNormals());
@@ -52,19 +62,173 @@ public class Scene implements AutoCloseable {
         for (int idx : data.getIndices()) {
             indices.add(baseIndex + idx);
         }
-        modelIndices.add(triangleCount * 3); // Кол-во треугольников в сцене численно равно индексу последнего треугольника + 1. Умножаем на 3 т.к считаем не треугольники, а их вершины
-        triangleCount += data.getTriangleCount();
+
+        int newTriangles = data.getTriangleCount();
+        for (int i = 0; i < newTriangles; i++) {
+            materialIndicesPerTriangle.add(materialIndex);
+        }
+
+        int startTriangle = triangleCount;
+        ModelMetadata meta = new ModelMetadata(modelName, startTriangle, newTriangles);
+        models.add(meta);
+        modelTriangleStartIndices.add(startTriangle);
+
+        triangleCount += newTriangles;
+        modelCount++;
     }
 
-    public int getTriangleCount() { return triangleCount; }
-    public ArrayList<TextureMaterial> getMaterials() { return (ArrayList<TextureMaterial>) materials.clone(); }
+    public ModelMetadata getModelByTriangleIndex(int triangleIdx) {
+        int pos = Collections.binarySearch(modelTriangleStartIndices, triangleIdx);
+        if (pos < 0) {
+            pos = -pos - 2;
+        }
+        if (pos >= 0 && pos < models.size()) {
+            return models.get(pos);
+        }
+        return null;
+    }
 
+    public List<ModelMetadata> getModels() {
+        return Collections.unmodifiableList(models);
+    }
+
+    public int getTriangleCount() {
+        return triangleCount;
+    }
+
+    public int getModelCount() {
+        return modelCount;
+    }
+
+    public ArrayList<TextureMaterial> getMaterials() {
+        return (ArrayList<TextureMaterial>) materials.clone();
+    }
+
+    public void removeModel(int index) {
+        if (index < 0 || index >= models.size()) return;
+
+        ModelMetadata model = models.get(index);
+        int startTri = model.getStartTriangleIndex();
+        int triCount = model.getTriangleCount();
+        int endTri = startTri + triCount;
+
+        // 1. Удаляем треугольники из индексов и материалов
+        //    Удаляем из indices: 3 индекса на треугольник
+        int idxPos = startTri * 3; // позиция в списке indices (int)
+        for (int i = 0; i < triCount; i++) {
+            indices.remove(idxPos);      // удаляем 3 раза
+            indices.remove(idxPos);
+            indices.remove(idxPos);
+        }
+        // Удаляем из materialIndicesPerTriangle
+        for (int i = 0; i < triCount; i++) {
+            materialIndicesPerTriangle.remove(startTri);
+        }
+
+        // 2. Корректируем startTriangleIndex у последующих моделей
+        for (int i = index + 1; i < models.size(); i++) {
+            ModelMetadata next = models.get(i);
+            next.setStartTriangleIndex(next.getStartTriangleIndex() - triCount);
+        }
+
+        // 3. Удаляем модель из списка
+        models.remove(index);
+
+        // 4. Обновляем общее количество треугольников
+        triangleCount -= triCount;
+        modelCount--;
+        System.out.println("Removing model " + index + ", remaining models: " + models.size());
+        // 5. Перезагружаем буферы на GPU
+        //    (нужен доступ к SSBO через Drawer или вызвать packScene)
+        //    Этот метод должен быть вызван снаружи, так как Scene не имеет ссылки на Drawer.
+        //    Лучше оставить ответственность на вызывающем коде (Drawer.refreshSceneBuffers()).
+    }
+
+    private boolean rayTriangleIntersect(Vector3f ro, Vector3f rd, Vector3f v0, Vector3f v1, Vector3f v2, float[] outDist) {
+        Vector3f v0v1 = new Vector3f(v1).sub(v0);
+        Vector3f v0v2 = new Vector3f(v2).sub(v0);
+        Vector3f pvec = new Vector3f(rd).cross(v0v2);
+        float det = v0v1.dot(pvec);
+        if (Math.abs(det) < 1e-8) return false;
+        float invDet = 1.0f / det;
+        Vector3f tvec = new Vector3f(ro).sub(v0);
+        float u = tvec.dot(pvec) * invDet;
+        if (u < 0 || u > 1) return false;
+        Vector3f qvec = new Vector3f(tvec).cross(v0v1);
+        float v = rd.dot(qvec) * invDet;
+        if (v < 0 || u + v > 1) return false;
+        float dist = v0v2.dot(qvec) * invDet;
+        if (dist < 0) return false;
+        outDist[0] = dist;
+        return true;
+    }
+
+    private Vector3f getRayDirection(float screenX, float screenY, Camera camera, int viewportWidth, int viewportHeight) {
+        float ndcX = (2.0f * screenX) / viewportWidth - 1.0f;
+        float ndcY = 1.0f - (2.0f * screenY) / viewportHeight;
+        return new Vector3f(ndcX, ndcY, 1.0f).normalize();
+    }
+
+    public int pickModel(float screenX, float screenY, Camera camera, int viewportWidth, int viewportHeight) {
+        float yawRad = (float) Math.toRadians(camera.getYawPitch().x);
+        float pitchRad = (float) Math.toRadians(camera.getYawPitch().y);
+        Vector3f forward = new Vector3f(
+                (float)(Math.cos(pitchRad) * Math.sin(yawRad)),
+                (float)Math.sin(pitchRad),
+                (float)(Math.cos(pitchRad) * Math.cos(yawRad))
+        ).normalize();
+        Vector3f right = new Vector3f().cross(forward, new Vector3f(0,1,0)).normalize();
+        Vector3f up = new Vector3f().cross(right, forward).normalize();
+
+        float aspect = (float)viewportWidth / viewportHeight;
+        float ndcX = (2.0f * screenX) / viewportWidth - 1.0f;
+        float ndcY = 1.0f - (2.0f * screenY) / viewportHeight;
+        ndcX *= aspect;
+        Vector3f rayDir = new Vector3f(forward).add(right.mul(ndcX, new Vector3f())).add(up.mul(ndcY, new Vector3f())).normalize();
+        Vector3f rayOrigin = camera.getPosition();
+
+        float minDist = Float.POSITIVE_INFINITY;
+        int hitModelIdx = -1;
+        float[] distOut = new float[1];
+
+        // Для каждой модели преобразуем луч в локальное пространство
+        for (int m = 0; m < models.size(); m++) {
+            ModelMetadata model = models.get(m);
+            Matrix4f invModelMatrix = model.getInverseModelMatrix();
+
+            // Преобразуем начало луча в локальное пространство
+            Vector3f localOrigin = new Vector3f(rayOrigin).mulPosition(invModelMatrix);
+            // Преобразуем направление (важно использовать только поворот/масштаб, без переноса)
+            Vector3f localDir = new Vector3f(rayDir).mulDirection(invModelMatrix).normalize();
+
+            int startTri = model.getStartTriangleIndex();
+            int endTri = startTri + model.getTriangleCount();
+            for (int i = startTri; i < endTri; i++) {
+                int i0 = indices.get(i*3);
+                int i1 = indices.get(i*3+1);
+                int i2 = indices.get(i*3+2);
+                Vector3f v0 = new Vector3f(vertices.get(i0*3), vertices.get(i0*3+1), vertices.get(i0*3+2));
+                Vector3f v1 = new Vector3f(vertices.get(i1*3), vertices.get(i1*3+1), vertices.get(i1*3+2));
+                Vector3f v2 = new Vector3f(vertices.get(i2*3), vertices.get(i2*3+1), vertices.get(i2*3+2));
+                if (rayTriangleIntersect(localOrigin, localDir, v0, v1, v2, distOut)) {
+                    // Расстояние в локальном пространстве – прямое, так как масштаб искажает, но для сравнения подойдёт
+                    if (distOut[0] < minDist && distOut[0] > 0) {
+                        minDist = distOut[0];
+                        hitModelIdx = m;
+                    }
+                }
+            }
+        }
+        return hitModelIdx;
+    }
     public void addMaterial(String albedoTexPath, String normalTexPath, String RMTTexPath) {
         materials.add(TextureMaterial.create(albedoTexPath, normalTexPath, RMTTexPath));
     }
+
     public void addMaterial(TextureMaterial mat) {
         materials.add(mat);
     }
+
     public void removeMaterial(int index) {
         materials.remove(index);
     }
@@ -80,32 +244,37 @@ public class Scene implements AutoCloseable {
         textureMaterialBuffer.fillBuffer(handles);
     }
 
-    public void packScene(SSBO geometryBuffer, SSBO indexBuffer, SSBO materialIndicesBuffer, SSBO materialHandlesBuffer) {
+    private int getModelIndexByTriangle(int triIdx) {
+        for (int m = 0; m < modelTriangleStartIndices.size(); m++) {
+            int start = modelTriangleStartIndices.get(m);
+            int end = (m + 1 < modelTriangleStartIndices.size()) ? modelTriangleStartIndices.get(m + 1) : triangleCount;
+            if (triIdx >= start && triIdx < end) return m;
+        }
+        return -1;
+    }
+
+    public void packScene(SSBO geometryBuffer, SSBO indexBuffer, SSBO materialIndicesBuffer,
+                          SSBO materialHandlesBuffer, SSBO triangleModelIndicesBuffer) {
         int vertexCount = vertices.size() / 3;
         float[] geometryData = new float[vertexCount * 20];
         for (int i = 0; i < vertexCount; i++) {
             int base = i * 20;
-            // position (xyz, 1)
             geometryData[base + 0] = vertices.get(i * 3);
             geometryData[base + 1] = vertices.get(i * 3 + 1);
             geometryData[base + 2] = vertices.get(i * 3 + 2);
             geometryData[base + 3] = 1.0f;
-            // normal (xyz, 0)
             geometryData[base + 4] = normals.get(i * 3);
             geometryData[base + 5] = normals.get(i * 3 + 1);
             geometryData[base + 6] = normals.get(i * 3 + 2);
             geometryData[base + 7] = 0.0f;
-            // uv (u, v, 0, 0)
             geometryData[base + 8] = uvs.get(i * 2);
             geometryData[base + 9] = uvs.get(i * 2 + 1);
             geometryData[base + 10] = 0.0f;
             geometryData[base + 11] = 0.0f;
-            // tangent (xyz, 0)
             geometryData[base + 12] = tangents.get(i * 3);
             geometryData[base + 13] = tangents.get(i * 3 + 1);
             geometryData[base + 14] = tangents.get(i * 3 + 2);
             geometryData[base + 15] = 0.0f;
-            // bitangent (xyz, 0)
             geometryData[base + 16] = bitangents.get(i * 3);
             geometryData[base + 17] = bitangents.get(i * 3 + 1);
             geometryData[base + 18] = bitangents.get(i * 3 + 2);
@@ -120,8 +289,16 @@ public class Scene implements AutoCloseable {
         indexBuffer.fillBuffer(indexData);
 
         int[] materialIndicesData = new int[triangleCount];
-        Arrays.fill(materialIndicesData, 0);
+        for (int i = 0; i < triangleCount; i++) {
+            materialIndicesData[i] = materialIndicesPerTriangle.get(i);
+        }
         materialIndicesBuffer.fillBuffer(materialIndicesData);
+
+        int[] triModelIndices = new int[triangleCount];
+        for (int i = 0; i < triangleCount; i++) {
+            triModelIndices[i] = getModelIndexByTriangle(i);
+        }
+        triangleModelIndicesBuffer.fillBuffer(triModelIndices);
 
         packMaterials(materialHandlesBuffer);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);

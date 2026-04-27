@@ -22,7 +22,9 @@ public class Main {
 
         Scene scene = new Scene();
         //scene.packTriangles(drawer.getTriangleBuffer());
-        scene.packScene(drawer.getGeometryBuffer(), drawer.getIndexBuffer(), drawer.getMaterialIndicesBuffer(), drawer.getMaterialHandlesBuffer());
+        scene.packScene(drawer.getGeometryBuffer(), drawer.getIndexBuffer(),
+                drawer.getMaterialIndicesBuffer(), drawer.getMaterialHandlesBuffer(),
+                drawer.getTriangleModelIndicesBuffer());
 
         GlobalState ProgramState = GlobalState.getInstance();
         ProgramState.setScene(scene);
@@ -35,10 +37,7 @@ public class Main {
 
         while (!window.shouldClose()) {
             long cpuStart = System.nanoTime();
-
-
-
-            if (camera.updateCamera(window)) {
+            if (camera.updateCamera(window, drawer.isGuiWantsMouse())) {
                 drawer.resetRender();
             }
 
