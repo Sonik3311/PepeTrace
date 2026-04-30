@@ -1,8 +1,7 @@
 package org.pepetrace.GUI;
 
 import imgui.ImGui;
-import imgui.flag.ImGuiCond;
-import imgui.flag.ImGuiSelectableFlags;
+import imgui.flag.*;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.pepetrace.Scene.ModelMetadata;
@@ -12,9 +11,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class OutlinerWindow implements GuiWindow {
 
-    private final Map<Integer, Boolean> expandedState = new HashMap<>();
+public class OutlinerWindow implements GuiWindow {
 
     @Override
     public void render(int windowFlags) {
@@ -27,73 +25,60 @@ public class OutlinerWindow implements GuiWindow {
             ImGui.setWindowSize(250, 0, ImGuiCond.Once);
         }
 
-        for (int i = 0; i < models.size(); i++) {
-            ModelMetadata model = models.get(i);
-            boolean isSelected = (i == programState.getSelectedModelIndex());
-            boolean isExpanded = expandedState.getOrDefault(i, false);
-            ImGui.pushID(i);
+        float availWidth  = ImGui.getContentRegionAvailX();
+        float availHeight = ImGui.getContentRegionAvailY();
 
-            float availWidth = ImGui.getContentRegionAvailX();
-            float deleteButtonWidth = 50;
-            float nameWidth = availWidth - deleteButtonWidth - 5;
+        // ----- 1. Цвета строк -----
+        ImGui.pushStyleColor(ImGuiCol.TableRowBg,     0.17f, 0.17f, 0.19f, 1.0f);
+        ImGui.pushStyleColor(ImGuiCol.TableRowBgAlt,  0.12f, 0.12f, 0.14f, 1.0f);
 
-            // Имя модели – клик переключает развёрнутость и выделяет
-            if (ImGui.selectable(model.getName(), isSelected, ImGuiSelectableFlags.None, nameWidth, 0)) {
-                expandedState.put(i, !isExpanded);
-                programState.setSelectedModelIndex(i);
+        // ----- 2. Убирание промежутков между строками -----
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0.0f, 0.0f);
+
+        // ----- 3. Создание таблицы -----
+        if (ImGui.beginTable("##SelectableTable", 1,
+                ImGuiTableFlags.RowBg |
+                        ImGuiTableFlags.ScrollY |
+                        ImGuiTableFlags.NoBordersInBody |
+                        ImGuiTableFlags.NoSavedSettings,
+                availWidth, availHeight
+        )) {
+            ImGui.tableSetupColumn("", ImGuiTableFlags.None);
+
+            // ----- 4. Реальные строки (кликабельные) -----
+            for (int i = 0; i < models.size(); i++) {
+                ImGui.tableNextRow();
+                ImGui.tableSetColumnIndex(0);
+
+                ModelMetadata model = models.get(i);
+                boolean isSelected = (i == programState.getSelectedModelIndex());
+
+                ImGui.pushID(i);
+                if (ImGui.selectable(model.getName(), isSelected,
+                        ImGuiSelectableFlags.SpanAllColumns |
+                                ImGuiSelectableFlags.AllowDoubleClick)) {
+                    programState.setSelectedModelIndex(i);
+                }
+                ImGui.popID();
             }
 
-            ImGui.sameLine();
-            if (ImGui.button("X##del" + i, deleteButtonWidth, 0)) {
-                scene.removeModel(i);
-                programState.getViewportDrawer().refreshSceneBuffers();
-                int selected = programState.getSelectedModelIndex();
-                if (selected == i) programState.setSelectedModelIndex(-1);
-                else if (selected > i) programState.setSelectedModelIndex(selected - 1);
-                programState.getViewportDrawer().resetRender();
-                // исправляем карту развёрнутости после удаления
-                expandedState.clear();
-                for (int j = 0; j < models.size(); j++) {
-                    expandedState.put(j, expandedState.getOrDefault(j + (j >= i ? 1 : 0), false));
+            // ----- Пустышки для заполнения пустого пространства -----
+            float rowHeight = ImGui.getTextLineHeightWithSpacing();
+            int rowsInView = (int) (availHeight / rowHeight / 1.3); // Я совершил преступление, какой нахуй 1.3 множитель
+            if (models.size() < rowsInView) {
+                int missingRows = rowsInView - models.size();
+                for (int i = 0; i < missingRows; i++) {
+                    ImGui.tableNextRow();
+                    ImGui.tableSetColumnIndex(0);
+                    ImGui.dummy(0, ImGui.getTextLineHeightWithSpacing());
                 }
             }
 
-            if (isExpanded) {
-                ImGui.indent();
-                Vector3f pos = model.getPosition();
-                float[] posArr = {pos.x, pos.y, pos.z};
-                if (ImGui.dragFloat3("Position", posArr, 0.1f)) {
-                    model.setPosition(new Vector3f(posArr[0], posArr[1], posArr[2]));
-                    updateTransformations(scene);
-                }
-
-                Quaternionf rot = model.getRotation();
-                float[] euler = {
-                        (float) Math.toDegrees(rot.x),
-                        (float) Math.toDegrees(rot.y),
-                        (float) Math.toDegrees(rot.z)
-                };
-                if (ImGui.dragFloat3("Rotation (deg)", euler, 1.0f)) {
-                    Quaternionf newRot = new Quaternionf().rotateXYZ(
-                            (float) Math.toRadians(euler[0]),
-                            (float) Math.toRadians(euler[1]),
-                            (float) Math.toRadians(euler[2])
-                    );
-                    model.setRotation(newRot);
-                    updateTransformations(scene);
-                }
-
-                Vector3f scale = model.getScale();
-                float[] scaleArr = {scale.x, scale.y, scale.z};
-                if (ImGui.dragFloat3("Scale", scaleArr, 0.1f, 0.01f, 10.0f)) {
-                    model.setScale(new Vector3f(scaleArr[0], scaleArr[1], scaleArr[2]));
-                    updateTransformations(scene);
-                }
-                ImGui.unindent();
-            }
-
-            ImGui.popID();
+            ImGui.endTable();
         }
+
+        ImGui.popStyleVar();   // ItemSpacing
+        ImGui.popStyleColor(2); // TableRow цвета
 
         ImGui.end();
     }

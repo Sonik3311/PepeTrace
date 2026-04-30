@@ -84,6 +84,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
     private final ViewportWindow viewportWindow = new ViewportWindow();
     private final ViewportRenderSettingsWindow viewportRenderSettingsWindow = new ViewportRenderSettingsWindow();
     private final OutlinerWindow outlinerWindow = new OutlinerWindow();
+    private final ModelDataWindow modelDataWindow = new ModelDataWindow();
 
     public Drawer(Window window) throws FileNotFoundException {
         this.window = window;
@@ -243,6 +244,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         viewportWindow.render(0);
         viewportRenderSettingsWindow.render(ImGuiWindowFlags.NoCollapse);
         outlinerWindow.render(ImGuiWindowFlags.NoCollapse);
+        modelDataWindow.render(ImGuiWindowFlags.NoCollapse);
 
         ImGui.render();
         imGuiGl3.renderDrawData(ImGui.getDrawData());
