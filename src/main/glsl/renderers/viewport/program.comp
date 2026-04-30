@@ -8,6 +8,7 @@
 #include "../../util/intersections.glsl"
 #include "../../util/random.glsl"
 #include "../../util/gradient.glsl"
+#include "../../util/matconversion.glsl"
 #include "../../material.glsl"
 
 layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1) in; // Используем 8x8x1=64 так как оптимальный размер рабочей группы на AMD = 64*n, на Nvidia = 32*n
@@ -38,6 +39,11 @@ struct VertexData { // 16 * 5
     vec4 bitangent;
 };
 
+struct ModelMatricies {
+    mat4 forwardM;
+    mat4 inverseM;
+};
+
 layout(std430, binding = 6) readonly buffer GeometryBuffer {
     VertexData geometry[];
 };
@@ -51,7 +57,7 @@ layout(std430, binding = 9) readonly buffer MaterialBuffer {
     Material materialHandles[];
 };
 layout(std430, binding = 10) readonly buffer ModelMatrices {
-    mat4 inverseModelMatrices[]; // обратные матрицы преобразования моделей
+    ModelMatricies modelMatricies[]; // обратные матрицы преобразования моделей
 };
 layout(std430, binding = 11) readonly buffer TriangleModelIndices {
     int triangleModelIndices[];
@@ -62,6 +68,7 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
     sceneIntersectionResult result;
     result.materialIndex = -1;
     result.triangleIndex = -1;
+    result.modelIndex = -1;
     result.checkCount = 0;
     result.hitCount = 0;
     TriangleHitResult min_hit;
@@ -76,13 +83,16 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
     min_hit.tangent = vec3(-1);
     min_hit.bitangent = vec3(-1);
     int triangleCount = indices.length() / 3;
+    int modelIdx = 0;
     for (int i = 0; i < triangleCount; i++) {
         // получаем модель для текущего треугольника (через отдельный буфер triangleModelIndices[i])
-        int modelIdx = triangleModelIndices[i];
-        mat4 invModelMat = inverseModelMatrices[modelIdx];
+        if (modelIdx < triangleModelIndices.length() - 1) {
+            if (i >= triangleModelIndices[modelIdx + 1]) modelIdx++;
+        }
+        mat4 invModelMat = modelMatricies[modelIdx].inverseM;
         // преобразуем луч в локальное пространство модели
-        vec4 localRo = invModelMat * vec4(ro, 1.0);
-        vec4 localRd = invModelMat * vec4(rd, 0.0);
+        vec3 localRo = (invModelMat * vec4(ro, 1.0)).xyz;
+        vec3 localRd = (invModelMat * vec4(rd, 0.0)).xyz;
 
         int i3 = i * 3;
         int iA = indices[i3];
@@ -95,7 +105,7 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
         vec2 uvB = vertexB.uv.xy;
         vec2 uvC = vertexC.uv.xy;
 
-        TriangleHitResult hit = rayTriangleIntersect(ro, rd,
+        TriangleHitResult hit = rayTriangleIntersect(localRo.xyz, localRd.xyz,
         vertexA.position.xyz, vertexB.position.xyz, vertexC.position.xyz,
         vertexA.normal.xyz, vertexB.normal.xyz, vertexC.normal.xyz,
                                                      vertexA.tangent.xyz, vertexB.tangent.xyz, vertexC.tangent.xyz,
@@ -109,6 +119,7 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
             min_hit = hit;
             result.materialIndex = materialIndices[i];
             result.triangleIndex = i;
+            result.modelIndex = modelIdx;
         }
     }
     result.hit = min_hit;
@@ -245,6 +256,8 @@ void main() {
                 sampler2D albedotex = sampler2D(materialHandles[result.materialIndex].albedoTex_handle);
                 vec3 albedo = texture(albedotex, hit.uv).rgb;
 
+                ModelMatricies matricies = modelMatricies[result.modelIndex];
+                mat3 M = mat3(matricies.forwardM);
                 sampler2D normaltex = sampler2D(materialHandles[result.materialIndex].normalTex_handle);
                 vec3 textureNormal = normalize(texture(normaltex, hit.uv).rgb * 2 - 1);
                 vec3 tangent = hit.tangent;
@@ -252,13 +265,14 @@ void main() {
                 vec3 worldNormal;
                 if (length(tangent) < 0.001 || length(bitangent) < 0.001) {
                     // нет тангентов – используем геометрическую нормаль без normal mapping
-                    worldNormal = hit.normal;
+                    worldNormal = normalize(M * hit.normal);
                 } else {
                     mat3 TBN = mat3(tangent, bitangent, hit.normal);
-                    worldNormal = normalize(TBN * textureNormal);
+                    worldNormal = normalize(M * TBN * textureNormal);
                 }
+                vec3 geometricNormal = normalize(M * hit.geometricNormal);
                 final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), worldNormal), 0.2), 1);
-                float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
+                float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
                 final_value.rgb *= getSkyColor(worldNormal, false, true) * SKYBOX_BRIGHTNESS;
             } else {
@@ -270,12 +284,15 @@ void main() {
         case RenderMode_FlatShaded:
         {
             if (hit.isValid) {
+                ModelMatricies matricies = modelMatricies[result.modelIndex];
+                mat3 M = mat3(matricies.forwardM);
                 sampler2D albedotex = sampler2D(materialHandles[result.materialIndex].albedoTex_handle);
                 vec3 albedo = texture(albedotex, hit.uv).rgb;
-                final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), hit.geometricNormal), 0.2), 1);
-                float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
+                vec3 geometricNormal = normalize(M * hit.geometricNormal);
+                final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), M * hit.geometricNormal), 0.2), 1);
+                float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
-                final_value.rgb *= getSkyColor(hit.normal, false, true) * SKYBOX_BRIGHTNESS;
+                final_value.rgb *= getSkyColor(normalize(M * hit.normal), false, true) * SKYBOX_BRIGHTNESS;
             } else {
                 final_value.rgb = getSkyColor(ray_dir, false, false);
             }
@@ -285,8 +302,12 @@ void main() {
         case RenderMode_TexturelessShaded:
         {
             if (hit.isValid) {
-                final_value = vec4(vec3(max(dot(normalize(vec3(1, 1, 1)), hit.normal), 0.2)), 1);
-                float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.normal, hit.geometricNormal, rngState);
+                ModelMatricies matricies = modelMatricies[result.modelIndex];
+                mat3 M = mat3(transpose(matricies.inverseM));
+                vec3 normal = normalize(M * hit.normal);
+                vec3 geometricNormal = normalize(M * hit.geometricNormal);
+                final_value = vec4(vec3(max(dot(normalize(vec3(1, 1, 1)), normal), 0.2)), 1);
+                float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, normal, geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
             }
             break;
@@ -295,8 +316,11 @@ void main() {
         case RenderMode_TexutrelessFlatShaded:
         {
             if (hit.isValid) {
-                final_value = vec4(vec3(max(dot(normalize(vec3(1, 1, 1)), hit.geometricNormal), 0.2)), 1);
-                float ao = calculateAO(hit.position + hit.geometricNormal * 0.001, hit.geometricNormal, hit.geometricNormal, rngState);
+                ModelMatricies matricies = modelMatricies[result.modelIndex];
+                mat3 M = mat3(matricies.forwardM);
+                vec3 geometricNormal = normalize(M * hit.geometricNormal);
+                final_value = vec4(vec3(max(dot(normalize(vec3(1, 1, 1)), geometricNormal), 0.2)), 1);
+                float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
                 final_value.rgb *= (1 - ao);
             }
             break;
@@ -328,7 +352,8 @@ void main() {
         }
         case RenderMode_GeometricNormal:
         {
-            final_value = vec4(hit.normal, 1);
+            ModelMatricies matricies = modelMatricies[result.modelIndex];
+            final_value = vec4(localToGlobal(hit.normal, matricies.forwardM), 1);
             break;
         }
         case RenderMode_UV:

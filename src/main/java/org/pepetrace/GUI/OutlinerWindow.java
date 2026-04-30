@@ -82,9 +82,4 @@ public class OutlinerWindow implements GuiWindow {
 
         ImGui.end();
     }
-
-    private void updateTransformations(Scene scene) {
-        programState.getViewportDrawer().updateModelMatricesOnGPU(scene.getModels());
-        programState.getViewportDrawer().resetRender();
-    }
 }

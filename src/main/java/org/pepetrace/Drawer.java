@@ -51,13 +51,14 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
     public SSBO getMaterialIndicesBuffer() {return materialIndicesBuffer;}
     public SSBO getMaterialHandlesBuffer() {return materialHandlesBuffer;}
     public SSBO getTriangleModelIndicesBuffer() { return triangleModelIndicesBuffer; }
+    public SSBO getModelMatricesBuffer() { return modelMatricesBuffer; }
 
-    private SSBO geometryBuffer = new SSBO(GL_STATIC_DRAW, 6);
-    private SSBO indexBuffer = new SSBO(GL_STATIC_DRAW, 7);
-    private SSBO materialIndicesBuffer = new SSBO(GL_STATIC_DRAW, 8);
-    private SSBO materialHandlesBuffer = new SSBO(GL_STATIC_DRAW, 9);
-    private SSBO modelMatricesBuffer = new SSBO(GL_DYNAMIC_DRAW, 10);
-    private SSBO triangleModelIndicesBuffer = new SSBO(GL_STATIC_DRAW, 11);
+    private final SSBO geometryBuffer = new SSBO(GL_STATIC_DRAW, 6);
+    private final SSBO indexBuffer = new SSBO(GL_STATIC_DRAW, 7);
+    private final SSBO materialIndicesBuffer = new SSBO(GL_STATIC_DRAW, 8);
+    private final SSBO materialHandlesBuffer = new SSBO(GL_STATIC_DRAW, 9);
+    private final SSBO modelMatricesBuffer = new SSBO(GL_DYNAMIC_DRAW, 10);
+    private final SSBO triangleModelIndicesBuffer = new SSBO(GL_STATIC_DRAW, 11);
     public ImInt renderMode = new ImInt(ViewportRenderMode.SHADED.ordinal());
     private UBORenderInts ubo;
     public int frame = 0;
@@ -100,8 +101,8 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
 
     public void refreshSceneBuffers() {
         Scene scene = programState.getScene();
-        scene.packScene(geometryBuffer, indexBuffer, materialIndicesBuffer, materialHandlesBuffer, triangleModelIndicesBuffer, modelMatricesBuffer);
-        updateModelMatricesOnGPU(scene.getModels());
+        scene.packScene(geometryBuffer, indexBuffer, materialIndicesBuffer, materialHandlesBuffer, triangleModelIndicesBuffer);
+        scene.updateModelMatricesOnGPU(modelMatricesBuffer);
         resetRender();
     }
 
@@ -276,15 +277,6 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         ubo = new UBORenderInts(3);
         modelMatricesBuffer.fillBuffer(new float[0]); // временно пустой
         triangleModelIndicesBuffer.fillBuffer(new int[0]); // временно пустой
-    }
-
-    public void updateModelMatricesOnGPU(List<ModelMetadata> models) {
-        float[] matricesData = new float[models.size() * 16];
-        for (int i = 0; i < models.size(); i++) {
-            Matrix4f m = models.get(i).getInverseModelMatrix();
-            m.get(matricesData, i * 16);  // изменён порядок аргументов
-        }
-        modelMatricesBuffer.fillBuffer(matricesData);
     }
 
     @Override

@@ -24,6 +24,7 @@ struct sceneIntersectionResult {
     TriangleHitResult hit;
     int materialIndex;
     int triangleIndex;
+    int modelIndex;
     int checkCount;
     int hitCount;
 };

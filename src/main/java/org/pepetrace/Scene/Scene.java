@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.joml.Matrix4f;
+import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Camera;
@@ -52,7 +53,7 @@ public class Scene implements AutoCloseable {
         MeshData data = loader.load(path);
 
         float offsetX = modelCount * 2.0f;
-        data.translate(offsetX, 0, 0);
+        data.translate(0, 0, 0);
 
         int baseIndex = vertices.size() / 3;
         vertices.addAll(data.getVertices());
@@ -171,6 +172,13 @@ public class Scene implements AutoCloseable {
     }
 
     public int pickModel(float screenX, float screenY, Camera camera, int viewportWidth, int viewportHeight) {
+        
+        Vector2f uv = new Vector2f();
+        uv.x = (screenX / viewportWidth - 0.5f) * 2;
+        uv.y = (screenY / viewportHeight - 0.5f) * 2;
+        float aspectRatio = (float) viewportHeight / viewportWidth;
+        uv.x *= aspectRatio;
+        
         float yawRad = (float) Math.toRadians(camera.getYawPitch().x);
         float pitchRad = (float) Math.toRadians(camera.getYawPitch().y);
         Vector3f forward = new Vector3f(
@@ -181,11 +189,13 @@ public class Scene implements AutoCloseable {
         Vector3f right = new Vector3f().cross(forward, new Vector3f(0,1,0)).normalize();
         Vector3f up = new Vector3f().cross(right, forward).normalize();
 
-        float aspect = (float)viewportWidth / viewportHeight;
-        float ndcX = (2.0f * screenX) / viewportWidth - 1.0f;
-        float ndcY = 1.0f - (2.0f * screenY) / viewportHeight;
-        ndcX *= aspect;
-        Vector3f rayDir = new Vector3f(forward).add(right.mul(ndcX, new Vector3f())).add(up.mul(ndcY, new Vector3f())).normalize();
+        Vector3f rayDir = (forward.add(right.mul(uv.x)).add(up.mul(uv.y))).normalize();
+
+        //float aspect = (float)viewportWidth / viewportHeight;
+        //float ndcX = (2.0f * screenX) / viewportWidth - 1.0f;
+        //float ndcY = 1.0f - (2.0f * screenY) / viewportHeight;
+        //ndcX *= aspect;
+        //Vector3f rayDir = new Vector3f(forward).add(right.mul(ndcX, new Vector3f())).add(up.mul(ndcY, new Vector3f())).normalize();
         Vector3f rayOrigin = camera.getPosition();
 
         float minDist = Float.POSITIVE_INFINITY;
@@ -255,7 +265,7 @@ public class Scene implements AutoCloseable {
     }
 
     public void packScene(SSBO geometryBuffer, SSBO indexBuffer, SSBO materialIndicesBuffer,
-                          SSBO materialHandlesBuffer, SSBO triangleModelIndicesBuffer, SSBO modelMatricesBuffer) {
+                          SSBO materialHandlesBuffer, SSBO triangleModelIndicesBuffer) {
         int vertexCount = vertices.size() / 3;
         float[] geometryData = new float[vertexCount * 20];
         for (int i = 0; i < vertexCount; i++) {
@@ -300,23 +310,26 @@ public class Scene implements AutoCloseable {
             //triModelIndices[i] = getModelIndexByTriangle(i);
         //}
 
-
-        float[] modelMatricies = new float[modelCount * 16];
         int[] triModelIndices = new int[modelCount];
         for (int i = 0; i < modelCount; i++) {
             ModelMetadata model = models.get(i);
-            Matrix4f matrix = model.getInverseModelMatrix();
-            for (int j = 0; j < 16; j ++) {
-                modelMatricies[i * 16 + j] = matrix.get(Math.floorDiv(j, 4), j % 4);
-            }
             int startTri = model.getStartTriangleIndex();
             triModelIndices[i] = startTri;
         }
-        System.out.println(Arrays.toString(triModelIndices));
         triangleModelIndicesBuffer.fillBuffer(triModelIndices);
-        modelMatricesBuffer.fillBuffer(modelMatricies);
 
         packMaterials(materialHandlesBuffer);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
+    }
+
+    public void updateModelMatricesOnGPU(SSBO modelMatricesBuffer) {
+        float[] matricesData = new float[models.size() * 16 * 2];
+        for (int i = 0; i < models.size(); i++) {
+            Matrix4f fm = models.get(i).getModelMatrix();
+            Matrix4f rm = models.get(i).getInverseModelMatrix();
+            fm.get(matricesData, i * 32);
+            rm.get(matricesData, i * 32 + 16);
+        }
+        modelMatricesBuffer.fillBuffer(matricesData);
     }
 }
