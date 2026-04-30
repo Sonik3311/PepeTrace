@@ -100,7 +100,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
 
     public void refreshSceneBuffers() {
         Scene scene = programState.getScene();
-        scene.packScene(geometryBuffer, indexBuffer, materialIndicesBuffer, materialHandlesBuffer, triangleModelIndicesBuffer);
+        scene.packScene(geometryBuffer, indexBuffer, materialIndicesBuffer, materialHandlesBuffer, triangleModelIndicesBuffer, modelMatricesBuffer);
         updateModelMatricesOnGPU(scene.getModels());
         resetRender();
     }

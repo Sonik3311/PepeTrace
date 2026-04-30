@@ -4,6 +4,7 @@ import static org.lwjgl.opengl.GL42.*;
 import static org.lwjgl.opengl.GL43C.GL_SHADER_STORAGE_BARRIER_BIT;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -254,7 +255,7 @@ public class Scene implements AutoCloseable {
     }
 
     public void packScene(SSBO geometryBuffer, SSBO indexBuffer, SSBO materialIndicesBuffer,
-                          SSBO materialHandlesBuffer, SSBO triangleModelIndicesBuffer) {
+                          SSBO materialHandlesBuffer, SSBO triangleModelIndicesBuffer, SSBO modelMatricesBuffer) {
         int vertexCount = vertices.size() / 3;
         float[] geometryData = new float[vertexCount * 20];
         for (int i = 0; i < vertexCount; i++) {
@@ -294,11 +295,26 @@ public class Scene implements AutoCloseable {
         }
         materialIndicesBuffer.fillBuffer(materialIndicesData);
 
-        int[] triModelIndices = new int[triangleCount];
-        for (int i = 0; i < triangleCount; i++) {
-            triModelIndices[i] = getModelIndexByTriangle(i);
+        //int[] triModelIndices = new int[triangleCount];
+        //for (int i = 0; i < triangleCount; i++) {
+            //triModelIndices[i] = getModelIndexByTriangle(i);
+        //}
+
+
+        float[] modelMatricies = new float[modelCount * 16];
+        int[] triModelIndices = new int[modelCount];
+        for (int i = 0; i < modelCount; i++) {
+            ModelMetadata model = models.get(i);
+            Matrix4f matrix = model.getInverseModelMatrix();
+            for (int j = 0; j < 16; j ++) {
+                modelMatricies[i * 16 + j] = matrix.get(Math.floorDiv(j, 4), j % 4);
+            }
+            int startTri = model.getStartTriangleIndex();
+            triModelIndices[i] = startTri;
         }
+        System.out.println(Arrays.toString(triModelIndices));
         triangleModelIndicesBuffer.fillBuffer(triModelIndices);
+        modelMatricesBuffer.fillBuffer(modelMatricies);
 
         packMaterials(materialHandlesBuffer);
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);

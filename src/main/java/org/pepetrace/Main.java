@@ -22,9 +22,7 @@ public class Main {
 
         Scene scene = new Scene();
         //scene.packTriangles(drawer.getTriangleBuffer());
-        scene.packScene(drawer.getGeometryBuffer(), drawer.getIndexBuffer(),
-                drawer.getMaterialIndicesBuffer(), drawer.getMaterialHandlesBuffer(),
-                drawer.getTriangleModelIndicesBuffer());
+
 
         GlobalState ProgramState = GlobalState.getInstance();
         ProgramState.setScene(scene);
@@ -32,7 +30,7 @@ public class Main {
         ProgramState.setViewportDrawer(drawer);
         ProgramState.setArbitraryData("Scene", scene);
 
-
+        drawer.refreshSceneBuffers();
         GPUTimeQuerier timer = new GPUTimeQuerier();
 
         while (!window.shouldClose()) {

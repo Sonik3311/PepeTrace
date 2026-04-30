@@ -23,6 +23,7 @@ struct TriangleHitResult {
 struct sceneIntersectionResult {
     TriangleHitResult hit;
     int materialIndex;
+    int triangleIndex;
     int checkCount;
     int hitCount;
 };

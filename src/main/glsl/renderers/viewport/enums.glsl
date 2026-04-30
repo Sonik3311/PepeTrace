@@ -10,3 +10,5 @@ const int RenderMode_GeometricNormal = 8;
 const int RenderMode_UV = 9;
 const int RenderMode_RayIntersectionCount = 10;
 const int RenderMode_RayIntersectionCheckCount = 11;
+const int RenderMode_Triangles = 12;
+const int RenderMode_Models = 13;

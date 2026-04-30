@@ -13,4 +13,6 @@ public enum ViewportRenderMode {
     UV,
     INTERSECTION_COUNT,
     INTERSECTION_CHECKS,
+    TRIANGLES,
+    MODELS,
 }
