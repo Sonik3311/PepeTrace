@@ -1,14 +1,21 @@
 package org.pepetrace.GUI;
 
 import imgui.ImGui;
+import imgui.type.ImString;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.pepetrace.Scene.ModelMetadata;
 import org.pepetrace.Scene.Scene;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.List;
 
 public class ModelDataWindow implements GuiWindow {
+
+    private ImString nameEditBuffer = new ImString();
+
+
     @Override
     public void render(int windowFlags) {
         Scene scene = programState.getScene();
@@ -20,16 +27,18 @@ public class ModelDataWindow implements GuiWindow {
             ModelMetadata model = models.get(selectedIdx);
 
             // -- Name --
-            /**byte[] nameBuf = new byte[128];
-             String currentName = model.getName();
-             if (currentName != null) {
-             byte[] nameBytes = currentName.getBytes(java.nio.charset.StandardCharsets.UTF_8);
-             System.arraycopy(nameBytes, 0, nameBuf, 0, Math.min(nameBytes.length, 127));
+            nameEditBuffer.set(model.getName());
+            if (ImGui.inputText("Name", nameEditBuffer)) {
+                String newName = nameEditBuffer.get();
+                if (newName.isBlank()) {
+                    model.setName("Unnamed Model");
+                } else {
+                    model.setName(newName);
+                }
              }
-             if (ImGui.inputText("Name", nameBuf)) {
-             String newName = new String(nameBuf, java.nio.charset.StandardCharsets.UTF_8).trim();
-             model.setName(newName);
-             }*/
+            ImGui.spacing();
+            ImGui.separatorText("Transform");
+            ImGui.spacing();
 
             // -- Position (Vector3f) --
             Vector3f pos = model.getPosition();

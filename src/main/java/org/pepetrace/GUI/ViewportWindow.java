@@ -51,9 +51,9 @@ public class ViewportWindow implements GuiWindow {
         float sinPitch = (float) Math.sin(pitchRad);
 
         // Camera-space direction vectors (X, Y, Z)
-        float camXx = cosYaw;
-        float camXy = sinYaw * sinPitch;
-        float camXz = -sinYaw * cosPitch;   // Z component of X axis after rotation
+        float camXx = -cosYaw;
+        float camXy = -sinYaw * sinPitch;
+        float camXz = sinYaw * cosPitch;   // Z component of X axis after rotation
 
         float camYx = 0;
         float camYy = cosPitch;
@@ -210,9 +210,7 @@ public class ViewportWindow implements GuiWindow {
                 Scene scene = programState.getScene();
                 Camera cam = programState.getCamera();
                 int modelIdx = scene.pickModel(mouseX, mouseY, cam, (int)renderViewportWidth, (int)renderViewportHeight);
-                if (modelIdx != -1) {
-                    programState.setSelectedModelIndex(modelIdx);
-                }
+                programState.setSelectedModelIndex(modelIdx);
             }
         }
         ImGui.end();
