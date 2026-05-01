@@ -11,6 +11,7 @@ import java.util.List;
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Camera;
 import org.pepetrace.Scene.Loader.AssimpLoader;
@@ -146,17 +147,22 @@ public class Scene implements AutoCloseable {
         //    Лучше оставить ответственность на вызывающем коде (Drawer.refreshSceneBuffers()).
     }
 
-    private boolean rayTriangleIntersect(Vector3f ro, Vector3f rd, Vector3f v0, Vector3f v1, Vector3f v2, float[] outDist) {
-        Vector3f v0v1 = new Vector3f(v1).sub(v0);
-        Vector3f v0v2 = new Vector3f(v2).sub(v0);
-        Vector3f pvec = new Vector3f(rd).cross(v0v2);
+    private boolean rayTriangleIntersect(Vector3fc ro, Vector3fc rd, Vector3f v0, Vector3f v1, Vector3f v2, float[] outDist) {
+        Vector3f v0v1 = new Vector3f(v1);
+        v0v1.sub(v0);
+        Vector3f v0v2 = new Vector3f(v2);
+        v0v2.sub(v0);
+        Vector3f pvec = new Vector3f(rd);
+        pvec.cross(v0v2);
         float det = v0v1.dot(pvec);
         if (Math.abs(det) < 1e-8) return false;
         float invDet = 1.0f / det;
-        Vector3f tvec = new Vector3f(ro).sub(v0);
+        Vector3f tvec = new Vector3f(ro);
+        tvec.sub(v0);
         float u = tvec.dot(pvec) * invDet;
         if (u < 0 || u > 1) return false;
-        Vector3f qvec = new Vector3f(tvec).cross(v0v1);
+        Vector3f qvec = new Vector3f(tvec);
+        qvec.cross(v0v1);
         float v = rd.dot(qvec) * invDet;
         if (v < 0 || u + v > 1) return false;
         float dist = v0v2.dot(qvec) * invDet;
@@ -172,30 +178,39 @@ public class Scene implements AutoCloseable {
     }
 
     public int pickModel(float screenX, float screenY, Camera camera, int viewportWidth, int viewportHeight) {
-        
-        Vector2f uv = new Vector2f();
-        uv.x = (screenX / viewportWidth - 0.5f) * 2;
-        uv.y = (screenY / viewportHeight - 0.5f) * 2;
-        float aspectRatio = (float) viewportHeight / viewportWidth;
-        uv.x *= aspectRatio;
-        
+        // Тут произошла великая битва меня и ебанного JOML
+        // Короче, когда делаешь .cross .dot и другие и сохраняешь результат в переменную, то этот результат также сохранится туда, откуда делал данный запрос
+        // Даже если из new Vector3f().cross, да-да.
+
+        // 1. Вычисление NDC и aspect ratio
+        float ndcX = (2.0f * screenX) / viewportWidth - 1.0f;
+        float ndcY = 1.0f - (2.0f * screenY) / viewportHeight;
+        float aspect = (float) viewportWidth / viewportHeight;
+        float u = ndcX * aspect;
+        float v = ndcY;
+
+        // 2. Базис камеры
         float yawRad = (float) Math.toRadians(camera.getYawPitch().x);
         float pitchRad = (float) Math.toRadians(camera.getYawPitch().y);
         Vector3f forward = new Vector3f(
                 (float)(Math.cos(pitchRad) * Math.sin(yawRad)),
-                (float)Math.sin(pitchRad),
+                (float) Math.sin(pitchRad),
                 (float)(Math.cos(pitchRad) * Math.cos(yawRad))
         ).normalize();
-        Vector3f right = new Vector3f().cross(forward, new Vector3f(0,1,0)).normalize();
-        Vector3f up = new Vector3f().cross(right, forward).normalize();
 
-        Vector3f rayDir = (forward.add(right.mul(uv.x)).add(up.mul(uv.y))).normalize();
 
-        //float aspect = (float)viewportWidth / viewportHeight;
-        //float ndcX = (2.0f * screenX) / viewportWidth - 1.0f;
-        //float ndcY = 1.0f - (2.0f * screenY) / viewportHeight;
-        //ndcX *= aspect;
-        //Vector3f rayDir = new Vector3f(forward).add(right.mul(ndcX, new Vector3f())).add(up.mul(ndcY, new Vector3f())).normalize();
+        Vector3f right = new Vector3f(forward);
+        right.cross(new Vector3f(0, 1, 0));
+        right.normalize();
+        Vector3f up = new Vector3f(right);
+        up.cross(forward);
+        up.normalize();
+
+        // 3. Направление луча в мировом пространстве
+        Vector3f rayDir = new Vector3f(forward);
+                rayDir.add(right.mul(u))
+                .add(up.mul(v));
+                rayDir.normalize(); // на всякий случай
         Vector3f rayOrigin = camera.getPosition();
 
         float minDist = Float.POSITIVE_INFINITY;
@@ -208,9 +223,11 @@ public class Scene implements AutoCloseable {
             Matrix4f invModelMatrix = model.getInverseModelMatrix();
 
             // Преобразуем начало луча в локальное пространство
-            Vector3f localOrigin = new Vector3f(rayOrigin).mulPosition(invModelMatrix);
+            Vector3f localOrigin = new Vector3f(rayOrigin);
+            localOrigin.mulPosition(invModelMatrix);
             // Преобразуем направление (важно использовать только поворот/масштаб, без переноса)
-            Vector3f localDir = new Vector3f(rayDir).mulDirection(invModelMatrix).normalize();
+            Vector3f localDir = new Vector3f(rayDir);
+            localDir.mulDirection(invModelMatrix);
 
             int startTri = model.getStartTriangleIndex();
             int endTri = startTri + model.getTriangleCount();

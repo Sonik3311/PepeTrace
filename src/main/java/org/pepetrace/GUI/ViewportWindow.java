@@ -216,7 +216,6 @@ public class ViewportWindow implements GuiWindow {
                 Scene scene = programState.getScene();
                 Camera cam = programState.getCamera();
                 int modelIdx = scene.pickModel(mouseX, mouseY, cam, (int)renderViewportWidth, (int)renderViewportHeight);
-                System.out.println(mouseX + " " + mouseY + " " + (int)renderViewportWidth + " " + (int)renderViewportHeight +" | "+ modelIdx);
                 if (modelIdx != -1) {
                     programState.setSelectedModelIndex(modelIdx);
                 }
