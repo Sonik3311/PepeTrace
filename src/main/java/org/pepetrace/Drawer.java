@@ -13,13 +13,10 @@ import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import java.io.FileNotFoundException;
-import java.util.List;
 
-import org.joml.Matrix4f;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.GUI.*;
-import org.pepetrace.Scene.ModelMetadata;
 import org.pepetrace.Scene.Scene;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
@@ -32,6 +29,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
     private Window window;
     private ComputeProgram pathTracingProgram;
     private Program windowTextureDrawerProgram;
+    private final Program outlineProgram = new Program("./src/main/glsl/util/outliner/outliner");
     private int drawVAO;
     private Camera camera;
     private boolean isLayoutInitialized = false;
@@ -67,6 +65,9 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
     public ImBoolean accumulating = new ImBoolean(false);
     public ImFloat roughness = new ImFloat(1.0f);
     private Texture pathTracingTexture;
+    private Texture modelStencilTexture;
+    private Texture outputTexture;
+    private int fbo;
     private final Texture skybox = Texture.createFromFile(
         4,
         true,
@@ -111,6 +112,8 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
     }
 
     public Texture getRenderTexture() { return pathTracingTexture; }
+    public Texture getModelStencilTexture() { return modelStencilTexture; }
+    public Texture getOutputTexture() { return outputTexture; }
 
     @Override
     public void onResize(int newWidth, int newHeight) {
@@ -128,11 +131,27 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
             false,
             1,
             GL_RGBA32F,
-            GL_RGBA,
-            GL_FLOAT,
-            GL_RGBA32F,
-            GL_READ_WRITE
+                GL_READ_WRITE,
+                GL_NEAREST
         );
+        modelStencilTexture = new Texture(
+                currentWidth,
+                currentHeight,
+                false,
+                12,
+                GL_R32UI,
+                GL_READ_WRITE,
+                GL_NEAREST
+        );
+        outputTexture = new Texture(
+                currentWidth, currentHeight, false, 13,
+                GL_RGBA32F, GL_READ_WRITE, GL_LINEAR
+        );
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                GL_TEXTURE_2D, outputTexture.id, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
         resetRender();
 
         ImGuiIO io = ImGui.getIO();
@@ -182,7 +201,6 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
 
     public void renderFrame() {
         // 1. Запуск compute шейдера
-        glViewport(0, 0, currentWidth, currentHeight);
         //glBindImageTexture(5, skybox.id, 9, false, 0, skybox.getAccess(), skybox.getImageFormat());
         ubo.updateBuffer(
             frame,
@@ -206,15 +224,25 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
 
         // 3. Рендеринг квада
-        //glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // чистим прошлый фрэймбуффер (опционально)
-        //glActiveTexture(GL_TEXTURE0);
-        //glBindTexture(GL_TEXTURE_2D, pathTracingTexture.id);
-        //windowTextureDrawerProgram.use();
-        //windowTextureDrawerProgram.setInt("tex", 0);
+        glViewport(0, 0, currentWidth, currentHeight);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        outlineProgram.use();
 
-        // Убедимся, что текстура привязана (опционально)
-        //glBindVertexArray(drawVAO);
-        //glDrawArrays(GL_TRIANGLES, 0, 3);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // чистим прошлый фрэймбуффер (опционально)
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, modelStencilTexture.id);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, pathTracingTexture.id);
+
+        outlineProgram.setInt("u_stencilTexture",    0);
+        outlineProgram.setInt("u_colorTexture", 1);
+        outlineProgram.setInt("u_selectedID", programState.getSelectedModelIndex());
+
+        glBindVertexArray(drawVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindVertexArray(0);
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Start a new ImGui frame
         renderImGUI();
@@ -269,8 +297,28 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         glClearColor(1.0f, 0.0f, 0.0f, 0.0f);
         pathTracingTexture = new Texture(
                 currentWidth, currentHeight, false, 1,
-                GL_RGBA32F, GL_RGBA, GL_FLOAT, GL_RGBA32F, GL_READ_WRITE
+                GL_RGBA32F, GL_READ_WRITE, GL_NEAREST
         );
+        modelStencilTexture = new Texture(
+                currentWidth, currentHeight, false, 12,
+                GL_R32UI, GL_READ_WRITE, GL_NEAREST
+        );
+        outputTexture = new Texture(
+                currentWidth, currentHeight, false, 13,
+                GL_RGBA32F, GL_READ_WRITE, GL_NEAREST
+        );
+
+        fbo = glGenFramebuffers();
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
+                GL_TEXTURE_2D, outputTexture.id, 0);
+        int status = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        if (status != GL_FRAMEBUFFER_COMPLETE) {
+            System.err.println("FBO not complete: " + status);
+        }
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
         pathTracingProgram = new ComputeProgram("./src/main/glsl/renderers/viewport/program");
         windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
         drawVAO = glGenVertexArrays();

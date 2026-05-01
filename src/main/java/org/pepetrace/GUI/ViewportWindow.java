@@ -11,12 +11,18 @@ import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Camera;
 import org.pepetrace.Drawer;
 import org.pepetrace.Scene.Scene;
+import org.pepetrace.Shader.Program;
+import static org.lwjgl.opengl.GL46.*;
 
 import javax.swing.text.View;
+import java.io.FileNotFoundException;
 
 public class ViewportWindow implements GuiWindow {
 
-    public ViewportWindow() {
+
+    private int fbo;
+
+    public ViewportWindow() throws FileNotFoundException {
         programState.initializeArbitraryData("CPURenderTime", 0.0);
         programState.initializeArbitraryData("GPURenderTime", 0.0);
     }
@@ -142,10 +148,24 @@ public class ViewportWindow implements GuiWindow {
         }
     }
 
+    private void drawText(float x, float y, String text, ImDrawList dl) {
+        int textColor = ImGui.getColorU32(1, 1, 1, 1);   // white
+        int outlineColor = ImGui.getColorU32(0, 0, 0, 1); // black
+        int thickness = 2;
+        for (int dx = -thickness; dx <= thickness; dx++) {
+            for (int dy = -thickness; dy <= thickness; dy++) {
+                // Skip the center (where the main text will go)
+                if (dx == 0 && dy == 0) continue;
+                dl.addText(x + dx, y + dy, outlineColor, text);
+            }
+        }
+        dl.addText(x, y, textColor, text);
+    }
+
     @Override
     public void render(int windowFlags) {
         Drawer drawer = programState.getViewportDrawer();
-        Texture pathTracingTexture = drawer.getRenderTexture();
+        Texture pathTracingTexture = drawer.getOutputTexture();
         ImGui.begin("Viewport");
         float renderViewportWidth = ImGui.getContentRegionAvailX();
         float renderViewportHeight = ImGui.getContentRegionAvailY();
@@ -174,35 +194,9 @@ public class ViewportWindow implements GuiWindow {
         String cputext = "CPU Render Time: " + cpuvalue + " ms";
         String tritext = "Triangle Count: " + trivalue;
 
-
-        int textColor = ImGui.getColorU32(1, 1, 1, 1);   // white
-        int outlineColor = ImGui.getColorU32(0, 0, 0, 1); // black
-        int thickness = 2;
-        for (int dx = -thickness; dx <= thickness; dx++) {
-            for (int dy = -thickness; dy <= thickness; dy++) {
-                // Skip the center (where the main text will go)
-                if (dx == 0 && dy == 0) continue;
-                dl.addText(xc + dx, yc + dy, outlineColor, cputext);
-            }
-        }
-        dl.addText(xc, yc, textColor, cputext);
-        for (int dx = -thickness; dx <= thickness; dx++) {
-            for (int dy = -thickness; dy <= thickness; dy++) {
-                // Skip the center (where the main text will go)
-                if (dx == 0 && dy == 0) continue;
-                dl.addText(x + dx, y + dy, outlineColor, gputext);
-            }
-        }
-        dl.addText(x, y, textColor, gputext);
-        dl.addText(xc, yc, textColor, cputext);
-        for (int dx = -thickness; dx <= thickness; dx++) {
-            for (int dy = -thickness; dy <= thickness; dy++) {
-                // Skip the center (where the main text will go)
-                if (dx == 0 && dy == 0) continue;
-                dl.addText(xt + dx, yt + dy, outlineColor, tritext);
-            }
-        }
-        dl.addText(xt, yt, textColor, tritext);
+        drawText(x, y, gputext, dl);
+        drawText(xc, yc, cputext, dl);
+        drawText(xt, yt, tritext, dl);
 
 
         Camera camera = programState.getCamera();

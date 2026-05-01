@@ -3,7 +3,6 @@ package org.pepetrace.Buffers;
 import static org.lwjgl.opengl.ARBBindlessTexture.glGetTextureHandleARB;
 import static org.lwjgl.opengl.ARBBindlessTexture.glMakeTextureHandleNonResidentARB;
 import static org.lwjgl.opengl.GL46.*;
-import static org.lwjgl.system.MemoryUtil.NULL;
 import static org.lwjgl.stb.STBImage.*;
 
 import org.lwjgl.system.MemoryStack;
@@ -21,11 +20,9 @@ public class Texture implements AutoCloseable {
     private final int width;
     private final int height;
     private long binding;
-    private boolean isBindless;
+    private final boolean isBindless;
     private final int internalFormat;   // формат хранения в видеопамяти (GL_RGBA32F, GL_RGBA8, ...)
-    private final int pixelFormat;      // формат пикселей при загрузке данных (GL_RGBA, GL_RGB, ...)
-    private final int pixelType;        // тип пикселей при загрузке данных (GL_UNSIGNED_BYTE, GL_FLOAT, ...)
-    private final int imageFormat;      // формат для image unit (GL_RGBA32F, GL_RGBA8, ...)
+    private final int format;      // формат для image unit (GL_RGBA32F, GL_RGBA8, ...)
     private int access;
     private boolean isReleased = false;
     protected String sourceFilePath;
@@ -34,24 +31,20 @@ public class Texture implements AutoCloseable {
      * Конструктор для создания пустой текстуры (без начальных данных).
      * Текстура привязывается как image для чтения/записи в compute-шейдере.
      *
-     * @param width          ширина текстуры
-     * @param height         высота текстуры
-     * @param binding        слот текстуры. Если < 0, то bindless
-     * @param internalFormat формат хранения (GL_RGBA32F, GL_RGBA8, ...)
-     * @param pixelFormat    формат пикселей для операций загрузки (GL_RGBA, GL_RGB, ...)
-     * @param pixelType      тип пикселей для операций загрузки (GL_UNSIGNED_BYTE, GL_FLOAT, ...)
-     * @param imageFormat    формат для image unit (GL_RGBA32F, GL_RGBA8, ...)
-     * @param access         режим доступа (GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE)
+     * @param width     ширина текстуры
+     * @param height    высота текстуры
+     * @param binding   слот текстуры. Если < 0, то bindless
+     * @param format    формат хранения (GL_RGBA32F, GL_RGBA8, ...)
+     * @param access    режим доступа (GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE)
+     * @param filtering режим фильтрации текстуры (GL_NEAREST, GL_LINEAR). При использовании generateMipMaps игнорируется и ставится на GL_LINEAR_MIPMAP_LINEAR
      */
-    public Texture(int width, int height, boolean generateMipmaps, int binding, int internalFormat, int pixelFormat, int pixelType, int imageFormat, int access) {
+    public Texture(int width, int height, boolean generateMipmaps, int binding, int format, int access, int filtering) {
         this.width = width;
         this.height = height;
         this.binding = binding;
         this.isBindless = binding < 0;
-        this.internalFormat = internalFormat;
-        this.pixelFormat = pixelFormat;
-        this.pixelType = pixelType;
-        this.imageFormat = imageFormat;
+        this.internalFormat = format;
+        this.format = format;
         this.access = access;
 
         id = glGenTextures();
@@ -60,24 +53,24 @@ public class Texture implements AutoCloseable {
         // Параметры текстуры
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filtering);
 
         if (generateMipmaps) {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
             glGenerateMipmap(GL_TEXTURE_2D);
         } else {
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filtering);
         }
 
         // Выделяем неизменяемую память
         int levels = generateMipmaps ? 1 + (int) Math.floor(Math.log(Math.max(width, height)) / Math.log(2)) : 1;
         //System.out.println(levels);
-        glTexStorage2D(GL_TEXTURE_2D, levels, internalFormat, width, height);
+        glTexStorage2D(GL_TEXTURE_2D, levels, format, width, height);
 
         glBindTexture(GL_TEXTURE_2D, 0);
         // Привязываем как image для работы в compute-шейдере (чтение/запись)
         if (binding >= 0) {
-            glBindImageTexture(binding, id, 0, false, 0, access, imageFormat);
+            glBindImageTexture(binding, id, 0, false, 0, access, this.format);
         } else {
             this.binding = glGetTextureHandleARB(id);
         };
@@ -124,7 +117,7 @@ public class Texture implements AutoCloseable {
             int height = h.get();
 
             // Создаём текстуру с форматом GL_RGBA8 (подходит и для записи из compute-шейдера)
-            Texture texture = new Texture(width, height, generateMipmaps, binding, GL_RGBA32F, GL_RGBA, GL_FLOAT, GL_RGBA32F, access);
+            Texture texture = new Texture(width, height, generateMipmaps, binding, GL_RGBA32F, access, GL_LINEAR);
             texture.sourceFilePath = path;
 
             // Загружаем пиксельные данные
@@ -166,7 +159,7 @@ public class Texture implements AutoCloseable {
             int height = h.get();
 
             // Создаём текстуру с форматом GL_RGBA8 (подходит и для записи из compute-шейдера)
-            Texture texture = new Texture(width, height, generateMipmaps, binding, GL_RGBA8, GL_RGBA, GL_UNSIGNED_BYTE, GL_RGBA8, access);
+            Texture texture = new Texture(width, height, generateMipmaps, binding, GL_RGBA8, access, GL_LINEAR);
             texture.sourceFilePath = path;
 
             // Загружаем пиксельные данные
@@ -179,19 +172,6 @@ public class Texture implements AutoCloseable {
             stbi_image_free(data);
             return texture;
         }
-    }
-
-    /**
-     * Обновляет содержимое текстуры из буфера.
-     * Формат данных должен соответствовать pixelFormat/pixelType, указанным при создании.
-     *
-     * @param data буфер с новыми пиксельными данными
-     */
-    public void updateData(ByteBuffer data) {
-        glBindTexture(GL_TEXTURE_2D, id);
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, pixelFormat, pixelType, data);
-        this.sourceFilePath = "";
-        glBindTexture(GL_TEXTURE_2D, 0);
     }
 
     /**
@@ -240,7 +220,7 @@ public class Texture implements AutoCloseable {
      * @param layer    слой для привязки (0 для 2D текстур)
      */
     public void bindImage(int binding, int access, int level, boolean layered, int layer) {
-        glBindImageTexture(binding, id, level, layered, layer, access, imageFormat);
+        glBindImageTexture(binding, id, level, layered, layer, access, format);
         this.binding = binding;
         this.access = access;
     }
@@ -253,7 +233,7 @@ public class Texture implements AutoCloseable {
      * @param access  режим доступа (GL_READ_ONLY, GL_WRITE_ONLY, GL_READ_WRITE)
      */
     public void bindImage(int binding, int access) {
-        glBindImageTexture(binding, id, 0, false, 0, access, imageFormat);
+        glBindImageTexture(binding, id, 0, false, 0, access, format);
         this.binding = binding;
         this.access = access;
     }
@@ -263,9 +243,7 @@ public class Texture implements AutoCloseable {
     public int getHeight() { return height; }
     public long getBinding() { return binding; }
     public int getInternalFormat() { return internalFormat; }
-    public int getPixelFormat() { return pixelFormat; }
-    public int getPixelType() { return pixelType; }
-    public int getImageFormat() { return imageFormat; }
+    public int getFormat() { return format; }
     public int getAccess() { return access; }
     public String getSourceFilePath() { return sourceFilePath; }
 }

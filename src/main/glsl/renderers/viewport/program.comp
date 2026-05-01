@@ -14,6 +14,7 @@
 layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1) in; // Используем 8x8x1=64 так как оптимальный размер рабочей группы на AMD = 64*n, на Nvidia = 32*n
 
 layout(rgba32f, binding = 1) uniform image2D imgOutput;
+layout(r32ui, binding = 12) uniform uimage2D stencilModelOutput;
 
 layout(std140, binding = 2) uniform CameraData {
     vec3 camPos;
@@ -410,4 +411,6 @@ void main() {
     }
 
     imageStore(imgOutput, texelCoord, final_value);
+
+    imageStore(stencilModelOutput, texelCoord, uvec4(uint(max(result.modelIndex + 1, 0)), 0u, 0u, 1u));
 }
