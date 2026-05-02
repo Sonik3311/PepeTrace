@@ -183,6 +183,7 @@ public class ViewportWindow implements GuiWindow {
         float x = 13 + windowPosX, y = 30 + windowPosY;
         float xc = x + 0, yc = y + 20;
         float xt = x + 0, yt = yc + 20;
+        float xf = x + 0, yf = yt + 20;
 
         double gpu = (double) programState.getArbitraryData("GPURenderTime");
         double cpu = (double) programState.getArbitraryData("CPURenderTime");
@@ -194,9 +195,12 @@ public class ViewportWindow implements GuiWindow {
         String cputext = "CPU Render Time: " + cpuvalue + " ms";
         String tritext = "Triangle Count: " + trivalue;
 
+        String frametext = "Current accumulation frame: " + drawer.frame;
+
         drawText(x, y, gputext, dl);
         drawText(xc, yc, cputext, dl);
         drawText(xt, yt, tritext, dl);
+        drawText(xf, yf, frametext, dl);
 
 
         Camera camera = programState.getCamera();

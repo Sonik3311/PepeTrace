@@ -1,5 +1,7 @@
 #version 460 core
 
+#include "../pastel.glsl"
+
 uniform sampler2D u_colorTexture;
 uniform usampler2D u_stencilTexture;
 uniform int u_selectedID;

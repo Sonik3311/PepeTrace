@@ -412,5 +412,5 @@ void main() {
 
     imageStore(imgOutput, texelCoord, final_value);
 
-    imageStore(stencilModelOutput, texelCoord, uvec4(uint(max(result.modelIndex + 1, 0)), 0u, 0u, 1u));
+    if (renderInts.tick <= 1) imageStore(stencilModelOutput, texelCoord, uvec4(uint(max(result.modelIndex + 1, 0)), 0u, 0u, 1u));
 }
