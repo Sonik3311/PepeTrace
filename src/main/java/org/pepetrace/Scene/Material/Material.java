@@ -11,6 +11,10 @@ public class Material implements AutoCloseable {
 
     public void destroy() {}
 
+    public long getID() {
+        return id;
+    }
+
     @Override
     public void close() throws Exception {}
 }

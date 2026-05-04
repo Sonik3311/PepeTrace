@@ -14,7 +14,6 @@ public class CreateMaterialPopup implements GuiWindow {
     private boolean isOpen = false;
 
     // Input buffers (ImString works like a mutable String for ImGui)
-    private ImString materialName = new ImString("New Material", 256);
     private ImString albedoPath = new ImString("", 512);
     private ImString normalPath = new ImString("", 512);
     private ImString rmtPath = new ImString("", 512);
@@ -52,20 +51,17 @@ public class CreateMaterialPopup implements GuiWindow {
         // 2. Render the modal (centered, always on top)
         if (ImGui.beginPopupModal("Create Material", ImGuiWindowFlags.AlwaysAutoResize)) {
             ImGui.text("Define new material properties");
-            ImGui.separator();
-
-            // Material name
-            ImGui.inputText("Name", materialName);
-
-            // Texture paths with some padding
             ImGui.spacing();
-            renderTextureInput("Albedo", albedoPath);
-            renderTextureInput("Normal", normalPath);
-            renderTextureInput("RMT", rmtPath);
+            ImGui.separator();
+            ImGui.spacing();
 
+            renderTextureInput("Albedo:", albedoPath);
+            renderTextureInput("Normal:", normalPath);
+            renderTextureInput("RMT:   ", rmtPath);
 
             ImGui.spacing();
             ImGui.separator();
+            ImGui.spacing();
 
             // Buttons
             if (ImGui.button("OK", 120, 0)) {
@@ -103,7 +99,7 @@ public class CreateMaterialPopup implements GuiWindow {
     }
 
     private void renderTextureInput(String label, ImString pathBuffer) {
-        ImGui.text(label + ":");
+        ImGui.text(label);
         ImGui.sameLine();
 
         // Use a constant width – pick a value that fits typical file paths
