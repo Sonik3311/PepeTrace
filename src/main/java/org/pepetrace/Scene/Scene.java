@@ -37,8 +37,8 @@ public class Scene implements AutoCloseable {
 
     public Scene() {
         materials.add(TextureMaterial.create(
-                "./src/main/resources/models/Wall/albedo.png",
-                "./src/main/resources/DefaultMaterial_Normal_OpenGL.png",
+                "./src/main/resources/Textures/defaulta.png",
+                "./src/main/resources/Textures/defaultn.png",
                 "./src/main/resources/sunny_rose_garden_2k.hdr"
         ));
     }

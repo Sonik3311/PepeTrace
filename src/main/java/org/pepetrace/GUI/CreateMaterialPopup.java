@@ -91,11 +91,6 @@ public class CreateMaterialPopup implements GuiWindow {
                 FILTER_DESC,
                 false                              // single file only
         );
-
-        // If you want to use the filter string, you can create a PointerBuffer:
-        // PointerBuffer filterBuf = PointerBuffer.allocateDirect(1);
-        // filterBuf.put(0, MemoryUtil.memUTF8("*.png"));
-        // But the simple version above is often enough. To be safe, we leave it null.
     }
 
     private void renderTextureInput(String label, ImString pathBuffer) {
