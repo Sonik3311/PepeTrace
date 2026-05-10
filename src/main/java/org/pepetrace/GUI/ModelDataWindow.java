@@ -4,11 +4,10 @@ import imgui.ImGui;
 import imgui.type.ImString;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+import org.pepetrace.Main;
 import org.pepetrace.Scene.ModelMetadata;
 import org.pepetrace.Scene.Scene;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.List;
 
 public class ModelDataWindow implements GuiWindow {
@@ -84,7 +83,7 @@ public class ModelDataWindow implements GuiWindow {
     }
 
     private void updateTransformations() {
-        programState.getScene().updateModelMatricesOnGPU(programState.getViewportDrawer().getModelMatricesBuffer());
-        programState.getViewportDrawer().resetRender();
+        Main mainProgram = (Main) programState.getArbitraryData("Main");
+        mainProgram.refreshSceneBuffers(false, true);
     }
 }

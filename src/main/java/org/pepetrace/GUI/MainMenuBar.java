@@ -3,7 +3,8 @@ package org.pepetrace.GUI;
 import imgui.ImGui;
 import org.lwjgl.PointerBuffer;
 import org.lwjgl.system.MemoryStack;
-import org.pepetrace.Drawer;
+import org.pepetrace.Drawers.ViewportDrawer;
+import org.pepetrace.Main;
 import org.pepetrace.Scene.Scene;
 
 import java.io.File;
@@ -15,7 +16,7 @@ public class MainMenuBar implements GuiWindow {
 
     public void render(int flags) {
         Scene scene = programState.getScene();
-        Drawer drawer = programState.getViewportDrawer();
+        ViewportDrawer drawer = programState.getViewportDrawer();
         if (ImGui.beginMainMenuBar()) {
             if (ImGui.beginMenu("File")) {
                 if (ImGui.menuItem("Save", "Ctrl+S")) {
@@ -48,8 +49,8 @@ public class MainMenuBar implements GuiWindow {
                             if (modelName.lastIndexOf('.') > 0)
                                 modelName = modelName.substring(0, modelName.lastIndexOf('.'));
                             scene.loadModel(filePath, 0, modelName);
-                            programState.getViewportDrawer().refreshSceneBuffers();
-                            programState.getViewportDrawer().resetRender();
+                            Main mainProgram = (Main) programState.getArbitraryData("Main");
+                            mainProgram.refreshSceneBuffers(true, true);
                         }
                     }
                 }

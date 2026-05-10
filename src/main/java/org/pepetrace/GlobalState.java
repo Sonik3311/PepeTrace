@@ -1,5 +1,6 @@
 package org.pepetrace;
 
+import org.pepetrace.Drawers.ViewportDrawer;
 import org.pepetrace.Scene.Scene;
 
 import java.util.HashMap;
@@ -7,7 +8,7 @@ import java.util.HashMap;
 public class GlobalState {
     private static GlobalState instance;
     private Scene scene;
-    private Drawer viewportDrawer;
+    private ViewportDrawer viewportDrawer;
     private Camera camera;
     private final HashMap<String, Object> arbitraryData = new HashMap<>();
     private int selectedModelIndex = -1;  // новое поле
@@ -25,11 +26,11 @@ public class GlobalState {
     public void setArbitraryData(String K, Object Value) { arbitraryData.put(K, Value); }
     public Object getArbitraryData(String K) { return arbitraryData.get(K); }
 
-    public void setViewportDrawer(Drawer drawer) { this.viewportDrawer = drawer; }
+    public void setViewportDrawer(ViewportDrawer drawer) { this.viewportDrawer = drawer; }
     public void setScene(Scene scene) { this.scene = scene; }
     public void setCamera(Camera camera) { this.camera = camera; }
 
-    public Drawer getViewportDrawer() { return this.viewportDrawer; }
+    public ViewportDrawer getViewportDrawer() { return this.viewportDrawer; }
     public Scene getScene() { return this.scene; }
     public Camera getCamera() { return this.camera; }
 

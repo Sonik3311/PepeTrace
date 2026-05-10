@@ -27,7 +27,7 @@ public class Window implements AutoCloseable {
     }
 
     public interface ResizeListener {
-        void onResize(int newWidth, int newHeight);
+        void onResize(int newWidth, int newHeight, boolean isFromGlfw);
     }
 
     public void setResizeListener(ResizeListener listener) {
@@ -57,7 +57,7 @@ public class Window implements AutoCloseable {
             this.width = w;
             this.height = h;
             if (resizeListener != null) {
-                resizeListener.onResize(w, h);
+                resizeListener.onResize(w, h, true);
             }
         });
 
@@ -92,7 +92,7 @@ public class Window implements AutoCloseable {
             this.width = w;
             this.height = h;
             if (resizeListener != null) {
-                resizeListener.onResize(w, h);
+                resizeListener.onResize(w, h, true);
             }
         });
 
@@ -147,14 +147,17 @@ public class Window implements AutoCloseable {
         if (firstMouse) {
             lastMouseX = xpos[0];
             lastMouseY = ypos[0];
+            System.out.println("firstMouse");
             firstMouse = false;
         } else {
+            System.out.println("feasd");
             dx = (float)(lastMouseX - xpos[0]);
             dy = (float)(lastMouseY - ypos[0]);
             lastMouseX = xpos[0];
             lastMouseY = ypos[0];
         }
 
+        System.out.println("Trying to get delta");
         return new float[]{dx, dy};
     }
 

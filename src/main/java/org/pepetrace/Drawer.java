@@ -22,6 +22,7 @@ import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
 import org.pepetrace.Util.ViewportRenderMode;
 
+@Deprecated
 public class Drawer implements Window.ResizeListener, AutoCloseable {
 
     private ImGuiImplGlfw imGuiGlfw;
@@ -116,7 +117,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
     public Texture getOutputTexture() { return outputTexture; }
 
     @Override
-    public void onResize(int newWidth, int newHeight) {
+    public void onResize(int newWidth, int newHeight, boolean isFromGlfw) {
         if (!sizeChanged(newWidth, newHeight)) return;
         currentWidth = newWidth;
         currentHeight = newHeight;
@@ -258,37 +259,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
 
     private void renderImGUI() {
         Scene scene = (Scene) programState.getArbitraryData("Scene");
-        imGuiGl3.newFrame();
-        imGuiGlfw.newFrame();
-        ImGui.newFrame();
-        // Меню сверху
-        mainMenuBar.render(0);
-        // Основное пространство
 
-
-        ImGui.dockSpaceOverViewport();
-        buildInfoWindow.render(ImGuiWindowFlags.NoCollapse);
-        materialManagerWindow.render(ImGuiWindowFlags.NoCollapse);
-        cameraInfoWindow.render(ImGuiWindowFlags.NoCollapse);
-        viewportWindow.render(0);
-        viewportRenderSettingsWindow.render(ImGuiWindowFlags.NoCollapse);
-        outlinerWindow.render(ImGuiWindowFlags.NoCollapse);
-        modelDataWindow.render(ImGuiWindowFlags.NoCollapse);
-
-        ImGui.render();
-        imGuiGl3.renderDrawData(ImGui.getDrawData());
-        guiWantsMouse = ImGui.getIO().getWantCaptureMouse();
-
-        if (!guiWantsMouse && ImGui.isKeyPressed(ImGuiKey.Delete)) {
-            int selected = programState.getSelectedModelIndex();
-            scene = programState.getScene();
-            if (selected >= 0 && selected < scene.getModels().size()) {
-                scene.removeModel(selected);
-                refreshSceneBuffers();
-                programState.setSelectedModelIndex(-1);
-                resetRender();
-            }
-        }
     }
 
 

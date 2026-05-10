@@ -4,23 +4,20 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiMouseButton;
-import org.joml.Matrix4f;
-import org.joml.Vector2f;
-import org.joml.Vector3f;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Camera;
-import org.pepetrace.Drawer;
+import org.pepetrace.Drawers.ViewportDrawer;
+import org.pepetrace.GlobalState;
 import org.pepetrace.Scene.Scene;
-import org.pepetrace.Shader.Program;
-import static org.lwjgl.opengl.GL46.*;
 
-import javax.swing.text.View;
 import java.io.FileNotFoundException;
+import java.lang.annotation.Inherited;
 
-public class ViewportWindow implements GuiWindow {
+public class ViewportWindow {
 
 
     private int fbo;
+    private final GlobalState programState = GlobalState.getInstance();
 
     public ViewportWindow() throws FileNotFoundException {
         programState.initializeArbitraryData("CPURenderTime", 0.0);
@@ -162,22 +159,23 @@ public class ViewportWindow implements GuiWindow {
         dl.addText(x, y, textColor, text);
     }
 
-    @Override
-    public void render(int windowFlags) {
-        Drawer drawer = programState.getViewportDrawer();
-        Texture pathTracingTexture = drawer.getOutputTexture();
+    public void render(int windowFlags, Texture outputTexture) {
+        ViewportDrawer drawer = programState.getViewportDrawer();
         ImGui.begin("Viewport");
         float renderViewportWidth = ImGui.getContentRegionAvailX();
         float renderViewportHeight = ImGui.getContentRegionAvailY();
         float windowPosX = ImGui.getWindowPosX();
         float windowPosY = ImGui.getWindowPosY();
 
-        if (drawer.sizeChanged((int) renderViewportWidth, (int) renderViewportHeight)) {
-            drawer.onResize((int) renderViewportWidth, (int) renderViewportHeight); // Это ужас, нужно править путём создания отдельного метода. Но оно работает и норм.
+        if (drawer.getCurrentWidth() != (int) renderViewportWidth || drawer.getCurrentHeight() != (int) renderViewportHeight) {
+            // Работает, так как при изменении основного окна меняется размер в drawer, при изменении размера окна ImGui меняется размер viewport
+            // При этом всегда меняется на размер viewport.
+            drawer.onResize((int) renderViewportWidth, (int) renderViewportHeight, false);
         }
-        ImGui.image(pathTracingTexture.id, renderViewportWidth, renderViewportHeight, 0, 1, 1, 0);
+
+        ImGui.image(outputTexture.id, outputTexture.getWidth(), outputTexture.getHeight(), 0, 1, 1, 0);
         boolean hovered = ImGui.isItemHovered();
-        programState.getViewportDrawer().setViewportHovered(hovered);
+        //programState.getViewportDrawer().setViewportHovered(hovered);
 
         ImDrawList dl = ImGui.getWindowDrawList();
         float x = 13 + windowPosX, y = 30 + windowPosY;
@@ -195,7 +193,7 @@ public class ViewportWindow implements GuiWindow {
         String cputext = "CPU Render Time: " + cpuvalue + " ms";
         String tritext = "Triangle Count: " + trivalue;
 
-        String frametext = "Current accumulation frame: " + drawer.frame;
+        String frametext = "Current accumulation frame: " + drawer.getFrameId();
 
         drawText(x, y, gputext, dl);
         drawText(xc, yc, cputext, dl);
@@ -215,6 +213,16 @@ public class ViewportWindow implements GuiWindow {
                 Camera cam = programState.getCamera();
                 int modelIdx = scene.pickModel(mouseX, mouseY, cam, (int)renderViewportWidth, (int)renderViewportHeight);
                 programState.setSelectedModelIndex(modelIdx);
+            }
+        }
+
+        if (ImGui.isItemHovered() && ImGui.isMouseDown(ImGuiMouseButton.Left) && !programState.getViewportDrawer().draggingMouse && !ImGui.getIO().getWantCaptureMouse()) {
+            programState.getViewportDrawer().draggingMouse = true;
+        }
+
+        if (programState.getViewportDrawer().draggingMouse) {
+            if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) {
+                programState.getViewportDrawer().draggingMouse = false;
             }
         }
         ImGui.end();

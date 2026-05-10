@@ -82,7 +82,7 @@ public class Texture implements AutoCloseable {
      * Должен вызываться в потоке с активным OpenGL контекстом.
      */
     @Override
-    public void close() throws Exception {
+    public void close() {
         if (!isReleased) {
             if (isBindless) glMakeTextureHandleNonResidentARB(binding);
             glDeleteTextures(id);
