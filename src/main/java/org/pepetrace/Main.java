@@ -25,6 +25,7 @@ public class Main {
     private final GlobalState programState;
     private final ViewportDrawer viewportDrawer;
     private final Camera viewportCamera;
+    private final Scene scene;
 
     public Main() throws Exception {
         mainWindow = new Window(1024, 512, true, "Pepetrace");
@@ -50,7 +51,7 @@ public class Main {
         viewportCamera = new Camera();
         viewportDrawer.setCamera(viewportCamera);
 
-        Scene scene = new Scene();
+        scene = new Scene();
 
         programState = GlobalState.getInstance();
         programState.setScene(scene);
@@ -70,31 +71,15 @@ public class Main {
     }
 
     void main() {
-
-
-        //Scene scene = new Scene();
-        //mainWindow.setCursorMode(Window.CURSOR_DISABLED);
-        //scene.packTriangles(drawer.getTriangleBuffer());
-
-
-
-        //drawer.refreshSceneBuffers();
         GPUTimeQuerier timer = new GPUTimeQuerier();
-
         while (!mainWindow.shouldClose()) {
-            //long cpuStart = System.nanoTime();
+            long cpuStart = System.nanoTime();
+
             if (viewportDrawer.draggingMouse && viewportCamera.getCameraMode() == 1) {
                 mainWindow.setCursorMode(Window.CURSOR_DISABLED);
             } else if (viewportCamera.getCameraMode() == 1) mainWindow.setCursorMode(Window.CURSOR_NORMAL);
 
-            System.out.println(!viewportDrawer.draggingMouse + " " + !(viewportCamera.getCameraMode() == 0) + " " + ((!(viewportCamera.getCameraMode() == 0)) && !viewportDrawer.draggingMouse));
-            //if (viewportCamera.updateCamera(mainWindow, !viewportDrawer.draggingMouse)) {
-            //    viewportDrawer.resetRender();
-            //}
-
-            boolean wantToMoveOrbit = !viewportDrawer.draggingMouse && !(viewportCamera.getCameraMode() == 0);
-
-            if (viewportCamera.updateCamera(mainWindow, wantToMoveOrbit)) {
+            if (viewportCamera.updateCamera(mainWindow, !viewportDrawer.draggingMouse && !(viewportCamera.getCameraMode() == 0))) {
                 viewportDrawer.resetRender();
             }
 
@@ -102,8 +87,8 @@ public class Main {
             viewportDrawer.renderFrame();
 
             timer.stopTimerAsync();
-            //long cpuEnd = System.nanoTime();
-            //ProgramState.setArbitraryData("CPURenderTime", (double) (cpuEnd - cpuStart) / 1_000_000);
+            long cpuEnd = System.nanoTime();
+            programState.setArbitraryData("CPURenderTime", (double) (cpuEnd - cpuStart) / 1_000_000);
             boolean isTimerReady = timer.isResultReady();
             if (isTimerReady) {
                 long gpuTimeNs = timer.getResult();
@@ -114,6 +99,7 @@ public class Main {
             glfwPollEvents();
         }
 
+        //TODO
         //scene.close();
         //drawer.close();
         //camera.close();

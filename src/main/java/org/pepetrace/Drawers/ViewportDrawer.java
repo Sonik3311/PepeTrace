@@ -3,9 +3,9 @@ package org.pepetrace.Drawers;
 import imgui.ImGui;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiWindowFlags;
+import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import org.pepetrace.Buffers.Texture;
-import org.pepetrace.Buffers.UBO;
 import org.pepetrace.GUI.*;
 import org.pepetrace.Scene.Scene;
 import org.pepetrace.Shader.ComputeProgram;
@@ -35,7 +35,7 @@ public class ViewportDrawer extends AbstractDrawer {
     private final MaterialManagerWindow materialManagerWindow = new MaterialManagerWindow();
     private final CameraInfoWindow cameraInfoWindow = new CameraInfoWindow();
     private final ViewportWindow viewportWindow = new ViewportWindow();
-    private final ViewportRenderSettingsWindow viewportRenderSettingsWindow = new ViewportRenderSettingsWindow();
+    private final RenderSettingsWindow viewportRenderSettingsWindow = new RenderSettingsWindow();
     private final OutlinerWindow outlinerWindow = new OutlinerWindow();
     private final ModelDataWindow modelDataWindow = new ModelDataWindow();
 
@@ -53,6 +53,9 @@ public class ViewportDrawer extends AbstractDrawer {
     // ImGui parameters
     public boolean draggingMouse = false;
     public ImInt renderMode = new ImInt(ViewportRenderMode.SHADED.ordinal());
+    public ImBoolean accumulateFrames = new ImBoolean(false);
+    public ImBoolean ambientOcclusion = new ImBoolean(false);
+    public ImInt ambientOcclusionSamples = new ImInt(3);
 
 
     public ViewportDrawer(Window window) throws FileNotFoundException {
@@ -117,9 +120,9 @@ public class ViewportDrawer extends AbstractDrawer {
 
         ubo.updateBuffer(
                 frameId,
-                5,
+                ambientOcclusionSamples.get(),
                 2,
-                0,
+                ambientOcclusion.get(),
                 ViewportRenderMode.values()[renderMode.get()]
         );
 
@@ -185,12 +188,10 @@ public class ViewportDrawer extends AbstractDrawer {
             Scene scene = programState.getScene();
             if (selected >= 0 && selected < scene.getModels().size()) {
                 scene.removeModel(selected);
-                //refreshSceneBuffers();
                 programState.setSelectedModelIndex(-1);
-                //resetRender();
             }
         }
-        frameId++;
+        if (accumulateFrames.get()) frameId++;
     }
 
     public void resetRender() {frameId = 0;}

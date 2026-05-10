@@ -25,7 +25,7 @@ layout(std140, binding = 3) uniform RenderInts {
     int tick;
     int max_samples;
     int max_reflections;
-    float roughness;
+    bool doAO;
     int renderMode;
 } renderInts;
 
@@ -222,7 +222,7 @@ void main() {
 
     vec2 uv;
     vec2 randomJitterUV = (vec2(random(pixelRngState), random(pixelRngState)) - 0.5) * 2;
-    randomJitterUV /= (log(gl_NumWorkGroups.x*gl_NumWorkGroups.y) * 80);
+    randomJitterUV /= (log(gl_NumWorkGroups.x*gl_NumWorkGroups.y) * 160);
     uv.x = float(texelCoord.x) / (gl_NumWorkGroups.x * KERNEL_SIZE);
     uv.y = float(texelCoord.y) / (gl_NumWorkGroups.y * KERNEL_SIZE);
     uv = ((uv - 0.5) * 2);
@@ -273,8 +273,10 @@ void main() {
                 }
                 vec3 geometricNormal = normalize(M * hit.geometricNormal);
                 final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), worldNormal), 0.2), 1);
-                float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
-                final_value.rgb *= (1 - ao);
+                if (renderInts.doAO) {
+                    float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
+                    final_value.rgb *= (1 - ao);
+                }
                 final_value.rgb *= getSkyColor(worldNormal, false, true) * SKYBOX_BRIGHTNESS;
             } else {
                 final_value.rgb = getSkyColor(ray_dir, false, false);
@@ -291,8 +293,10 @@ void main() {
                 vec3 albedo = texture(albedotex, hit.uv).rgb;
                 vec3 geometricNormal = normalize(M * hit.geometricNormal);
                 final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), M * hit.geometricNormal), 0.2), 1);
-                float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
-                final_value.rgb *= (1 - ao);
+                if (renderInts.doAO) {
+                    float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
+                    final_value.rgb *= (1 - ao);
+                }
                 final_value.rgb *= getSkyColor(normalize(M * hit.normal), false, true) * SKYBOX_BRIGHTNESS;
             } else {
                 final_value.rgb = getSkyColor(ray_dir, false, false);
@@ -308,8 +312,10 @@ void main() {
                 vec3 normal = normalize(M * hit.normal);
                 vec3 geometricNormal = normalize(M * hit.geometricNormal);
                 final_value = vec4(vec3(max(dot(normalize(vec3(1, 1, 1)), normal), 0.2)), 1);
-                float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, normal, geometricNormal, rngState);
-                final_value.rgb *= (1 - ao);
+                if (renderInts.doAO) {
+                    float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, normal, geometricNormal, rngState);
+                    final_value.rgb *= (1 - ao);
+                }
             }
             break;
         }
@@ -321,8 +327,10 @@ void main() {
                 mat3 M = mat3(matricies.forwardM);
                 vec3 geometricNormal = normalize(M * hit.geometricNormal);
                 final_value = vec4(vec3(max(dot(normalize(vec3(1, 1, 1)), geometricNormal), 0.2)), 1);
-                float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
-                final_value.rgb *= (1 - ao);
+                if (renderInts.doAO) {
+                    float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
+                    final_value.rgb *= (1 - ao);
+                }
             }
             break;
         }

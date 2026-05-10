@@ -9,12 +9,12 @@ public class UBORenderInts extends UBO {
         super(20, binding);
     }
 
-    public void updateBuffer(int tick, int samples, int reflections, float roughness, ViewportRenderMode renderMode) {
+    public void updateBuffer(int tick, int samples, int reflections, boolean doAO, ViewportRenderMode renderMode) {
         buffer.clear();
         putInt(0, tick);
         putInt(4, samples);
         putInt(8, reflections);
-        putFloat(12, roughness);
+        putBoolean(12, doAO);
         putInt(16, renderMode.ordinal());
         uploadToGPU();
     }

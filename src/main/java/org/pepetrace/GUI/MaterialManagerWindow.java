@@ -114,7 +114,7 @@ public class MaterialManagerWindow implements GuiWindow {
                     BORDER_COLOR, ROUNDING_RADIUS,
                     ImDrawFlags.RoundCornersAll, BORDER_THICKNESS);
             // Tooltip via manual rectangle hover check
-            if (ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y)) {
+            if (ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y) && ImGui.isWindowHovered()) {
                 ImGui.setTooltip("Albedo: " + getShortPath(mat.getAlbedoTexture()));
             }
 
@@ -134,7 +134,7 @@ public class MaterialManagerWindow implements GuiWindow {
                     min.x, min.y, max.x, max.y,
                     BORDER_COLOR, ROUNDING_RADIUS,
                     ImDrawFlags.RoundCornersAll, BORDER_THICKNESS);
-            if (ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y)) {
+            if (ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y) && ImGui.isWindowHovered()) {
                 ImGui.setTooltip("Normal: " + getShortPath(mat.getNormalTexture()));
             }
 
@@ -153,7 +153,7 @@ public class MaterialManagerWindow implements GuiWindow {
                     min.x, min.y, max.x, max.y,
                     BORDER_COLOR, ROUNDING_RADIUS,
                     ImDrawFlags.RoundCornersAll, BORDER_THICKNESS);
-            if (ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y)) {
+            if (ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y) && ImGui.isWindowHovered()) {
                 ImGui.setTooltip("RMT: " + getShortPath(mat.getRMTTexture()));
             }
 

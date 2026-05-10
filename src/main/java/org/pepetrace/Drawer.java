@@ -85,7 +85,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
     private final MaterialManagerWindow materialManagerWindow = new MaterialManagerWindow();
     private final CameraInfoWindow cameraInfoWindow = new CameraInfoWindow();
     private final ViewportWindow viewportWindow = new ViewportWindow();
-    private final ViewportRenderSettingsWindow viewportRenderSettingsWindow = new ViewportRenderSettingsWindow();
+    private final RenderSettingsWindow viewportRenderSettingsWindow = new RenderSettingsWindow();
     private final OutlinerWindow outlinerWindow = new OutlinerWindow();
     private final ModelDataWindow modelDataWindow = new ModelDataWindow();
 
@@ -207,7 +207,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
             frame,
             samples.get(),
             reflections.get(),
-            roughness.get(),
+            true,//roughness.get(),
             ViewportRenderMode.values()[renderMode.get()]
         );
 
