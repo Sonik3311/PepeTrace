@@ -147,17 +147,14 @@ public class Window implements AutoCloseable {
         if (firstMouse) {
             lastMouseX = xpos[0];
             lastMouseY = ypos[0];
-            System.out.println("firstMouse");
             firstMouse = false;
         } else {
-            System.out.println("feasd");
             dx = (float)(lastMouseX - xpos[0]);
             dy = (float)(lastMouseY - ypos[0]);
             lastMouseX = xpos[0];
             lastMouseY = ypos[0];
         }
 
-        System.out.println("Trying to get delta");
         return new float[]{dx, dy};
     }
 

@@ -3,6 +3,7 @@ package org.pepetrace.GUI;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Camera;
@@ -168,14 +169,11 @@ public class ViewportWindow {
         float windowPosY = ImGui.getWindowPosY();
 
         if (drawer.getCurrentWidth() != (int) renderViewportWidth || drawer.getCurrentHeight() != (int) renderViewportHeight) {
-            // Работает, так как при изменении основного окна меняется размер в drawer, при изменении размера окна ImGui меняется размер viewport
-            // При этом всегда меняется на размер viewport.
             drawer.onResize((int) renderViewportWidth, (int) renderViewportHeight, false);
         }
 
         ImGui.image(outputTexture.id, outputTexture.getWidth(), outputTexture.getHeight(), 0, 1, 1, 0);
         boolean hovered = ImGui.isItemHovered();
-        //programState.getViewportDrawer().setViewportHovered(hovered);
 
         ImDrawList dl = ImGui.getWindowDrawList();
         float x = 13 + windowPosX, y = 30 + windowPosY;
@@ -192,7 +190,6 @@ public class ViewportWindow {
         String gputext = "GPU Render Time: " + gpuvalue + " ms";
         String cputext = "CPU Render Time: " + cpuvalue + " ms";
         String tritext = "Triangle Count: " + trivalue;
-
         String frametext = "Current accumulation frame: " + drawer.getFrameId();
 
         drawText(x, y, gputext, dl);
@@ -200,22 +197,38 @@ public class ViewportWindow {
         drawText(xt, yt, tritext, dl);
         drawText(xf, yf, frametext, dl);
 
-
         Camera camera = programState.getCamera();
         float yaw = (float) (camera.getYawPitch().x / 180 * Math.PI);
         float pitch = (float) (camera.getYawPitch().y / 180 * Math.PI);
         drawRotatedAxisWidget(yaw, pitch, 80, 27, 30, 2);
-        if (ImGui.isItemHovered() && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+
+        // ----- НОВАЯ ЛОГИКА ПИКИНГА (двойной клик + Shift) -----
+        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
             float mouseX = ImGui.getMousePosX() - ImGui.getItemRectMinX();
             float mouseY = ImGui.getMousePosY() - ImGui.getItemRectMinY();
             if (mouseX >= 0 && mouseX <= renderViewportWidth && mouseY >= 0 && mouseY <= renderViewportHeight) {
                 Scene scene = programState.getScene();
                 Camera cam = programState.getCamera();
                 int modelIdx = scene.pickModel(mouseX, mouseY, cam, (int)renderViewportWidth, (int)renderViewportHeight);
-                programState.setSelectedModelIndex(modelIdx);
+
+                // Обработка Shift для множественного выбора
+                boolean shiftHeld = ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift);
+                if (shiftHeld) {
+                    if (modelIdx != -1) {
+                        programState.toggleModelSelection(modelIdx);
+                    }
+                } else {
+                    if (modelIdx != -1) {
+                        programState.setSelectedModels(modelIdx);
+                    } else {
+                        programState.clearSelectedModels();
+                    }
+                }
             }
         }
 
+        // Обработка перетаскивания для вращения камеры (Ctrl + ЛКМ)
+        // Этот блок лучше перенести в Camera.updateCamera, но для начала оставим флаг.
         if (ImGui.isItemHovered() && ImGui.isMouseDown(ImGuiMouseButton.Left) && !programState.getViewportDrawer().draggingMouse && !ImGui.getIO().getWantCaptureMouse()) {
             programState.getViewportDrawer().draggingMouse = true;
         }
@@ -226,6 +239,5 @@ public class ViewportWindow {
             }
         }
         ImGui.end();
-
     }
 }

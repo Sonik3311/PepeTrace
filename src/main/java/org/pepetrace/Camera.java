@@ -27,8 +27,10 @@ public class Camera implements AutoCloseable {
     private boolean wasLeftMousePressed = false;
     private boolean wasEscapePressed = false;
     private final UBOCamera ubo = new UBOCamera(2);
+    private final GlobalState globalState;
 
     public Camera() {
+        this.globalState = GlobalState.getInstance();
         position = new Vector3f(0.0f, 0.0f, -5.0f);
         yawPitch = new Vector2f(0.0f, 0.0f);
         updateOrbitTargetFromCurrentView();
@@ -36,6 +38,7 @@ public class Camera implements AutoCloseable {
     }
 
     public Camera(Vector3f position, Vector2f yawPitch) {
+        this.globalState = GlobalState.getInstance();
         this.position = new Vector3f(position);
         this.yawPitch = new Vector2f(yawPitch);
         updateOrbitTargetFromCurrentView();
@@ -53,7 +56,7 @@ public class Camera implements AutoCloseable {
         synchronizeOrbitAnglesFromCamera();
     }
 
-    public boolean updateCamera(Window inputWindow, boolean blockInput) {
+    public boolean updateCamera(Window inputWindow, boolean blockInput, boolean blockCameraRotation) {
         boolean escapePressed = inputWindow.isKeyPressed(GLFW_KEY_ESCAPE);
         if (escapePressed && !wasEscapePressed) {
             cameraMode = (cameraMode == 0) ? 1 : 0;
@@ -69,17 +72,16 @@ public class Camera implements AutoCloseable {
         }
         wasEscapePressed = escapePressed;
 
-        // Новая обработка сброса по F1
         if (inputWindow.isKeyPressed(GLFW_KEY_F1)) {
             resetToDefault();
-            ubo.updateBuffer(position, yawPitch);  // немедленное обновление UBO
-            return true;  // сообщить Main о необходимости сбросить аккумуляцию (frame=0)
+            ubo.updateBuffer(position, yawPitch);
+            return true;
         }
 
         boolean shouldUpdateBuffer = false;
         switch (cameraMode) {
             case 0 -> shouldUpdateBuffer = freeCameraTransform(inputWindow, blockInput);
-            case 1 -> shouldUpdateBuffer = orbitCameraTransform(inputWindow, blockInput);
+            case 1 -> shouldUpdateBuffer = orbitCameraTransform(inputWindow, blockInput, blockCameraRotation);
             default -> throw new IllegalStateException("Unexpected mode: " + cameraMode);
         }
         if (shouldUpdateBuffer) {
@@ -88,6 +90,29 @@ public class Camera implements AutoCloseable {
         return shouldUpdateBuffer;
     }
 
+    public void focusOnModel(Vector3f modelCenterWorld) {
+        // Вычисляем направление от текущей позиции камеры к центру модели в мировых координатах
+        Vector3f directionToCenter = new Vector3f(modelCenterWorld).sub(position).normalize();
+
+        // Преобразуем направление в углы yaw/pitch
+        float newYaw = (float) Math.atan2(directionToCenter.x, directionToCenter.z);
+        float newPitch = (float) Math.asin(directionToCenter.y);
+
+        // Обновляем углы обзора
+        yawPitch.x = (float) Math.toDegrees(newYaw);
+        yawPitch.y = (float) Math.toDegrees(newPitch);
+        yawPitch.y = Math.max(-89.0f, Math.min(89.0f, yawPitch.y));
+
+        // Если мы в орбитальном режиме, также обновляем цель орбиты и синхронизируем углы
+        if (cameraMode == 1) {
+            orbitTargetPoint.set(modelCenterWorld);
+            synchronizeOrbitAnglesFromCamera();
+            orbitDistance = position.distance(orbitTargetPoint);
+        }
+
+        // Обновляем UBO с новыми параметрами
+        ubo.updateBuffer(position, yawPitch);
+    }
     private boolean freeCameraTransform(Window inputWindow, boolean blockInput) {
         boolean hasUpdated = false;
         if (!blockInput) {
@@ -178,61 +203,54 @@ public class Camera implements AutoCloseable {
         return hasUpdated;
     }
 
-    private boolean orbitCameraTransform(Window inputWindow, boolean blockInput) {
+    private boolean orbitCameraTransform(Window inputWindow, boolean blockInput, boolean blockCameraRotation) {
         boolean hasUpdated = false;
-        double scroll = inputWindow.getScrollDelta();
-        if (scroll != 0) {
-            orbitDistance -= scroll * 0.5f;
-            orbitDistance = Math.max(
-                MIN_ORBIT_DISTANCE,
-                Math.min(MAX_ORBIT_DISTANCE, orbitDistance)
-            );
-            hasUpdated = true;
-            updateCameraFromOrbitTarget();
-        }
 
-        boolean leftMousePressed = inputWindow.isMouseButtonPressed(
-            Window.MOUSE_BUTTON_LEFT
-        );
+        boolean leftMousePressed = inputWindow.isMouseButtonPressed(Window.MOUSE_BUTTON_LEFT);
 
-        if (!blockInput && leftMousePressed) {
+        // Вращение камеры только если не заблокировано вращение моделей
+        if (!blockInput && leftMousePressed && !blockCameraRotation) {
             float[] mouseDelta = inputWindow.getMouseDelta();
-            if (!wasLeftMousePressed) wasLeftMousePressed = true;
-            else {
+            if (!wasLeftMousePressed) {
+                wasLeftMousePressed = true;
+            } else {
                 orbitYaw += mouseDelta[0] * mouseSensitivity;
                 orbitPitch -= mouseDelta[1] * mouseSensitivity;
                 orbitPitch = Math.max(-89.0f, Math.min(89.0f, orbitPitch));
                 if (mouseDelta[0] != 0 || mouseDelta[1] != 0) hasUpdated = true;
             }
-        }else {
+        } else {
             wasLeftMousePressed = false;
-            if (hasUpdated) updateCameraFromOrbitTarget();
         }
 
         if (hasUpdated) {
             float yawRad = (float) Math.toRadians(orbitYaw);
             float pitchRad = (float) Math.toRadians(orbitPitch);
 
-            position.x =
-                orbitTargetPoint.x +
-                orbitDistance * (float) (Math.cos(pitchRad) * Math.sin(yawRad));
-            position.y =
-                orbitTargetPoint.y + orbitDistance * (float) Math.sin(pitchRad);
-            position.z =
-                orbitTargetPoint.z +
-                orbitDistance * (float) (Math.cos(pitchRad) * Math.cos(yawRad));
+            position.x = orbitTargetPoint.x + orbitDistance * (float) (Math.cos(pitchRad) * Math.sin(yawRad));
+            position.y = orbitTargetPoint.y + orbitDistance * (float) Math.sin(pitchRad);
+            position.z = orbitTargetPoint.z + orbitDistance * (float) (Math.cos(pitchRad) * Math.cos(yawRad));
 
-            Vector3f dirToTarget = new Vector3f(orbitTargetPoint)
-                .sub(position)
-                .normalize();
+            Vector3f dirToTarget = new Vector3f(orbitTargetPoint).sub(position).normalize();
             float newYaw = (float) Math.atan2(dirToTarget.x, dirToTarget.z);
             float newPitch = (float) Math.asin(dirToTarget.y);
             yawPitch.x = (float) Math.toDegrees(newYaw);
             yawPitch.y = (float) Math.toDegrees(newPitch);
             yawPitch.y = Math.max(-89.0f, Math.min(89.0f, yawPitch.y));
+
+            updateCameraFromOrbitTarget();
         }
 
         return hasUpdated;
+    }
+
+    public void processScroll(double scroll) {
+        if (cameraMode == 1) {
+            orbitDistance -= scroll * 0.5f;
+            orbitDistance = Math.max(MIN_ORBIT_DISTANCE, Math.min(MAX_ORBIT_DISTANCE, orbitDistance));
+            updateCameraFromOrbitTarget();
+            ubo.updateBuffer(position, yawPitch);
+        }
     }
 
     private void updateOrbitTargetFromCurrentView() {

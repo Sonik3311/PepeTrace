@@ -398,17 +398,16 @@ void main() {
                 break;
             }
             int model_index = -1;
-            for (int i = triangleModelIndices.length() - 1; i >= 0; i--) {
-                if (triangleModelIndices[i] <= result.triangleIndex) {
-                    model_index = triangleModelIndices[i];
+            // Ищем индекс модели, зная что triangleModelIndices[] содержит startTriangle для каждой модели
+            for (int i = 0; i < triangleModelIndices.length() - 1; i++) {
+                if (result.triangleIndex >= triangleModelIndices[i] && result.triangleIndex < triangleModelIndices[i+1]) {
+                    model_index = i;
                     break;
                 }
             }
-            final_value.rgb = getPastelColor(model_index);
-
+            final_value.rgb = getPastelColor(uint(model_index));
             break;
         }
-
         default: final_value = vec4(vec3(1), 1);
     }
 

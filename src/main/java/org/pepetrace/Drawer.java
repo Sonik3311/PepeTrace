@@ -249,7 +249,7 @@ public class Drawer implements Window.ResizeListener, AutoCloseable {
         renderImGUI();
 
         boolean blockInput = guiWantsMouse && !isViewportHovered;
-        if (camera.updateCamera(window, blockInput)) {
+        if (camera.updateCamera(window, blockInput, false)) {
             resetRender();
         }
         if (accumulating.get()) {

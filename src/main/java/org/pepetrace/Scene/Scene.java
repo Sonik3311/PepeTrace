@@ -107,44 +107,59 @@ public class Scene implements AutoCloseable {
         return (ArrayList<TextureMaterial>) materials.clone();
     }
 
+    public Vector3f calculateModelCenter(int modelIndex) {
+        ModelMetadata model = models.get(modelIndex);
+        int startTri = model.getStartTriangleIndex();
+        int triCount = model.getTriangleCount();
+        Vector3f min = new Vector3f(Float.POSITIVE_INFINITY);
+        Vector3f max = new Vector3f(Float.NEGATIVE_INFINITY);
+        for (int i = startTri; i < startTri + triCount; i++) {
+            int i0 = indices.get(i*3);
+            int i1 = indices.get(i*3+1);
+            int i2 = indices.get(i*3+2);
+            Vector3f v0 = new Vector3f(vertices.get(i0*3), vertices.get(i0*3+1), vertices.get(i0*3+2));
+            Vector3f v1 = new Vector3f(vertices.get(i1*3), vertices.get(i1*3+1), vertices.get(i1*3+2));
+            Vector3f v2 = new Vector3f(vertices.get(i2*3), vertices.get(i2*3+1), vertices.get(i2*3+2));
+            min.min(v0).min(v1).min(v2);
+            max.max(v0).max(v1).max(v2);
+        }
+        return new Vector3f(min).add(max).mul(0.5f);
+    }
+
     public void removeModel(int index) {
         if (index < 0 || index >= models.size()) return;
 
         ModelMetadata model = models.get(index);
         int startTri = model.getStartTriangleIndex();
         int triCount = model.getTriangleCount();
-        int endTri = startTri + triCount;
 
-        // 1. Удаляем треугольники из индексов и материалов
-        //    Удаляем из indices: 3 индекса на треугольник
-        int idxPos = startTri * 3; // позиция в списке indices (int)
+        // Удаляем индексы (3 индекса на треугольник)
+        int idxPos = startTri * 3;
         for (int i = 0; i < triCount; i++) {
-            indices.remove(idxPos);      // удаляем 3 раза
+            indices.remove(idxPos);
             indices.remove(idxPos);
             indices.remove(idxPos);
         }
-        // Удаляем из materialIndicesPerTriangle
+        // Удаляем материалы треугольников
         for (int i = 0; i < triCount; i++) {
             materialIndicesPerTriangle.remove(startTri);
         }
 
-        // 2. Корректируем startTriangleIndex у последующих моделей
+        // Корректируем стартовые индексы у оставшихся моделей
         for (int i = index + 1; i < models.size(); i++) {
             ModelMetadata next = models.get(i);
             next.setStartTriangleIndex(next.getStartTriangleIndex() - triCount);
         }
 
-        // 3. Удаляем модель из списка
         models.remove(index);
-
-        // 4. Обновляем общее количество треугольников
         triangleCount -= triCount;
         modelCount--;
-        System.out.println("Removing model " + index + ", remaining models: " + models.size());
-        // 5. Перезагружаем буферы на GPU
-        //    (нужен доступ к SSBO через Drawer или вызвать packScene)
-        //    Этот метод должен быть вызван снаружи, так как Scene не имеет ссылки на Drawer.
-        //    Лучше оставить ответственность на вызывающем коде (Drawer.refreshSceneBuffers()).
+
+        // Обновляем modelTriangleStartIndices для быстрого поиска (если используется)
+        modelTriangleStartIndices.clear();
+        for (ModelMetadata m : models) {
+            modelTriangleStartIndices.add(m.getStartTriangleIndex());
+        }
     }
 
     private boolean rayTriangleIntersect(Vector3fc ro, Vector3fc rd, Vector3f v0, Vector3f v1, Vector3f v2, float[] outDist) {
@@ -273,9 +288,10 @@ public class Scene implements AutoCloseable {
     }
 
     private int getModelIndexByTriangle(int triIdx) {
-        for (int m = 0; m < modelTriangleStartIndices.size(); m++) {
-            int start = modelTriangleStartIndices.get(m);
-            int end = (m + 1 < modelTriangleStartIndices.size()) ? modelTriangleStartIndices.get(m + 1) : triangleCount;
+        for (int m = 0; m < models.size(); m++) {
+            ModelMetadata model = models.get(m);
+            int start = model.getStartTriangleIndex();
+            int end = start + model.getTriangleCount();
             if (triIdx >= start && triIdx < end) return m;
         }
         return -1;
@@ -290,62 +306,58 @@ public class Scene implements AutoCloseable {
             geometryData[base + 0] = vertices.get(i * 3);
             geometryData[base + 1] = vertices.get(i * 3 + 1);
             geometryData[base + 2] = vertices.get(i * 3 + 2);
-            geometryData[base + 3] = 1.0f;
+            geometryData[base + 3] = 1.0f;                           // pad
             geometryData[base + 4] = normals.get(i * 3);
             geometryData[base + 5] = normals.get(i * 3 + 1);
             geometryData[base + 6] = normals.get(i * 3 + 2);
-            geometryData[base + 7] = 0.0f;
+            geometryData[base + 7] = 0.0f;                           // pad
             geometryData[base + 8] = uvs.get(i * 2);
             geometryData[base + 9] = uvs.get(i * 2 + 1);
-            geometryData[base + 10] = 0.0f;
-            geometryData[base + 11] = 0.0f;
-            geometryData[base + 12] = tangents.get(i * 3);
-            geometryData[base + 13] = tangents.get(i * 3 + 1);
-            geometryData[base + 14] = tangents.get(i * 3 + 2);
-            geometryData[base + 15] = 0.0f;
-            geometryData[base + 16] = bitangents.get(i * 3);
-            geometryData[base + 17] = bitangents.get(i * 3 + 1);
-            geometryData[base + 18] = bitangents.get(i * 3 + 2);
-            geometryData[base + 19] = 0.0f;
+            geometryData[base +10] = 0.0f;                           // pad
+            geometryData[base +11] = 0.0f;                           // pad
+            geometryData[base +12] = tangents.get(i * 3);
+            geometryData[base +13] = tangents.get(i * 3 + 1);
+            geometryData[base +14] = tangents.get(i * 3 + 2);
+            geometryData[base +15] = 0.0f;                           // pad
+            geometryData[base +16] = bitangents.get(i * 3);
+            geometryData[base +17] = bitangents.get(i * 3 + 1);
+            geometryData[base +18] = bitangents.get(i * 3 + 2);
+            geometryData[base +19] = 0.0f;                           // pad
         }
         geometryBuffer.fillBuffer(geometryData);
 
+        // --- Индексы ---
         int[] indexData = new int[indices.size()];
-        for (int i = 0; i < indices.size(); i++) {
-            indexData[i] = indices.get(i);
-        }
+        for (int i = 0; i < indices.size(); i++) indexData[i] = indices.get(i);
         indexBuffer.fillBuffer(indexData);
 
+        // --- Материалы для каждого треугольника ---
         int[] materialIndicesData = new int[triangleCount];
-        for (int i = 0; i < triangleCount; i++) {
-            materialIndicesData[i] = materialIndicesPerTriangle.get(i);
-        }
+        for (int i = 0; i < triangleCount; i++) materialIndicesData[i] = materialIndicesPerTriangle.get(i);
         materialIndicesBuffer.fillBuffer(materialIndicesData);
 
-        //int[] triModelIndices = new int[triangleCount];
-        //for (int i = 0; i < triangleCount; i++) {
-            //triModelIndices[i] = getModelIndexByTriangle(i);
-        //}
-
-        int[] triModelIndices = new int[modelCount];
-        for (int i = 0; i < modelCount; i++) {
-            ModelMetadata model = models.get(i);
-            int startTri = model.getStartTriangleIndex();
-            triModelIndices[i] = startTri;
+        // --- Массив стартовых индексов моделей (длина = modelCount + 1) ---
+        int[] startIndices = new int[models.size() + 1];
+        for (int i = 0; i < models.size(); i++) {
+            startIndices[i] = models.get(i).getStartTriangleIndex();
         }
-        triangleModelIndicesBuffer.fillBuffer(triModelIndices);
+        startIndices[models.size()] = triangleCount;   // последний элемент = общее количество треугольников
+        triangleModelIndicesBuffer.fillBuffer(startIndices);
 
+        // --- Bindless handles материалов ---
         packMaterials(materialHandlesBuffer);
+
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
     }
 
     public void updateModelMatricesOnGPU(SSBO modelMatricesBuffer) {
-        float[] matricesData = new float[models.size() * 16 * 2];
+        // Каждая модель хранит две матрицы (forward и inverse) – 32 float
+        float[] matricesData = new float[models.size() * 32];
         for (int i = 0; i < models.size(); i++) {
-            Matrix4f fm = models.get(i).getModelMatrix();
-            Matrix4f rm = models.get(i).getInverseModelMatrix();
-            fm.get(matricesData, i * 32);
-            rm.get(matricesData, i * 32 + 16);
+            Matrix4f forward = models.get(i).getModelMatrix();
+            Matrix4f inverse = models.get(i).getInverseModelMatrix();
+            forward.get(matricesData, i * 32);
+            inverse.get(matricesData, i * 32 + 16);
         }
         modelMatricesBuffer.fillBuffer(matricesData);
     }

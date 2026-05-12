@@ -5,11 +5,16 @@ import static org.lwjgl.opengl.GL15.*;
 
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiMouseCursor;
+import org.joml.Vector3f;
+import org.joml.Quaternionf;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Drawers.ViewportDrawer;
+import org.pepetrace.Scene.ModelMetadata;
 import org.pepetrace.Scene.Scene;
 import org.pepetrace.Util.GPUTimeQuerier;
+
+import java.util.Set;
 
 public class Main {
 
@@ -72,21 +77,159 @@ public class Main {
 
     void main() {
         GPUTimeQuerier timer = new GPUTimeQuerier();
+        boolean wasRotatingModels = false;
+        // Для накопления углов вращения моделей (глобально для всех выбранных)
+        float modelYaw = 0.0f;
+        float modelPitch = 0.0f;
         while (!mainWindow.shouldClose()) {
             long cpuStart = System.nanoTime();
 
             if (viewportDrawer.draggingMouse && viewportCamera.getCameraMode() == 1) {
-                mainWindow.setCursorMode(Window.CURSOR_DISABLED);
+                mainWindow.setCursorMode(Window.CURSOR_NORMAL);
             } else if (viewportCamera.getCameraMode() == 1) mainWindow.setCursorMode(Window.CURSOR_NORMAL);
 
-            if (viewportCamera.updateCamera(mainWindow, !viewportDrawer.draggingMouse && !(viewportCamera.getCameraMode() == 0))) {
+            // Определяем, нужно ли блокировать вращение камеры (вращаем модели)
+            boolean rotatingModelsNow = !programState.getSelectedModelIndices().isEmpty() &&
+                    (mainWindow.isKeyPressed(GLFW_KEY_LEFT_CONTROL) || mainWindow.isKeyPressed(GLFW_KEY_RIGHT_CONTROL)) &&
+                    mainWindow.isMouseButtonPressed(Window.MOUSE_BUTTON_LEFT);
+            boolean blockCameraRotation = rotatingModelsNow;
+
+            // ----- Обработка скролла (до вызова updateCamera) -----
+            double scroll = mainWindow.getScrollDelta();
+            if (scroll != 0) {
+                boolean ctrlPressed = mainWindow.isKeyPressed(GLFW_KEY_LEFT_CONTROL) || mainWindow.isKeyPressed(GLFW_KEY_RIGHT_CONTROL);
+                if (!programState.getSelectedModelIndices().isEmpty() && ctrlPressed) {
+                    // Перемещение выбранных моделей по глубине
+                    Camera cam = viewportCamera;
+                    float yawRad = (float) Math.toRadians(cam.getYawPitch().x);
+                    float pitchRad = (float) Math.toRadians(cam.getYawPitch().y);
+                    Vector3f forward = new Vector3f(
+                            (float)(Math.cos(pitchRad) * Math.sin(yawRad)),
+                            (float) Math.sin(pitchRad),
+                            (float)(Math.cos(pitchRad) * Math.cos(yawRad))
+                    ).normalize();
+                    float depthMove = (float) scroll * 0.5f;
+                    Vector3f worldDelta = new Vector3f(forward).mul(depthMove);
+                    for (int idx : programState.getSelectedModelIndices()) {
+                        ModelMetadata model = scene.getModels().get(idx);
+                        model.setPosition(new Vector3f(model.getPosition()).add(worldDelta));
+                    }
+                    refreshSceneBuffers(false, true);
+                    viewportDrawer.resetRender();
+                } else {
+                    // Передаём скролл камере
+                    viewportCamera.processScroll(scroll);
+                }
+            }
+
+            if (viewportCamera.updateCamera(mainWindow, !viewportDrawer.draggingMouse && !(viewportCamera.getCameraMode() == 0), blockCameraRotation)) {
                 viewportDrawer.resetRender();
             }
 
             timer.startTimer();
             viewportDrawer.renderFrame();
-
             timer.stopTimerAsync();
+
+            // ---------- F2: фокус на модель ----------
+            if (mainWindow.isKeyPressed(GLFW_KEY_F2)) {
+                Set<Integer> selectedForFocus = programState.getSelectedModelIndices();
+                if (!selectedForFocus.isEmpty()) {
+                    Scene scene = programState.getScene();
+                    int firstIdx = selectedForFocus.iterator().next();
+                    ModelMetadata model = scene.getModels().get(firstIdx);
+                    Vector3f localCenter = scene.calculateModelCenter(firstIdx);
+                    Vector3f worldCenter = new Vector3f(localCenter).mulPosition(model.getModelMatrix());
+                    viewportCamera.focusOnModel(worldCenter);
+                    viewportDrawer.resetRender();
+                }
+            }
+
+            // ---------- ESC: снять выделение ----------
+            if (mainWindow.isKeyPressed(GLFW_KEY_ESCAPE)) {
+                programState.clearSelectedModels();
+            }
+
+            // ---------- Трансформации выбранных моделей (стрелки, +/-, вращение) ----------
+            Set<Integer> selected = programState.getSelectedModelIndices();
+            if (!selected.isEmpty()) {
+                float moveSpeed = 0.1f;
+                Vector3f deltaMove = new Vector3f(0, 0, 0);
+                boolean needUpdate = false;
+
+                // Перемещение стрелками в плоскости экрана
+                if (mainWindow.isKeyPressed(GLFW_KEY_LEFT))  deltaMove.x -= moveSpeed;
+                if (mainWindow.isKeyPressed(GLFW_KEY_RIGHT)) deltaMove.x += moveSpeed;
+                if (mainWindow.isKeyPressed(GLFW_KEY_UP))    deltaMove.y += moveSpeed;
+                if (mainWindow.isKeyPressed(GLFW_KEY_DOWN))  deltaMove.y -= moveSpeed;
+
+                if (deltaMove.x != 0 || deltaMove.y != 0) {
+                    Camera cam = viewportCamera;
+                    float yawRad = (float) Math.toRadians(cam.getYawPitch().x);
+                    float pitchRad = (float) Math.toRadians(cam.getYawPitch().y);
+                    Vector3f forward = new Vector3f(
+                            (float)(Math.cos(pitchRad) * Math.sin(yawRad)),
+                            (float) Math.sin(pitchRad),
+                            (float)(Math.cos(pitchRad) * Math.cos(yawRad))
+                    ).normalize();
+                    Vector3f right = new Vector3f(forward).cross(new Vector3f(0,1,0)).normalize();
+                    Vector3f up = new Vector3f(right).cross(forward).normalize();
+
+                    Vector3f worldDelta = new Vector3f(right).mul(deltaMove.x)
+                            .add(new Vector3f(up).mul(deltaMove.y));
+                    for (int idx : selected) {
+                        ModelMetadata model = scene.getModels().get(idx);
+                        model.setPosition(new Vector3f(model.getPosition()).add(worldDelta));
+                    }
+                    needUpdate = true;
+                }
+
+                // Масштабирование клавишами +/-
+                if (mainWindow.isKeyPressed(GLFW_KEY_KP_ADD) || mainWindow.isKeyPressed(GLFW_KEY_EQUAL)) {
+                    for (int idx : selected) {
+                        ModelMetadata model = scene.getModels().get(idx);
+                        model.setScale(new Vector3f(model.getScale()).mul(1.05f));
+                    }
+                    needUpdate = true;
+                }
+                if (mainWindow.isKeyPressed(GLFW_KEY_KP_SUBTRACT) || mainWindow.isKeyPressed(GLFW_KEY_MINUS)) {
+                    for (int idx : selected) {
+                        ModelMetadata model = scene.getModels().get(idx);
+                        model.setScale(new Vector3f(model.getScale()).mul(0.95f));
+                    }
+                    needUpdate = true;
+                }
+
+// Вращение моделей при Ctrl+ЛКМ (плавное, с накоплением углов)
+                if (rotatingModelsNow) {
+                    float[] mouseDelta = mainWindow.getMouseDelta();
+                    if (!wasRotatingModels) {
+                        wasRotatingModels = true;
+                        // Первый кадр – просто запоминаем начало, не меняем углы
+                    } else {
+                        float rotSpeed = 0.005f;
+                        modelYaw -= mouseDelta[0] * rotSpeed;
+                        modelPitch += mouseDelta[1] * rotSpeed;
+                        // Ограничиваем pitch, чтобы не было переворота
+                        modelPitch = Math.max(-(float)Math.PI / 2.1f, Math.min((float)Math.PI / 2.1f, modelPitch));
+                        if (mouseDelta[0] != 0 || mouseDelta[1] != 0) {
+                            // Преобразуем углы в кватернион (сначала Yaw, потом Pitch)
+                            Quaternionf rot = new Quaternionf().rotateY(modelYaw).rotateX(modelPitch);
+                            for (int idx : selected) {
+                                ModelMetadata model = scene.getModels().get(idx);
+                                model.setRotation(rot);
+                            }
+                            needUpdate = true;
+                        }
+                    }
+                } else {
+                    wasRotatingModels = false;
+                }
+
+                if (needUpdate) {
+                    refreshSceneBuffers(false, true);
+                }
+            }
+
             long cpuEnd = System.nanoTime();
             programState.setArbitraryData("CPURenderTime", (double) (cpuEnd - cpuStart) / 1_000_000);
             boolean isTimerReady = timer.isResultReady();
@@ -99,11 +242,6 @@ public class Main {
             glfwPollEvents();
         }
 
-        //TODO
-        //scene.close();
-        //drawer.close();
-        //camera.close();
-        //window.close();
         glfwTerminate();
         System.out.println("Finished");
     }
