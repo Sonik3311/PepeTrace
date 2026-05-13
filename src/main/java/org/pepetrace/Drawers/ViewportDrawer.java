@@ -7,6 +7,7 @@ import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.GUI.*;
+import org.pepetrace.Main;
 import org.pepetrace.Scene.Scene;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
@@ -15,6 +16,7 @@ import org.pepetrace.Util.ViewportRenderMode;
 import org.pepetrace.Window;
 
 import java.io.FileNotFoundException;
+import java.util.Set;
 
 import static org.lwjgl.opengl.GL11.GL_LINEAR;
 import static org.lwjgl.opengl.GL11.GL_NEAREST;
@@ -26,6 +28,7 @@ import static org.lwjgl.opengl.GL42.*;
 import static org.lwjgl.opengl.GL42.GL_TEXTURE_FETCH_BARRIER_BIT;
 import static org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BARRIER_BIT;
 import static org.lwjgl.opengl.GL43.glDispatchCompute;
+import static org.lwjgl.opengl.GL44.glClearTexImage;
 
 public class ViewportDrawer extends AbstractDrawer {
 
@@ -57,6 +60,8 @@ public class ViewportDrawer extends AbstractDrawer {
     public ImBoolean ambientOcclusion = new ImBoolean(false);
     public ImInt ambientOcclusionSamples = new ImInt(3);
 
+    public Texture getOutputTexture() { return outputTexture; }
+    public Texture getModelStencilTexture() { return modelStencilTexture; }
 
     public ViewportDrawer(Window window) throws FileNotFoundException {
         super(window, "guilayout.ini");
@@ -117,15 +122,17 @@ public class ViewportDrawer extends AbstractDrawer {
 
     @Override
     public void renderFrame() {
+        Scene scene = programState.getScene();
+        int triangleCount = scene.getTriangleCount();
 
         ubo.updateBuffer(
                 frameId,
                 ambientOcclusionSamples.get(),
                 2,
                 ambientOcclusion.get(),
-                ViewportRenderMode.values()[renderMode.get()]
+                ViewportRenderMode.values()[renderMode.get()],
+                triangleCount
         );
-
         glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
 
         pathTracingProgram.use();
@@ -136,21 +143,19 @@ public class ViewportDrawer extends AbstractDrawer {
         int groupsY = (currentHeight + 15) / 16;
         glDispatchCompute(groupsX, groupsY, 1);
 
-        // 2. Барьер памяти - важно для синхронизации
         glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
 
-        // 3. Рендеринг квада
         glViewport(0, 0, currentWidth, currentHeight);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         outlineProgram.use();
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // чистим прошлый фрэймбуффер (опционально)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, modelStencilTexture.id);
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, pathTracingTexture.id);
 
-        outlineProgram.setInt("u_stencilTexture",    0);
+        outlineProgram.setInt("u_stencilTexture", 0);
         outlineProgram.setInt("u_colorTexture", 1);
         outlineProgram.setInt("u_selectedID", programState.getSelectedModelIndex());
 
@@ -160,15 +165,13 @@ public class ViewportDrawer extends AbstractDrawer {
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+        // --- ImGui (без изменений) ---
         imGuiGl3.newFrame();
         imGuiGlfw.newFrame();
         ImGui.newFrame();
         ImGui.getIO().setWantCaptureMouse(draggingMouse);
 
-        // Меню сверху
         mainMenuBar.render(0);
-
-        // Основное пространство
         ImGui.dockSpaceOverViewport();
         buildInfoWindow.render(ImGuiWindowFlags.NoCollapse);
         materialManagerWindow.render(ImGuiWindowFlags.NoCollapse);
@@ -183,14 +186,26 @@ public class ViewportDrawer extends AbstractDrawer {
         imGuiGl3.renderDrawData(ImGui.getDrawData());
         boolean guiWantsMouse = ImGui.getIO().getWantCaptureMouse();
 
+        // Удаление через Delete (без изменений)
         if (!guiWantsMouse && ImGui.isKeyPressed(ImGuiKey.Delete)) {
-            int selected = programState.getSelectedModelIndex();
-            Scene scene = programState.getScene();
-            if (selected >= 0 && selected < scene.getModels().size()) {
-                scene.removeModel(selected);
-                programState.setSelectedModelIndex(-1);
+            Set<Integer> selectedIndices = programState.getSelectedModelIndices();
+            if (!selectedIndices.isEmpty()) {
+                int selected = selectedIndices.iterator().next();
+                // Используем уже объявленную ранее переменную scene
+                if (selected >= 0 && selected < scene.getModels().size()) {
+                    scene.removeModel(selected);
+                    programState.removeSelectedModel(selected);
+                    Main mainProgram = (Main) programState.getArbitraryData("Main");
+                    if (mainProgram != null) {
+                        mainProgram.refreshSceneBuffers(true, true);
+                        if (scene.getModels().isEmpty()) {
+                            mainProgram.forceClearRender();
+                        }
+                    }
+                }
             }
         }
+
         if (accumulateFrames.get()) frameId++;
     }
 

@@ -55,11 +55,12 @@ public class OutlinerWindow implements GuiWindow {
                 ImGui.tableSetColumnIndex(1);
                 if (ImGui.button("x", 25, 0)) {
                     scene.removeModel(i);
-                    // Удаляем индекс из выделения через метод GlobalState
                     programState.removeSelectedModel(i);
-                    // Обновляем буферы на GPU
                     Main mainProgram = (Main) programState.getArbitraryData("Main");
                     mainProgram.refreshSceneBuffers(true, true);
+                    if (scene.getModels().isEmpty()) {
+                        mainProgram.forceClearRender();
+                    }
                     ImGui.popID();
                     break;
                 }

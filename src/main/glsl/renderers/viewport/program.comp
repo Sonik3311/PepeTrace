@@ -27,7 +27,8 @@ layout(std140, binding = 3) uniform RenderInts {
     int max_reflections;
     bool doAO;
     int renderMode;
-} renderInts;
+    int triangleCount; // добавить
+};
 
 layout(binding = 5) uniform sampler2D blurrySkybox;
 layout(rgba32f, binding = 4) readonly uniform image2D skybox;
@@ -128,9 +129,8 @@ sceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
 }
 
 float calculateAO(vec3 pos, vec3 normal, vec3 geometricN, inout uvec3 rngState) {
-    int samples = renderInts.max_samples;
+    int samples = max_samples;   // было max_samples
     if (samples <= 0) return 0.0;
-
     float total_contribution = 0.0;
     float max_dist = 1.5;
 
@@ -217,8 +217,8 @@ vec3 getPastelColor(uint index) {
 void main() {
     ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
     vec2 cellTexelCoord = round(texelCoord / 1) * 1;
-    uvec3 rngState = uvec3(cellTexelCoord, renderInts.tick);
-    uvec3 pixelRngState = uvec3(0,0,renderInts.tick);
+    uvec3 rngState = uvec3(cellTexelCoord, tick);
+    uvec3 pixelRngState = uvec3(0,0,tick);
 
     vec2 uv;
     vec2 randomJitterUV = (vec2(random(pixelRngState), random(pixelRngState)) - 0.5) * 2;
@@ -247,9 +247,17 @@ void main() {
     ray_dir = normalize(ray_dir + right * uv.x + up * uv.y);
 
     vec4 final_value = vec4(0,0,0,1);
+
+    if (triangleCount == 0) {
+        final_value = vec4(getSkyColor(ray_dir, false, false), 1.0);
+        imageStore(imgOutput, texelCoord, final_value);
+        imageStore(stencilModelOutput, texelCoord, uvec4(0u));
+        return;
+    }
+
     sceneIntersectionResult result = checkSceneIntersection(ray_pos, ray_dir, INFINITY);
     TriangleHitResult hit = result.hit;
-    switch (renderInts.renderMode) {
+    switch (renderMode) {
         case RenderMode_Shaded:
         {
             if (hit.isValid) {
@@ -273,7 +281,7 @@ void main() {
                 }
                 vec3 geometricNormal = normalize(M * hit.geometricNormal);
                 final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), worldNormal), 0.2), 1);
-                if (renderInts.doAO) {
+                if (doAO) {
                     float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
                     final_value.rgb *= (1 - ao);
                 }
@@ -293,7 +301,7 @@ void main() {
                 vec3 albedo = texture(albedotex, hit.uv).rgb;
                 vec3 geometricNormal = normalize(M * hit.geometricNormal);
                 final_value = vec4(albedo * max(dot(normalize(vec3(1, 1, 1)), M * hit.geometricNormal), 0.2), 1);
-                if (renderInts.doAO) {
+                if (doAO) {
                     float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
                     final_value.rgb *= (1 - ao);
                 }
@@ -312,7 +320,7 @@ void main() {
                 vec3 normal = normalize(M * hit.normal);
                 vec3 geometricNormal = normalize(M * hit.geometricNormal);
                 final_value = vec4(vec3(max(dot(normalize(vec3(1, 1, 1)), normal), 0.2)), 1);
-                if (renderInts.doAO) {
+                if (doAO) {
                     float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, normal, geometricNormal, rngState);
                     final_value.rgb *= (1 - ao);
                 }
@@ -327,7 +335,7 @@ void main() {
                 mat3 M = mat3(matricies.forwardM);
                 vec3 geometricNormal = normalize(M * hit.geometricNormal);
                 final_value = vec4(vec3(max(dot(normalize(vec3(1, 1, 1)), geometricNormal), 0.2)), 1);
-                if (renderInts.doAO) {
+                if (doAO) {
                     float ao = calculateAO(localToGlobal(hit.position, matricies.forwardM) + geometricNormal * 0.001, geometricNormal, geometricNormal, rngState);
                     final_value.rgb *= (1 - ao);
                 }
@@ -411,13 +419,13 @@ void main() {
         default: final_value = vec4(vec3(1), 1);
     }
 
-    if (renderInts.tick != 0) {
+    if (tick != 0) {
         vec3 prev_frame_color = imageLoad(imgOutput, texelCoord).rgb;
-        float alpha = 1.0f / renderInts.tick;
+        float alpha = 1.0f / tick;
         final_value.rgb = prev_frame_color * (1.0 - alpha) + final_value.rgb * alpha;
     }
 
     imageStore(imgOutput, texelCoord, final_value);
 
-    if (renderInts.tick <= 1) imageStore(stencilModelOutput, texelCoord, uvec4(uint(max(result.modelIndex + 1, 0)), 0u, 0u, 1u));
+    if (tick <= 1) imageStore(stencilModelOutput, texelCoord, uvec4(uint(max(result.modelIndex + 1, 0)), 0u, 0u, 1u));
 }

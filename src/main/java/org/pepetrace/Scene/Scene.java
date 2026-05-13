@@ -3,10 +3,7 @@ package org.pepetrace.Scene;
 import static org.lwjgl.opengl.GL42.*;
 import static org.lwjgl.opengl.GL43C.GL_SHADER_STORAGE_BARRIER_BIT;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import org.joml.Matrix4f;
 import org.joml.Vector2f;
@@ -19,6 +16,7 @@ import org.pepetrace.Scene.Loader.MeshData;
 import org.pepetrace.Scene.Loader.MeshLoader;
 import org.pepetrace.Scene.Material.Material;
 import org.pepetrace.Scene.Material.TextureMaterial;
+import org.pepetrace.Scene.OptimizationStructure.AABB;
 
 public class Scene implements AutoCloseable {
     private final ArrayList<Float> vertices = new ArrayList<>();
@@ -29,19 +27,40 @@ public class Scene implements AutoCloseable {
     private final ArrayList<Integer> indices = new ArrayList<>();
     private final ArrayList<TextureMaterial> materials = new ArrayList<>();
     private final ArrayList<Integer> materialIndicesPerTriangle = new ArrayList<>();
+    private final Map<TextureMaterial, Integer> materialRefCount = new HashMap<>();
     private int triangleCount = 0;
     private int modelCount = 0;
     private final MeshLoader loader = new AssimpLoader();
     private final ArrayList<ModelMetadata> models = new ArrayList<>();
     private final ArrayList<Integer> modelTriangleStartIndices = new ArrayList<>();
+    private AABB tlasAABB;   // общий bounding box всей сцены
 
     public Scene() {
-        materials.add(TextureMaterial.create(
+        TextureMaterial defaultMat = TextureMaterial.create(
                 "./src/main/resources/Textures/defaulta.png",
                 "./src/main/resources/Textures/defaultn.png",
                 "./src/main/resources/sunny_rose_garden_2k.hdr"
-        ));
+        );
+        materials.add(defaultMat);
+        materialRefCount.put(defaultMat, 1); // одна модель (дефолтный материал используется в сцене)
     }
+
+    public void updateTLAS() {
+        if (models.isEmpty()) {
+            tlasAABB = null;
+            return;
+        }
+        Vector3f globalMin = new Vector3f(Float.POSITIVE_INFINITY);
+        Vector3f globalMax = new Vector3f(Float.NEGATIVE_INFINITY);
+        for (ModelMetadata model : models) {
+            AABB worldAABB = model.getWorldAABB();
+            globalMin.min(worldAABB.getStartPoint());
+            globalMax.max(worldAABB.getEndPoint());
+        }
+        tlasAABB = new AABB(globalMin, globalMax);
+    }
+
+    public AABB getTLAS() { return tlasAABB; }
 
     @Override
     public void close() throws Exception {
@@ -51,11 +70,33 @@ public class Scene implements AutoCloseable {
     }
 
     public void loadModel(String path, int materialIndex, String modelName) {
+        if (materials.isEmpty()) {
+            // Добавляем дефолтный материал, если список пуст
+            TextureMaterial defaultMat = TextureMaterial.create(
+                    "./src/main/resources/Textures/defaulta.png",
+                    "./src/main/resources/Textures/defaultn.png",
+                    "./src/main/resources/sunny_rose_garden_2k.hdr"
+            );
+            materials.add(defaultMat);
+            materialRefCount.put(defaultMat, 0);
+        }
+
+        // Загружаем геометрию через Assimp
         MeshData data = loader.load(path);
 
-        float offsetX = modelCount * 2.0f;
-        data.translate(0, 0, 0);
+        // --- Вычисляем локальный AABB модели на основе вершин ---
+        Vector3f localMin = new Vector3f(Float.POSITIVE_INFINITY);
+        Vector3f localMax = new Vector3f(Float.NEGATIVE_INFINITY);
+        List<Float> verticesData = data.getVertices();
+        for (int i = 0; i < verticesData.size(); i += 3) {
+            float x = verticesData.get(i);
+            float y = verticesData.get(i + 1);
+            float z = verticesData.get(i + 2);
+            localMin.min(new Vector3f(x, y, z));
+            localMax.max(new Vector3f(x, y, z));
+        }
 
+        // Добавляем вершины в общие буферы сцены
         int baseIndex = vertices.size() / 3;
         vertices.addAll(data.getVertices());
         normals.addAll(data.getNormals());
@@ -67,19 +108,26 @@ public class Scene implements AutoCloseable {
         }
 
         int newTriangles = data.getTriangleCount();
+        TextureMaterial mat = materials.get(materialIndex);
         for (int i = 0; i < newTriangles; i++) {
             materialIndicesPerTriangle.add(materialIndex);
         }
 
         int startTriangle = triangleCount;
-        ModelMetadata meta = new ModelMetadata(modelName, startTriangle, newTriangles);
+        // Создаём метаданные модели с вычисленным AABB
+        ModelMetadata meta = new ModelMetadata(modelName, startTriangle, newTriangles, localMin, localMax);
         models.add(meta);
         modelTriangleStartIndices.add(startTriangle);
 
         triangleCount += newTriangles;
         modelCount++;
-    }
 
+        // Увеличиваем счётчик использования материала
+        materialRefCount.merge(mat, 1, Integer::sum);
+
+        // Пересчитываем TLAS (общий bounding box сцены)
+        updateTLAS();
+    }
     public ModelMetadata getModelByTriangleIndex(int triangleIdx) {
         int pos = Collections.binarySearch(modelTriangleStartIndices, triangleIdx);
         if (pos < 0) {
@@ -126,6 +174,80 @@ public class Scene implements AutoCloseable {
         return new Vector3f(min).add(max).mul(0.5f);
     }
 
+    private void rebuildGeometryData() {
+        // Собираем все вершины, которые используются в оставшихся треугольниках
+        Set<Integer> usedVertices = new HashSet<>();
+        for (int triIdx = 0; triIdx < triangleCount; triIdx++) {
+            int i0 = indices.get(triIdx * 3);
+            int i1 = indices.get(triIdx * 3 + 1);
+            int i2 = indices.get(triIdx * 3 + 2);
+            usedVertices.add(i0);
+            usedVertices.add(i1);
+            usedVertices.add(i2);
+        }
+
+        // Создаём отображение старый индекс -> новый индекс
+        Map<Integer, Integer> indexMap = new HashMap<>();
+        List<Float> newVertices = new ArrayList<>();
+        List<Float> newNormals = new ArrayList<>();
+        List<Float> newUVs = new ArrayList<>();
+        List<Float> newTangents = new ArrayList<>();
+        List<Float> newBitangents = new ArrayList<>();
+
+        int newIdx = 0;
+        for (int oldIdx : usedVertices) {
+            indexMap.put(oldIdx, newIdx);
+            newVertices.add(vertices.get(oldIdx * 3));
+            newVertices.add(vertices.get(oldIdx * 3 + 1));
+            newVertices.add(vertices.get(oldIdx * 3 + 2));
+            newNormals.add(normals.get(oldIdx * 3));
+            newNormals.add(normals.get(oldIdx * 3 + 1));
+            newNormals.add(normals.get(oldIdx * 3 + 2));
+            newUVs.add(uvs.get(oldIdx * 2));
+            newUVs.add(uvs.get(oldIdx * 2 + 1));
+            newTangents.add(tangents.get(oldIdx * 3));
+            newTangents.add(tangents.get(oldIdx * 3 + 1));
+            newTangents.add(tangents.get(oldIdx * 3 + 2));
+            newBitangents.add(bitangents.get(oldIdx * 3));
+            newBitangents.add(bitangents.get(oldIdx * 3 + 1));
+            newBitangents.add(bitangents.get(oldIdx * 3 + 2));
+            newIdx++;
+        }
+
+        // Перестраиваем индексы
+        List<Integer> newIndices = new ArrayList<>();
+        for (int triIdx = 0; triIdx < triangleCount; triIdx++) {
+            int oldI0 = indices.get(triIdx * 3);
+            int oldI1 = indices.get(triIdx * 3 + 1);
+            int oldI2 = indices.get(triIdx * 3 + 2);
+            newIndices.add(indexMap.get(oldI0));
+            newIndices.add(indexMap.get(oldI1));
+            newIndices.add(indexMap.get(oldI2));
+        }
+
+        // Заменяем старые списки новыми
+        vertices.clear();
+        vertices.addAll(newVertices);
+        normals.clear();
+        normals.addAll(newNormals);
+        uvs.clear();
+        uvs.addAll(newUVs);
+        tangents.clear();
+        tangents.addAll(newTangents);
+        bitangents.clear();
+        bitangents.addAll(newBitangents);
+        indices.clear();
+        indices.addAll(newIndices);
+    }
+
+    private void remapMaterialIndicesAfterRemoval(int removedMatIdx) {
+        for (int i = 0; i < materialIndicesPerTriangle.size(); i++) {
+            int oldIdx = materialIndicesPerTriangle.get(i);
+            if (oldIdx > removedMatIdx) {
+                materialIndicesPerTriangle.set(i, oldIdx - 1);
+            }
+        }
+    }
     public void removeModel(int index) {
         if (index < 0 || index >= models.size()) return;
 
@@ -133,32 +255,86 @@ public class Scene implements AutoCloseable {
         int startTri = model.getStartTriangleIndex();
         int triCount = model.getTriangleCount();
 
-        // Удаляем индексы (3 индекса на треугольник)
+        // Сохраняем индексы материалов, используемых удаляемой моделью
+        Set<Integer> materialsToRelease = new HashSet<>();
+        for (int i = startTri; i < startTri + triCount; i++) {
+            materialsToRelease.add(materialIndicesPerTriangle.get(i));
+        }
+
+        // 1. Удаляем индексы треугольников
         int idxPos = startTri * 3;
         for (int i = 0; i < triCount; i++) {
             indices.remove(idxPos);
             indices.remove(idxPos);
             indices.remove(idxPos);
         }
-        // Удаляем материалы треугольников
+
+        // 2. Удаляем материалы треугольников
         for (int i = 0; i < triCount; i++) {
             materialIndicesPerTriangle.remove(startTri);
         }
 
-        // Корректируем стартовые индексы у оставшихся моделей
+        // 3. Корректируем startTriangleIndex у последующих моделей
         for (int i = index + 1; i < models.size(); i++) {
             ModelMetadata next = models.get(i);
             next.setStartTriangleIndex(next.getStartTriangleIndex() - triCount);
         }
 
+        // 4. Удаляем модель из списков
         models.remove(index);
         triangleCount -= triCount;
         modelCount--;
 
-        // Обновляем modelTriangleStartIndices для быстрого поиска (если используется)
+        // 5. Если моделей не осталось – полная очистка
+        if (models.isEmpty()) {
+            vertices.clear();
+            normals.clear();
+            uvs.clear();
+            tangents.clear();
+            bitangents.clear();
+            indices.clear();
+            materialIndicesPerTriangle.clear();
+            triangleCount = 0;
+            modelCount = 0;
+            modelTriangleStartIndices.clear();
+
+            // Закрываем все материалы
+            for (TextureMaterial mat : materials) {
+                try {
+                    mat.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+            materials.clear();
+            materialRefCount.clear();
+
+            return;
+        }
+        // 6. Перестраиваем вершины (удаляем мёртвые)
+        rebuildGeometryData();
+
+        // 7. Перестраиваем modelTriangleStartIndices
         modelTriangleStartIndices.clear();
         for (ModelMetadata m : models) {
             modelTriangleStartIndices.add(m.getStartTriangleIndex());
+        }
+
+        // 8. Уменьшаем счётчики материалов и удаляем неиспользуемые
+        for (int matIdx : materialsToRelease) {
+            TextureMaterial mat = materials.get(matIdx);
+            int newCount = materialRefCount.merge(mat, -1, (old, delta) -> old + delta);
+            if (newCount == 0) {
+                try {
+                    mat.close();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                materials.remove(matIdx);
+                materialRefCount.remove(mat);
+                // После удаления материала сдвигаем индексы в materialIndicesPerTriangle
+                remapMaterialIndicesAfterRemoval(matIdx);
+            }
         }
     }
 
@@ -299,6 +475,17 @@ public class Scene implements AutoCloseable {
 
     public void packScene(SSBO geometryBuffer, SSBO indexBuffer, SSBO materialIndicesBuffer,
                           SSBO materialHandlesBuffer, SSBO triangleModelIndicesBuffer) {
+        if (models.isEmpty()) {
+            geometryBuffer.clear();
+            indexBuffer.clear();
+            materialIndicesBuffer.clear();
+            materialHandlesBuffer.clear();
+            triangleModelIndicesBuffer.clear();
+            // Также очищаем буфер матриц моделей (он не передаётся в этот метод, но очистим отдельно)
+            // Он будет очищен в updateModelMatricesOnGPU при вызове с пустым списком
+            return;
+        }
+
         int vertexCount = vertices.size() / 3;
         float[] geometryData = new float[vertexCount * 20];
         for (int i = 0; i < vertexCount; i++) {
@@ -351,6 +538,10 @@ public class Scene implements AutoCloseable {
     }
 
     public void updateModelMatricesOnGPU(SSBO modelMatricesBuffer) {
+        if (models.isEmpty()) {
+            modelMatricesBuffer.clear();
+            return;
+        }
         // Каждая модель хранит две матрицы (forward и inverse) – 32 float
         float[] matricesData = new float[models.size() * 32];
         for (int i = 0; i < models.size(); i++) {

@@ -1,7 +1,9 @@
 package org.pepetrace;
 
 import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.opengl.ARBClearTexture.glClearTexImage;
 import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL30C.GL_RED_INTEGER;
 
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiMouseCursor;
@@ -68,11 +70,27 @@ public class Main {
         mainWindow.setCursorMode(Window.CURSOR_DISABLED);
     }
 
-    public void refreshSceneBuffers(boolean packScene, boolean updateModelMatricies) {
+    public void refreshSceneBuffers(boolean packScene, boolean updateModelMatrices) {
         Scene scene = programState.getScene();
         if (packScene) scene.packScene(geometryBuffer, indexBuffer, materialIndicesBuffer, materialHandlesBuffer, triangleModelIndicesBuffer);
-        if (updateModelMatricies) scene.updateModelMatricesOnGPU(modelMatricesBuffer);
+        if (updateModelMatrices) {
+            scene.updateModelMatricesOnGPU(modelMatricesBuffer);
+            // Пересчитываем мировые AABB для всех моделей (или только для выбранных)
+            for (ModelMetadata model : scene.getModels()) {
+                model.updateWorldAABB();
+            }
+            scene.updateTLAS();
+        }
+    }
+
+    public void forceClearRender() {
+        // Принудительно очищаем выходную текстуру и stencil чёрным цветом
+        glClearTexImage(viewportDrawer.getOutputTexture().id, 0, GL_RGBA, GL_FLOAT, new float[]{0,0,0,1});
+        glClearTexImage(viewportDrawer.getModelStencilTexture().id, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, new int[]{0});
+        // Сбрасываем накопление кадров
         viewportDrawer.resetRender();
+        // Принудительная синхронизация
+        glFinish();
     }
 
     void main() {
@@ -209,10 +227,7 @@ public class Main {
                         float rotSpeed = 0.005f;
                         modelYaw -= mouseDelta[0] * rotSpeed;
                         modelPitch += mouseDelta[1] * rotSpeed;
-                        // Ограничиваем pitch, чтобы не было переворота
-                        modelPitch = Math.max(-(float)Math.PI / 2.1f, Math.min((float)Math.PI / 2.1f, modelPitch));
                         if (mouseDelta[0] != 0 || mouseDelta[1] != 0) {
-                            // Преобразуем углы в кватернион (сначала Yaw, потом Pitch)
                             Quaternionf rot = new Quaternionf().rotateY(modelYaw).rotateX(modelPitch);
                             for (int idx : selected) {
                                 ModelMetadata model = scene.getModels().get(idx);

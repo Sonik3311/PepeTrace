@@ -55,7 +55,6 @@ public class GlobalState {
         if (singleIndex >= 0) {
             selectedModelIndices.add(singleIndex);
         }
-        // Обновить визуальное выделение (outliner и т.д.)
         notifySelectionChanged();
     }
 

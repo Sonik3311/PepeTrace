@@ -33,6 +33,17 @@ public class SSBO extends Buffer {
     }
 
     /**
+     * Очищает буфер, освобождая память на GPU.
+     */
+    public void clear() {
+        bind();
+        glBufferData(bufferType, 0L, usage);   // устанавливаем размер 0
+        unbind();
+        sizeBytes = 0;
+        length = 0;
+    }
+
+    /**
      * Заполняет буфер данными, перезаписывая все старые данные.
      *
      * @param data данные для заполнения буфера. Может быть float[], int[] или double[].
@@ -63,7 +74,7 @@ public class SSBO extends Buffer {
                 glBufferData(GL_SHADER_STORAGE_BUFFER, longData, usage);
             }
             case null, default -> throw new IllegalArgumentException(
-                "Unsupported type"
+                    "Unsupported type"
             );
         }
 
