@@ -48,7 +48,7 @@ public class ViewportDrawer extends AbstractDrawer {
     private Texture outputTexture;
     private final ComputeProgram pathTracingProgram = new ComputeProgram("./src/main/glsl/renderers/viewport/program");
     private final Program windowTextureDrawerProgram = new Program("./src/main/glsl/screenQuad");
-    private final Program outlineProgram = new Program("./src/main/glsl/util/outliner/outliner");
+    private final Program outlineProgram = new Program("./src/main/glsl/renderers/viewport/outliner/outliner");
     private final int fbo = glGenFramebuffers();
     private final int vao = glGenVertexArrays();
     private final UBORenderInts ubo = new UBORenderInts(3);

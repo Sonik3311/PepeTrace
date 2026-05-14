@@ -77,5 +77,8 @@ public abstract class AbstractDrawer implements Window.ResizeListener {
             // Накапливаем для камеры
             window.addScrollDelta(yoff);
         });
+
+        currentHeight = window.getHeight();
+        currentWidth = window.getWidth();
     }
 }

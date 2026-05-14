@@ -16,6 +16,7 @@ public class Window implements AutoCloseable {
     private boolean firstMouse = true;
     private double scrollY = 0.0;
     private ResizeListener resizeListener;
+    private boolean isShown = false;
 
     public static final int CURSOR_NORMAL = GLFW_CURSOR_NORMAL;
     public static final int CURSOR_DISABLED = GLFW_CURSOR_DISABLED;
@@ -105,6 +106,51 @@ public class Window implements AutoCloseable {
                 (int) (height / yscale[0]));
     }
 
+    public void show() {
+        glfwShowWindow(id);
+        isShown = true;
+    }
+
+    public void hide() {
+        glfwHideWindow(id);
+        isShown = false;
+    }
+
+    public boolean isVisible() {
+        return isShown;
+    }
+
+    public Window(int width, int height, boolean resizable, String title, Window parentWindow) {
+        initGLFW();
+        glfwDefaultWindowHints();
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+        glfwWindowHint(GLFW_RESIZABLE, resizable ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
+
+        this.width = width;
+        this.height = height;
+        this.id = glfwCreateWindow(width, height, title, NULL, parentWindow.getId());
+        if (this.id == NULL) throw new RuntimeException("Failed to create window");
+
+        glfwSetFramebufferSizeCallback(id, (window, w, h) -> {
+            this.width = w;
+            this.height = h;
+            if (resizeListener != null) {
+                resizeListener.onResize(w, h, true);
+            }
+        });
+
+        // Коррекция DPI
+        float[] xscale = {0};
+        float[] yscale = {0};
+        glfwGetWindowContentScale(id, xscale, yscale);
+        glfwSetWindowSize(id,
+                (int) (width / xscale[0]),
+                (int) (height / yscale[0]));
+    }
+
     private void initGLFW() {
         if (glfwInitialized) return;
         GLFWErrorCallback errorCallback;
@@ -119,7 +165,10 @@ public class Window implements AutoCloseable {
         glfwMakeContextCurrent(this.id);
         GL.createCapabilities();
         glfwSwapInterval(1);
-        glfwShowWindow(this.id);
+        //if (!isShown) {
+        //    glfwShowWindow(this.id);
+        //    isShown = true;
+        //}
     }
 
     public void resetMouse() {

@@ -11,6 +11,7 @@ import org.joml.Vector3f;
 import org.joml.Quaternionf;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Buffers.Texture;
+import org.pepetrace.Drawers.RTDrawer;
 import org.pepetrace.Drawers.ViewportDrawer;
 import org.pepetrace.Scene.ModelMetadata;
 import org.pepetrace.Scene.Scene;
@@ -34,8 +35,12 @@ public class Main {
     private final Camera viewportCamera;
     private final Scene scene;
 
+    private final Window renderWindow;
+    private final RTDrawer renderDrawer;
+
+
     public Main() throws Exception {
-        mainWindow = new Window(1024, 512, true, "Pepetrace");
+        mainWindow = new Window(1024, 512, true, "Editor|Pepetrace");
         mainWindow.setActive();
 
         this.geometryBuffer = new SSBO(GL_STATIC_DRAW, 6);
@@ -68,6 +73,14 @@ public class Main {
         programState.setArbitraryData("skyboxTexture", skyboxTexture.id);
         programState.setArbitraryData("Main", this);
         mainWindow.setCursorMode(Window.CURSOR_DISABLED);
+
+        renderWindow = new Window(1024, 1024, true, "Render|Pepetrace", mainWindow);
+        renderWindow.setActive();
+        renderDrawer = new RTDrawer(renderWindow);
+
+        mainWindow.setActive();
+        mainWindow.show();
+        renderWindow.show();
     }
 
     public void refreshSceneBuffers(boolean packScene, boolean updateModelMatrices) {
@@ -93,13 +106,15 @@ public class Main {
         glFinish();
     }
 
-    void main() {
+    void main() throws Exception {
+
         GPUTimeQuerier timer = new GPUTimeQuerier();
         boolean wasRotatingModels = false;
         // Для накопления углов вращения моделей (глобально для всех выбранных)
         float modelYaw = 0.0f;
         float modelPitch = 0.0f;
         while (!mainWindow.shouldClose()) {
+            mainWindow.setActive();
             long cpuStart = System.nanoTime();
 
             if (viewportDrawer.draggingMouse && viewportCamera.getCameraMode() == 1) {
@@ -243,6 +258,7 @@ public class Main {
                 if (needUpdate) {
                     refreshSceneBuffers(false, true);
                 }
+
             }
 
             long cpuEnd = System.nanoTime();
@@ -254,6 +270,17 @@ public class Main {
             }
 
             glfwSwapBuffers(mainWindow.getId());
+
+
+            renderWindow.setActive();
+            if (renderWindow.shouldClose()) {
+                renderWindow.hide();
+            } else if (renderWindow.isVisible()) {
+                renderDrawer.renderFrame();
+                glfwSwapBuffers(renderWindow.getId());
+            }
+
+
             glfwPollEvents();
         }
 
