@@ -144,6 +144,14 @@ public class Program implements AutoCloseable {
     }
 
     /**
+     * Устанавливает список целочисленных значений для униформной переменной (uniform).
+     *
+     * @param name  Имя униформной переменной. Должно совпадать с тем, что прописано в шейдере.
+     * @param values Список целочисленных значений
+     */
+    public void setIntArray(final String name, int[] values) { glUniform1iv(glGetUniformLocation(id, name), values); }
+
+    /**
      * Устанавливает булево значение для униформной переменной (uniform).
      *
      * @param name  Имя униформной переменной. Должно совпадать с тем, что прописано в шейдере.

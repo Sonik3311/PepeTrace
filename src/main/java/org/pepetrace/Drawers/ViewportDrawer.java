@@ -157,7 +157,8 @@ public class ViewportDrawer extends AbstractDrawer {
 
         outlineProgram.setInt("u_stencilTexture", 0);
         outlineProgram.setInt("u_colorTexture", 1);
-        outlineProgram.setInt("u_selectedID", programState.getSelectedModelIndex());
+        outlineProgram.setIntArray("u_selectedID", programState.getSelectedModelIndices().stream().mapToInt(Integer::intValue).toArray());
+        outlineProgram.setInt("u_totalSelectedModels", programState.getSelectedModelIndices().size());
 
         glBindVertexArray(vao);
         glDrawArrays(GL_TRIANGLES, 0, 3);

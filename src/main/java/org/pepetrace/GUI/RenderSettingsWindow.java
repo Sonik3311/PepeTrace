@@ -1,6 +1,7 @@
 package org.pepetrace.GUI;
 
 import imgui.ImGui;
+import imgui.type.ImInt;
 import org.pepetrace.Drawers.ViewportDrawer;
 import org.pepetrace.Util.ViewportRenderMode;
 
@@ -46,12 +47,20 @@ public class RenderSettingsWindow implements GuiWindow {
 
         ImGui.spacing();
         ImGui.separatorText("Final render");
-        //if (ImGui.inputInt("Samples", drawer.samples)) {
+        if (ImGui.inputInt("Samples", new ImInt(5))) {
         //    int min = 1, max = 16384;
         //    int clamped = Math.clamp(drawer.samples.get(), min, max);
         //    drawer.samples.set(clamped);
         //    drawer.frame = 0;
-        //}
+        }
+        if (ImGui.inputInt("Max bounces", new ImInt(3))) {
+
+        }
+        ImGui.spacing();
+        int[] resolution = {1024,1024};
+        if (ImGui.inputInt2("Render resolution", resolution)) {
+
+        }
         //if (ImGui.checkbox("Accumulate frames", drawer.accumulating)) {
         //    if (!drawer.accumulating.get()) {
         //        drawer.frame = 0;
