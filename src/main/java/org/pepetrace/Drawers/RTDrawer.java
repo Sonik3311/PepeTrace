@@ -15,7 +15,7 @@ public class RTDrawer extends AbstractDrawer {
     private final int vao = glGenVertexArrays();
 
     public RTDrawer(Window window) throws FileNotFoundException {
-        super(window, "guilayout.ini");
+        super(window);
     }
 
     @Override

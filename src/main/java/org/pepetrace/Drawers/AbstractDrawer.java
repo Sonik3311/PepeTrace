@@ -31,10 +31,10 @@ public abstract class AbstractDrawer implements Window.ResizeListener {
 
 
 
-    public AbstractDrawer(Window window, String guiLayoutFile) {
+    public AbstractDrawer(Window window) {
         this.window = window;
         window.setResizeListener(this);
-        init(guiLayoutFile);
+        init("guilayout.ini");
     }
 
 

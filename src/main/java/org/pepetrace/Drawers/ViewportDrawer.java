@@ -64,7 +64,7 @@ public class ViewportDrawer extends AbstractDrawer {
     public Texture getModelStencilTexture() { return modelStencilTexture; }
 
     public ViewportDrawer(Window window) throws FileNotFoundException {
-        super(window, "guilayout.ini");
+        super(window);
 
         createTextures(currentWidth, currentHeight);
 
