@@ -84,7 +84,7 @@ public class ViewportDrawer extends AbstractDrawer {
                 height,
                 false,
                 1,
-                GL_RGBA32F,
+                GL_RGBA8,
                 GL_READ_WRITE,
                 GL_NEAREST
         );
@@ -99,7 +99,7 @@ public class ViewportDrawer extends AbstractDrawer {
         );
         outputTexture = new Texture(
                 width, height, false, 13,
-                GL_RGBA32F, GL_READ_WRITE, GL_LINEAR
+                GL_RGBA8, GL_WRITE_ONLY, GL_LINEAR
         );
     }
 

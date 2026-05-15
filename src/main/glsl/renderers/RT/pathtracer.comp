@@ -1,0 +1,70 @@
+#version 460 core
+
+#include "constants.glsl"
+#include "cameraUtil.glsl"
+
+
+layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1) in;
+
+// ------------------
+//  Geometry Buffers
+// ------------------
+
+layout(std430, binding = 6) readonly buffer GeometryBuffer {
+    VertexData geometry[];
+};
+
+layout(std430, binding = 7) readonly buffer IndexBuffer {
+  int indices[];
+};
+
+layout(std430, binding = 8) readonly buffer MaterialIndicesBuffer {
+    int materialIndices[];
+};
+
+layout(std430, binding = 9) readonly buffer MaterialBuffer {
+    Material materialHandles[];
+};
+
+layout(std430, binding = 10) readonly buffer ModelMatrices {
+    ModelMatricies modelMatricies[];
+};
+
+layout(std430, binding = 11) readonly buffer TriangleModelIndices {
+    int triangleModelIndices[];
+};
+
+// -----------------
+//  Render Settings
+// -----------------
+
+layout(std140, binding=31) uniform RenderSettings {
+    int samples;
+    int bounces;
+    int triangleCount;
+};
+
+layout(std140, binding=30) uniform CameraData {
+    vec3 position;
+    vec2 yawPitch
+} camera;
+
+layout(rgba32f, binding=4) readonly uniform image2D skybox;
+
+layout(rgba32f, binding=32) uniform image2D imgOutput;
+
+
+void main() {
+    float aspect_ratio = float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocatopnID.xy);
+
+    vec2 uv;
+    uv.x = float(texelCoord.x) / (gl_NumWorkGroups.x * KERNEL_SIZE);
+    uv.y = float(texelCoord.y) / (gl_NumWorkGroups.y * KERNEL_SIZE);
+    uv = ((uv - 0.5) * 2);
+    uv.x *= aspect_ratio;
+
+    vec3 ray_origin = camera.position;
+    vec3 ray_direction = getRayDirection();
+
+}
