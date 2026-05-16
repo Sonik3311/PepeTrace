@@ -1,8 +1,12 @@
 #version 460 core
+#extension GL_ARB_bindless_texture : require
 
 #include "constants.glsl"
+#include "intersections.glsl"
 #include "cameraUtil.glsl"
-
+#include "../../util/random.glsl"
+#include "../../util/matconversion.glsl"
+#include "../../material.glsl"
 
 layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1) in;
 
@@ -10,12 +14,25 @@ layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1)
 //  Geometry Buffers
 // ------------------
 
+struct VertexData { // 16 * 5
+                    vec4 position;
+                    vec4 normal;
+                    vec4 uv;
+                    vec4 tangent;
+                    vec4 bitangent;
+};
+
+struct ModelMatricies {
+    mat4 forwardM;
+    mat4 inverseM;
+};
+
 layout(std430, binding = 6) readonly buffer GeometryBuffer {
     VertexData geometry[];
 };
 
 layout(std430, binding = 7) readonly buffer IndexBuffer {
-  int indices[];
+    int indices[];
 };
 
 layout(std430, binding = 8) readonly buffer MaterialIndicesBuffer {
@@ -38,23 +55,105 @@ layout(std430, binding = 11) readonly buffer TriangleModelIndices {
 //  Render Settings
 // -----------------
 
-layout(std140, binding=31) uniform RenderSettings {
+layout(std140, binding = 31) uniform RenderSettings {
     int samples;
     int bounces;
     int triangleCount;
+    int frame;
 };
 
-layout(std140, binding=30) uniform CameraData {
+layout(std140, binding = 30) uniform CameraData {
     vec3 position;
-    vec2 yawPitch
+    vec2 yawPitch;
 } camera;
 
-layout(rgba32f, binding=4) readonly uniform image2D skybox;
+layout(rgba32f, binding = 4) readonly uniform image2D skybox;
 
-layout(rgba32f, binding=32) uniform image2D imgOutput;
+layout(rgba32f, binding = 32) uniform image2D imgOutput;
 
+// -----------------
+//
+// -----------------
+
+vec3 getSkyColor(vec3 direction, bool useProcedural) {
+    if (useProcedural) {
+        vec3 light_dir = normalize(vec3(0.5, cos(float(50) / 100), sin(float(50) / 100)));
+        vec3 lower_sky = vec3(0.01, 0.1, 0.2);
+        vec3 upper_sky = vec3(0.65, 0.7, 0.8);
+        return dot(direction, light_dir) < 0.95 ? mix(lower_sky, upper_sky, dot(direction, vec3(0, 1, 0))) : vec3(5);
+    } else {
+        vec2 uv = vec2(0.5 + atan(direction.x, direction.z) / (2 * PI), 0.5 + asin(direction.y) / PI);
+        ivec2 imgsize = imageSize(skybox);
+        vec3 col = imageLoad(skybox, ivec2(imgsize.xy * uv)).xyz;
+        return col;
+    }
+}
+
+SceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist) {
+    float min_dist = INFINITY;
+    SceneIntersectionResult result;
+    result.materialIndex = -1;
+    result.triangleIndex = -1;
+    result.modelIndex = -1;
+    result.checkCount = 0;
+    result.hitCount = 0;
+    TriangleHitResult min_hit;
+    min_hit.isValid = false;
+    min_hit.position = vec3(0);
+    min_hit.normal = vec3(0);
+    min_hit.geometricNormal = vec3(0);
+    min_hit.distance = -1.0;
+    min_hit.uv = vec2(-1);
+    min_hit.baryU = -1;
+    min_hit.baryV = -1;
+    min_hit.tangent = vec3(-1);
+    min_hit.bitangent = vec3(-1);
+    int triangleCount = indices.length() / 3;
+    int modelIdx = 0;
+    for (int i = 0; i < triangleCount; i++) {
+        // получаем модель для текущего треугольника (через отдельный буфер triangleModelIndices[i])
+        if (modelIdx < triangleModelIndices.length() - 1) {
+            if (i >= triangleModelIndices[modelIdx + 1]) modelIdx++;
+        }
+        mat4 invModelMat = modelMatricies[modelIdx].inverseM;
+        // преобразуем луч в локальное пространство модели
+        vec3 localRo = (invModelMat * vec4(ro, 1.0)).xyz;
+        vec3 localRd = (invModelMat * vec4(rd, 0.0)).xyz;
+
+        int i3 = i * 3;
+        int iA = indices[i3];
+        int iB = indices[i3 + 1];
+        int iC = indices[i3 + 2];
+        VertexData vertexA = geometry[iA];
+        VertexData vertexB = geometry[iB];
+        VertexData vertexC = geometry[iC];
+        vec2 uvA = vertexA.uv.xy;
+        vec2 uvB = vertexB.uv.xy;
+        vec2 uvC = vertexC.uv.xy;
+
+        TriangleHitResult hit = rayTriangleIntersect(localRo.xyz, localRd.xyz,
+                vertexA.position.xyz, vertexB.position.xyz, vertexC.position.xyz,
+                vertexA.normal.xyz, vertexB.normal.xyz, vertexC.normal.xyz,
+                vertexA.tangent.xyz, vertexB.tangent.xyz, vertexC.tangent.xyz,
+                vertexA.bitangent.xyz, vertexB.bitangent.xyz, vertexC.bitangent.xyz,
+                uvA, uvB, uvC);
+        result.checkCount++;
+        result.hitCount += hit.isValid ? 1 : 0;
+
+        if (hit.isValid && hit.distance < min_dist && hit.distance <= max_dist) {
+            min_dist = hit.distance;
+            min_hit = hit;
+            result.materialIndex = materialIndices[i];
+            result.triangleIndex = i;
+            result.modelIndex = modelIdx;
+        }
+    }
+    result.hit = min_hit;
+    return result;
+}
 
 void main() {
+    uvec3 rngState = uvec3(gl_GlobalInvocationID.xy, tick + gl_GlobalInvocationID.x);
     float aspect_ratio = float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
     ivec2 texelCoord = ivec2(gl_GlobalInvocatopnID.xy);
 
@@ -67,4 +166,57 @@ void main() {
     vec3 ray_origin = camera.position;
     vec3 ray_direction = getRayDirection();
 
+    vec3 final_color = vec3(0);
+    for (int iter = 0; iter < samples; iter++) {
+        vec3 sample_ray_pos = ray_origin;
+        vec3 sample_ray_dir = ray_direction;
+        vec3 color = vec3(0);
+        vec3 energy = vec3(1);
+
+        for (int bounce = 0; bounce < bounces; bounce++) {
+            SceneIntersectionResult hit = checkSceneIntersection(sample_ray_pos, sample_ray_dir, INFINITY);
+            if (!hit.isValid) {
+                color += energy * getSkyColor(sample_ray_dir, false);
+                break;
+            }
+
+            ModelMatricies matricies = modelMatricies[result.modelIndex];
+            mat3 M = mat3(matricies.forwardM);
+
+            sampler2D normaltex = sampler2D(materialHandles[result.materialIndex].normalTex_handle);
+            sampler2D albedotex = sampler2D(materialHandles[result.materialIndex].albedoTex_handle);
+            vec3 albedo = texture(albedotex, hit.uv).rgb;
+            vec3 textureNormal = normalize(texture(normaltex, hit.uv).rgb * 2 - 1);
+            vec3 geometricNormal = normalize(M * hit.geometricNormal);
+            vec3 tangent = hit.tangent;
+            vec3 bitangent = hit.bitangent;
+            vec3 worldNormal;
+            if (length(tangent) < 0.001 || length(bitangent) < 0.001) {
+                // нет тангентов – используем геометрическую нормаль без normal mapping
+                worldNormal = geometricNormal;
+            } else {
+                mat3 TBN = mat3(tangent, bitangent, hit.normal);
+                worldNormal = normalize(M * TBN * textureNormal);
+            }
+            
+            sample_ray_pos = hit.position + geometricNormal * EPSILON * 100;
+            vec3 R = RandomHemisphereUnitVector(rngState, worldNormal);
+            if (dot(R, geometricNormal) <= 0.0f) {
+                R = reflect(R, geometricNormal);
+            }
+            sample_ray_dir = R;
+            
+
+            energy *= albedo;
+        }
+        final_color += color;
+    }
+    final_color /= samples;
+    if (frame != 0) {
+        vec3 prev_frame_color = imageLoad(imgOutput, texelCoord).rgb;
+        float alpha = 1.0f / frame;
+        final_color = prev_frame_color * (1.0 - alpha) + final_color * alpha;
+    }
+
+    imageStore(imgOutput, texelCoord, vec4(final_color, 1));
 }
