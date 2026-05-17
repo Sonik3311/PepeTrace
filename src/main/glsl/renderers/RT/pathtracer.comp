@@ -1,24 +1,24 @@
 #version 460 core
+#extension GL_ARB_bindless_texture : require
 
-//#include "../../constants.glsl"
-//#include "intersections.glsl"
-//#include "cameraUtil.glsl"
-//#include "../../util/random.glsl"
-//#include "../../util/matconversion.glsl"
-//#include "../../material.glsl"
+#include "../../constants.glsl"
+#include "intersections.glsl"
+#include "cameraUtil.glsl"
+#include "../../util/random.glsl"
+#include "../../util/matconversion.glsl"
+#include "../../material.glsl"
 
-layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
-
+layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1) in;
 // ------------------
 //  Geometry Buffers
 // ------------------
 
-/*struct VertexData { // 16 * 5
-                    vec4 position;
-                    vec4 normal;
-                    vec4 uv;
-                    vec4 tangent;
-                    vec4 bitangent;
+struct VertexData { // 16 * 5
+    vec4 position;
+    vec4 normal;
+    vec4 uv;
+    vec4 tangent;
+    vec4 bitangent;
 };
 
 struct ModelMatricies {
@@ -66,14 +66,14 @@ layout(std140, binding = 29) uniform CameraData {
     vec2 yawPitch;
 } camera;
 
-layout(rgba32f, binding = 4) readonly uniform image2D skybox;*/
+layout(binding = 4) uniform sampler2D skybox;
 
 layout(rgba32f, binding = 16) uniform image2D imgOutput;
 
 // -----------------
 //
 // -----------------
-/*
+
 vec3 getSkyColor(vec3 direction, bool useProcedural) {
     if (useProcedural) {
         vec3 light_dir = normalize(vec3(0.5, cos(float(50) / 100), sin(float(50) / 100)));
@@ -82,8 +82,7 @@ vec3 getSkyColor(vec3 direction, bool useProcedural) {
         return dot(direction, light_dir) < 0.95 ? mix(lower_sky, upper_sky, dot(direction, vec3(0, 1, 0))) : vec3(5);
     } else {
         vec2 uv = vec2(0.5 + atan(direction.x, direction.z) / (2 * PI), 0.5 + asin(direction.y) / PI);
-        ivec2 imgsize = imageSize(skybox);
-        vec3 col = imageLoad(skybox, ivec2(imgsize.xy * uv)).xyz;
+        vec3 col = texture(skybox, uv).rgb;
         return col;
     }
 }
@@ -149,83 +148,64 @@ SceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
     }
     result.hit = min_hit;
     return result;
-}*/
+}
 
 void main() {
     ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
-    if (coord.x < 10 && coord.y < 10)
-        imageStore(imgOutput, coord, vec4(1,0,0,1));
-    else
-        imageStore(imgOutput, coord, vec4(0,1,0,1));
-}
-/*
-void main2() {
-    //uvec3 rngState = uvec3(gl_GlobalInvocationID.xy, frame + gl_GlobalInvocationID.x);
-    //float aspect_ratio = float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
-    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
+    uvec3 rngState = uvec3(gl_GlobalInvocationID.xy, frame + gl_GlobalInvocationID.x);
 
-    //vec2 uv;
-    //uv.x = float(texelCoord.x) / (gl_NumWorkGroups.x * KERNEL_SIZE);
-    //uv.y = float(texelCoord.y) / (gl_NumWorkGroups.y * KERNEL_SIZE);
-    //uv = ((uv - 0.5) * 2);
-    //uv.x *= aspect_ratio;
+    vec2 uv;
+    uv.x = float(coord.x) / (gl_NumWorkGroups.x * KERNEL_SIZE);
+    uv.y = float(coord.y) / (gl_NumWorkGroups.y * KERNEL_SIZE);
+    uv = ((uv - 0.5) * 2);
+    uv.x *= float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
 
-    /*vec3 ray_origin = camera.position;
+    vec3 ray_origin = camera.position;
     vec3 ray_direction = getRayDirection(uv, camera.yawPitch);
 
     vec3 final_color = vec3(0);
     for (int iter = 0; iter < samples; iter++) {
-        vec3 sample_ray_pos = ray_origin;
-        vec3 sample_ray_dir = ray_direction;
+        vec3 ray_pos = ray_origin;
+        vec3 ray_dir = ray_direction;
         vec3 color = vec3(0);
         vec3 energy = vec3(1);
 
         for (int bounce = 0; bounce < bounces; bounce++) {
-            SceneIntersectionResult result = checkSceneIntersection(sample_ray_pos, sample_ray_dir, INFINITY);
+            SceneIntersectionResult result = checkSceneIntersection(ray_pos, ray_dir, INFINITY);
             TriangleHitResult hit = result.hit;
             if (!hit.isValid) {
-                color += energy * getSkyColor(sample_ray_dir, false);
+                color += energy * getSkyColor(ray_dir, false);
                 break;
             }
 
-            ModelMatricies matricies = modelMatricies[result.modelIndex];
-            mat3 M = mat3(matricies.forwardM);
-
-            sampler2D normaltex = sampler2D(materialHandles[result.materialIndex].normalTex_handle);
-            sampler2D albedotex = sampler2D(materialHandles[result.materialIndex].albedoTex_handle);
-            vec3 albedo = texture(albedotex, hit.uv).rgb;
-            vec3 textureNormal = normalize(texture(normaltex, hit.uv).rgb * 2 - 1);
-            vec3 geometricNormal = normalize(M * hit.geometricNormal);
+            ModelMatricies matrices = modelMatricies[result.modelIndex];
+            mat3 M = mat3(matrices.forwardM);
+            sampler2D albedo_tex = sampler2D(materialHandles[result.materialIndex].albedoTex_handle);
+            vec3 albedo = texture(albedo_tex, hit.uv).rgb;
+            sampler2D normal_tex = sampler2D(materialHandles[result.materialIndex].normalTex_handle);
+            vec3 tex_normal_vec = normalize(texture(normal_tex, hit.uv).rgb * 2.0 - 1.0);
             vec3 tangent = hit.tangent;
             vec3 bitangent = hit.bitangent;
             vec3 worldNormal;
             if (length(tangent) < 0.001 || length(bitangent) < 0.001) {
-                // нет тангентов – используем геометрическую нормаль без normal mapping
-                worldNormal = geometricNormal;
+                worldNormal = normalize(M * hit.normal);
             } else {
                 mat3 TBN = mat3(tangent, bitangent, hit.normal);
-                worldNormal = normalize(M * TBN * textureNormal);
+                worldNormal = normalize(M * TBN * tex_normal_vec);
             }
+            vec3 geometricNormal = normalize(M * hit.geometricNormal);
 
-            sample_ray_pos = hit.position + geometricNormal * EPSILON * 100;
+            ray_pos = hit.position + geometricNormal * EPSILON * 100;
             vec3 R = RandomHemisphereUnitVector(rngState, worldNormal);
-            if (dot(R, geometricNormal) <= 0.0f) {
+            if (dot(R, geometricNormal) <= 0.0) {
                 R = reflect(R, geometricNormal);
             }
-            sample_ray_dir = R;
-
+            ray_dir = R;
 
             energy *= albedo;
         }
         final_color += color;
     }
     final_color /= samples;
-    if (frame != 0) {
-        vec3 prev_frame_color = imageLoad(imgOutput, texelCoord).rgb;
-        float alpha = 1.0f / frame;
-        final_color = prev_frame_color * (1.0 - alpha) + final_color * alpha;
-    }
-
-    imageStore(imgOutput, texelCoord, vec4(1, 1, 0, 1));
+    imageStore(imgOutput, coord, vec4(final_color, 1));
 }
-*/

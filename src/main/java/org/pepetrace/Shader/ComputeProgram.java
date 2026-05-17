@@ -9,9 +9,6 @@ import java.io.FileNotFoundException;
  */
 public class ComputeProgram extends Program {
 
-    // TODO: Использовать вместо типа String для filepath что-то иное?
-    //  Вдруг при разных типах упаковки (.jar, .class, ...) пути поломаются?
-
     /**
      * Создает программу-компьютерный шейдер (compute shader) из файла.
      *
@@ -26,8 +23,6 @@ public class ComputeProgram extends Program {
             false
         );
 
-        //System.out.println(shader_source);
-
         int compute = glCreateShader(GL_COMPUTE_SHADER);
         glShaderSource(compute, shader_source);
         glCompileShader(compute);
@@ -37,6 +32,7 @@ public class ComputeProgram extends Program {
         glAttachShader(id, compute);
         glLinkProgram(id);
         checkLinkStatus(id);
+        glDeleteShader(compute);
     }
 
     /**
@@ -51,50 +47,5 @@ public class ComputeProgram extends Program {
         glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, workGroupCount);
         glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, workGroupCount);
         return workGroupCount;
-    }
-
-    /**
-     * Устанавливает целочисленное значение для uniform-переменной.
-     * <p>
-     * !!! НЕ РАБОТАЕТ В Compute ШЕЙДЕРАХ! !!!
-     * <p>
-     * * Исходит из документации OpenGL. Используй буфферы SSBO и UBO.
-     *
-     * @param name  Имя uniform-переменной.
-     * @param value Значение для установки.
-     */
-    @Override
-    public void setInt(final String name, int value) {
-        System.err.println("ComputeProgram не поддерживает uniform-ы");
-    }
-
-    /**
-     * Устанавливает булевое значение для uniform-переменной.
-     * <p>
-     * !!! НЕ РАБОТАЕТ В Compute ШЕЙДЕРАХ! !!!
-     * <p>
-     * * Исходит из документации OpenGL. Используй буфферы SSBO и UBO.
-     *
-     * @param name  Имя uniform-переменной.
-     * @param value Значение для установки.
-     */
-    @Override
-    public void setBool(final String name, boolean value) {
-        System.err.println("ComputeProgram не поддерживает uniform-ы");
-    }
-
-    /**
-     * Устанавливает значение типа float для uniform-переменной.
-     * <p>
-     * !!! НЕ РАБОТАЕТ В Compute ШЕЙДЕРАХ! !!!
-     * <p>
-     * * Исходит из документации OpenGL. Используй буфферы SSBO и UBO.
-     *
-     * @param name  Имя uniform-переменной.
-     * @param value Значение для установки.
-     */
-    @Override
-    public void setFloat(final String name, float value) {
-        System.err.println("ComputeProgram не поддерживает uniform-ы");
     }
 }

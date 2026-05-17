@@ -68,6 +68,12 @@ public class Main {
         programState.setArbitraryData("Scene", scene);
         programState.setArbitraryData("skyboxTexture", skyboxTexture.id);
         programState.setArbitraryData("Main", this);
+        programState.setArbitraryData("geometryBuffer", geometryBuffer);
+        programState.setArbitraryData("indexBuffer", indexBuffer);
+        programState.setArbitraryData("materialIndicesBuffer", materialIndicesBuffer);
+        programState.setArbitraryData("materialHandlesBuffer", materialHandlesBuffer);
+        programState.setArbitraryData("modelMatricesBuffer", modelMatricesBuffer);
+        programState.setArbitraryData("triangleModelIndicesBuffer", triangleModelIndicesBuffer);
         mainWindow.setCursorMode(Window.CURSOR_DISABLED);
 
         renderWindow = new Window(

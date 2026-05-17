@@ -3,16 +3,20 @@ package org.pepetrace.Drawers;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL15C.GL_READ_WRITE;
+import static org.lwjgl.opengl.GL30.glBindBufferBase;
 import static org.lwjgl.opengl.GL30.glBindVertexArray;
+import static org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER;
 import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 import static org.lwjgl.opengl.GL30C.GL_RGBA32F;
 import static org.lwjgl.opengl.GL42C.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT;
 import static org.lwjgl.opengl.GL42C.GL_TEXTURE_FETCH_BARRIER_BIT;
-import static org.lwjgl.opengl.GL42C.glMemoryBarrier;
-import static org.lwjgl.opengl.GL43C.glDispatchCompute;
 import static org.lwjgl.opengl.GL42C.glBindImageTexture;
+import static org.lwjgl.opengl.GL42C.glMemoryBarrier;
+import static org.lwjgl.opengl.GL43C.GL_SHADER_STORAGE_BARRIER_BIT;
+import static org.lwjgl.opengl.GL43C.glDispatchCompute;
 
 import java.io.FileNotFoundException;
+import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
@@ -44,6 +48,17 @@ public class RTDrawer extends AbstractDrawer {
         super(window);
     }
 
+    @Override
+    public void onResize(int newWidth, int newHeight, boolean isFromGlfw) {
+        if (!isFromGlfw) {
+            super.onResize(newWidth, newHeight, isFromGlfw);
+            if (pathTracingTexture != null) {
+                pathTracingTexture.close();
+                initRender(newWidth, newHeight, max_samples, max_bounces);
+            }
+        }
+    }
+
     public void initRender(int width, int height, int samples, int bounces) {
         max_samples = Math.max(samples, 1);
         max_bounces = Math.max(bounces, 2);
@@ -64,11 +79,44 @@ public class RTDrawer extends AbstractDrawer {
         if (pathTracingTexture == null) {
             return;
         }
-        //settingsUbo.updateBuffer(frameId, max_samples, max_bounces, programState.getScene().getTriangleCount());
-        //glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT);
+        settingsUbo.updateBuffer(
+            frameId,
+            max_samples,
+            max_bounces,
+            programState.getScene().getTriangleCount()
+        );
+        cameraUbo.updateBuffer(
+            programState.getCamera().getPosition(),
+            programState.getCamera().getYawPitch()
+        );
+        glMemoryBarrier(
+            GL_SHADER_STORAGE_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT
+        );
 
-        glBindImageTexture(16, pathTracingTexture.id, 0, false, 0, GL_READ_WRITE, GL_RGBA32F);
+        glBindImageTexture(
+            16,
+            pathTracingTexture.id,
+            0,
+            false,
+            0,
+            GL_READ_WRITE,
+            GL_RGBA32F
+        );
         pathTracingProgram.use();
+        SSBO[] ssbos = {
+            (SSBO) programState.getArbitraryData("geometryBuffer"),
+            (SSBO) programState.getArbitraryData("indexBuffer"),
+            (SSBO) programState.getArbitraryData("materialIndicesBuffer"),
+            (SSBO) programState.getArbitraryData("materialHandlesBuffer"),
+            (SSBO) programState.getArbitraryData("modelMatricesBuffer"),
+            (SSBO) programState.getArbitraryData("triangleModelIndicesBuffer"),
+        };
+        for (SSBO ssbo : ssbos) {
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, ssbo.getBinding(), ssbo.getId());
+        }
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, (int) programState.getArbitraryData("skyboxTexture"));
+        pathTracingProgram.setInt("skybox", 4);
         int groupsX = (pathTracingTexture.getWidth() + 15) / 16;
         int groupsY = (pathTracingTexture.getHeight() + 15) / 16;
         glDispatchCompute(groupsX, groupsY, 1);
@@ -79,6 +127,7 @@ public class RTDrawer extends AbstractDrawer {
 
         windowRenderer.use();
         glViewport(0, 0, currentWidth, currentHeight);
+        glDisable(GL_DEPTH_TEST);
 
         glActiveTexture(GL_TEXTURE2);
         glBindTexture(GL_TEXTURE_2D, pathTracingTexture.id);

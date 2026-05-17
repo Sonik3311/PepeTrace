@@ -41,70 +41,11 @@ public class Window implements AutoCloseable {
     }
 
     public Window() {
-        initGLFW();
-        glfwDefaultWindowHints();
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-        glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
-
-        this.width = 1600;
-        this.height = 900;
-        this.id = glfwCreateWindow(width, height, "PepeTrace", NULL, NULL);
-        if (this.id == NULL) throw new RuntimeException("Failed to create window");
-
-        // Коллбек на изменение размера фреймбуфера
-        glfwSetFramebufferSizeCallback(id, (window, w, h) -> {
-            this.width = w;
-            this.height = h;
-            if (resizeListener != null) {
-                resizeListener.onResize(w, h, true);
-            }
-        });
-
-        glfwSetScrollCallback(id, (window, xoffset, yoffset) -> {
-            scrollY += yoffset;
-        });
-
-        // Коррекция DPI
-        float[] xscale = {100};
-        float[] yscale = {100};
-        glfwGetWindowContentScale(id, xscale, yscale);
-        glfwSetWindowSize(id,
-                (int) (width / xscale[0]),
-                (int) (height / yscale[0]));
+        this(1600, 900, true, "PepeTrace", NULL);
     }
 
     public Window(int width, int height, boolean resizable, String title) {
-        initGLFW();
-        glfwDefaultWindowHints();
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-        glfwWindowHint(GLFW_RESIZABLE, resizable ? GLFW_TRUE : GLFW_FALSE);
-        glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
-
-        this.width = width;
-        this.height = height;
-        this.id = glfwCreateWindow(width, height, title, NULL, NULL);
-        if (this.id == NULL) throw new RuntimeException("Failed to create window");
-
-        glfwSetFramebufferSizeCallback(id, (window, w, h) -> {
-            this.width = w;
-            this.height = h;
-            if (resizeListener != null) {
-                resizeListener.onResize(w, h, true);
-            }
-        });
-
-        // Коррекция DPI
-        float[] xscale = {0};
-        float[] yscale = {0};
-        glfwGetWindowContentScale(id, xscale, yscale);
-        glfwSetWindowSize(id,
-                (int) (width / xscale[0]),
-                (int) (height / yscale[0]));
+        this(width, height, resizable, title, NULL);
     }
 
     public void show() {
@@ -121,7 +62,7 @@ public class Window implements AutoCloseable {
         return isShown;
     }
 
-    public Window(int width, int height, boolean resizable, String title, Window parentWindow) {
+    public Window(int width, int height, boolean resizable, String title, long shareContext) {
         initGLFW();
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -132,7 +73,7 @@ public class Window implements AutoCloseable {
 
         this.width = width;
         this.height = height;
-        this.id = glfwCreateWindow(width, height, title, NULL, parentWindow.getId());
+        this.id = glfwCreateWindow(width, height, title, NULL, shareContext);
         if (this.id == NULL) throw new RuntimeException("Failed to create window");
 
         glfwSetFramebufferSizeCallback(id, (window, w, h) -> {
@@ -143,13 +84,16 @@ public class Window implements AutoCloseable {
             }
         });
 
-        // Коррекция DPI
         float[] xscale = {0};
         float[] yscale = {0};
         glfwGetWindowContentScale(id, xscale, yscale);
         glfwSetWindowSize(id,
                 (int) (width / xscale[0]),
                 (int) (height / yscale[0]));
+    }
+
+    public Window(int width, int height, boolean resizable, String title, Window parentWindow) {
+        this(width, height, resizable, title, parentWindow.getId());
     }
 
     private void initGLFW() {

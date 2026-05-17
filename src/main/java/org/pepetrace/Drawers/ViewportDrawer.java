@@ -1,8 +1,6 @@
 package org.pepetrace.Drawers;
 
-import static org.lwjgl.opengl.GL11.GL_LINEAR;
-import static org.lwjgl.opengl.GL11.GL_NEAREST;
-import static org.lwjgl.opengl.GL11.GL_TEXTURE_2D;
+import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.GL_READ_WRITE;
 import static org.lwjgl.opengl.GL30.*;
 import static org.lwjgl.opengl.GL30.glGenVertexArrays;
@@ -168,10 +166,7 @@ public class ViewportDrawer extends AbstractDrawer {
             GL_TEXTURE_2D,
             (int) programState.getArbitraryData("skyboxTexture")
         );
-        glUniform1i(
-            glGetUniformLocation(pathTracingProgram.id, "blurrySkybox"),
-            1
-        );
+        pathTracingProgram.setInt("blurrySkybox", 1);
         int groupsX = (currentWidth + 15) / 16;
         int groupsY = (currentHeight + 15) / 16;
         glDispatchCompute(groupsX, groupsY, 1);
@@ -182,6 +177,7 @@ public class ViewportDrawer extends AbstractDrawer {
 
         glViewport(0, 0, currentWidth, currentHeight);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glDisable(GL_DEPTH_TEST);
         outlineProgram.use();
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -210,6 +206,7 @@ public class ViewportDrawer extends AbstractDrawer {
         glBindVertexArray(0);
 
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glEnable(GL_DEPTH_TEST);
 
         // --- ImGui (без изменений) ---
         imGuiGl3.newFrame();
