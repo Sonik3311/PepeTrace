@@ -17,6 +17,7 @@ public class Window implements AutoCloseable {
     private double scrollY = 0.0;
     private ResizeListener resizeListener;
     private boolean isShown = false;
+    private boolean glCreated = false;
 
     public static final int CURSOR_NORMAL = GLFW_CURSOR_NORMAL;
     public static final int CURSOR_DISABLED = GLFW_CURSOR_DISABLED;
@@ -163,12 +164,11 @@ public class Window implements AutoCloseable {
 
     public void setActive() {
         glfwMakeContextCurrent(this.id);
-        GL.createCapabilities();
+        if (!glCreated) {
+            GL.createCapabilities();
+            glCreated = true;
+        }
         glfwSwapInterval(1);
-        //if (!isShown) {
-        //    glfwShowWindow(this.id);
-        //    isShown = true;
-        //}
     }
 
     public void resetMouse() {

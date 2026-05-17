@@ -1,11 +1,5 @@
 package org.pepetrace.Buffers;
 
-import org.joml.Vector3f;
-import org.lwjgl.BufferUtils;
-
-import java.nio.FloatBuffer;
-import java.util.Arrays;
-
 import static org.lwjgl.opengl.GL15.glBufferData;
 import static org.lwjgl.opengl.GL46.*;
 
@@ -37,7 +31,7 @@ public class SSBO extends Buffer {
      */
     public void clear() {
         bind();
-        glBufferData(bufferType, 0L, usage);   // устанавливаем размер 0
+        glBufferData(bufferType, 0L, usage); // устанавливаем размер 0
         unbind();
         sizeBytes = 0;
         length = 0;
@@ -74,7 +68,7 @@ public class SSBO extends Buffer {
                 glBufferData(GL_SHADER_STORAGE_BUFFER, longData, usage);
             }
             case null, default -> throw new IllegalArgumentException(
-                    "Unsupported type"
+                "Unsupported type"
             );
         }
 

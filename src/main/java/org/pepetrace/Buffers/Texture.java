@@ -66,6 +66,8 @@ public class Texture implements AutoCloseable {
         int levels = generateMipmaps ? 1 + (int) Math.floor(Math.log(Math.max(width, height)) / Math.log(2)) : 1;
         //System.out.println(levels);
         glTexStorage2D(GL_TEXTURE_2D, levels, format, width, height);
+        int err = glGetError();
+        if (err != GL_NO_ERROR) System.out.println("GL ERROR " + err + " binding " + binding);
 
         glBindTexture(GL_TEXTURE_2D, 0);
         // Привязываем как image для работы в compute-шейдере (чтение/запись)

@@ -2,13 +2,10 @@ package org.pepetrace.GUI;
 
 import imgui.ImGui;
 import imgui.flag.*;
+import java.util.List;
 import org.pepetrace.Main;
 import org.pepetrace.Scene.ModelMetadata;
 import org.pepetrace.Scene.Scene;
-
-import java.util.List;
-
-import static org.pepetrace.GUI.GuiWindow.programState;
 
 public class OutlinerWindow implements GuiWindow {
 
@@ -30,9 +27,18 @@ public class OutlinerWindow implements GuiWindow {
         ImGui.pushStyleColor(ImGuiCol.TableRowBgAlt, 0.12f, 0.12f, 0.14f, 1.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0.0f, 0.0f);
 
-        if (ImGui.beginTable("##SelectableTable", 2,
-                ImGuiTableFlags.RowBg | ImGuiTableFlags.ScrollY | ImGuiTableFlags.NoBordersInBody | ImGuiTableFlags.NoSavedSettings,
-                availWidth, availHeight)) {
+        if (
+            ImGui.beginTable(
+                "##SelectableTable",
+                2,
+                ImGuiTableFlags.RowBg |
+                    ImGuiTableFlags.ScrollY |
+                    ImGuiTableFlags.NoBordersInBody |
+                    ImGuiTableFlags.NoSavedSettings,
+                availWidth,
+                availHeight
+            )
+        ) {
             ImGui.tableSetupColumn("Name", ImGuiTableColumnFlags.None);
             ImGui.tableSetupColumn("", ImGuiTableColumnFlags.WidthFixed, 30.0f);
 
@@ -41,11 +47,22 @@ public class OutlinerWindow implements GuiWindow {
                 ImGui.tableSetColumnIndex(0);
 
                 ModelMetadata model = models.get(i);
-                boolean isSelected = programState.getSelectedModelIndices().contains(i);
+                boolean isSelected = programState
+                    .getSelectedModelIndices()
+                    .contains(i);
 
                 ImGui.pushID(i);
-                if (ImGui.selectable(model.getName(), isSelected, ImGuiSelectableFlags.AllowDoubleClick)) {
-                    if (ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift)) {
+                if (
+                    ImGui.selectable(
+                        model.getName(),
+                        isSelected,
+                        ImGuiSelectableFlags.AllowDoubleClick
+                    )
+                ) {
+                    if (
+                        ImGui.isKeyDown(ImGuiKey.LeftShift) ||
+                        ImGui.isKeyDown(ImGuiKey.RightShift)
+                    ) {
                         programState.toggleModelSelection(i);
                     } else {
                         programState.setSelectedModels(i);
@@ -56,7 +73,9 @@ public class OutlinerWindow implements GuiWindow {
                 if (ImGui.button("x", 25, 0)) {
                     scene.removeModel(i);
                     programState.removeSelectedModel(i);
-                    Main mainProgram = (Main) programState.getArbitraryData("Main");
+                    Main mainProgram = (Main) programState.getArbitraryData(
+                        "Main"
+                    );
                     mainProgram.refreshSceneBuffers(true, true);
                     if (scene.getModels().isEmpty()) {
                         mainProgram.forceClearRender();

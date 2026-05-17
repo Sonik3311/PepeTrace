@@ -4,9 +4,7 @@ import static org.lwjgl.opengl.GL42.*;
 import static org.lwjgl.opengl.GL43C.GL_SHADER_STORAGE_BARRIER_BIT;
 
 import java.util.*;
-
 import org.joml.Matrix4f;
-import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.pepetrace.Buffers.SSBO;
@@ -19,6 +17,7 @@ import org.pepetrace.Scene.Material.TextureMaterial;
 import org.pepetrace.Scene.OptimizationStructure.AABB;
 
 public class Scene implements AutoCloseable {
+
     private final ArrayList<Float> vertices = new ArrayList<>();
     private final ArrayList<Float> normals = new ArrayList<>();
     private final ArrayList<Float> uvs = new ArrayList<>();
@@ -26,20 +25,23 @@ public class Scene implements AutoCloseable {
     private final ArrayList<Float> bitangents = new ArrayList<>();
     private final ArrayList<Integer> indices = new ArrayList<>();
     private final ArrayList<TextureMaterial> materials = new ArrayList<>();
-    private final ArrayList<Integer> materialIndicesPerTriangle = new ArrayList<>();
-    private final Map<TextureMaterial, Integer> materialRefCount = new HashMap<>();
+    private final ArrayList<Integer> materialIndicesPerTriangle =
+        new ArrayList<>();
+    private final Map<TextureMaterial, Integer> materialRefCount =
+        new HashMap<>();
     private int triangleCount = 0;
     private int modelCount = 0;
     private final MeshLoader loader = new AssimpLoader();
     private final ArrayList<ModelMetadata> models = new ArrayList<>();
-    private final ArrayList<Integer> modelTriangleStartIndices = new ArrayList<>();
-    private AABB tlasAABB;   // общий bounding box всей сцены
+    private final ArrayList<Integer> modelTriangleStartIndices =
+        new ArrayList<>();
+    private AABB tlasAABB; // общий bounding box всей сцены
 
     public Scene() {
         TextureMaterial defaultMat = TextureMaterial.create(
-                "./src/main/resources/Textures/defaulta.png",
-                "./src/main/resources/Textures/defaultn.png",
-                "./src/main/resources/sunny_rose_garden_2k.hdr"
+            "./src/main/resources/Textures/defaulta.png",
+            "./src/main/resources/Textures/defaultn.png",
+            "./src/main/resources/sunny_rose_garden_2k.hdr"
         );
         materials.add(defaultMat);
         materialRefCount.put(defaultMat, 1); // одна модель (дефолтный материал используется в сцене)
@@ -60,7 +62,9 @@ public class Scene implements AutoCloseable {
         tlasAABB = new AABB(globalMin, globalMax);
     }
 
-    public AABB getTLAS() { return tlasAABB; }
+    public AABB getTLAS() {
+        return tlasAABB;
+    }
 
     @Override
     public void close() throws Exception {
@@ -73,9 +77,9 @@ public class Scene implements AutoCloseable {
         if (materials.isEmpty()) {
             // Добавляем дефолтный материал, если список пуст
             TextureMaterial defaultMat = TextureMaterial.create(
-                    "./src/main/resources/Textures/defaulta.png",
-                    "./src/main/resources/Textures/defaultn.png",
-                    "./src/main/resources/sunny_rose_garden_2k.hdr"
+                "./src/main/resources/Textures/defaulta.png",
+                "./src/main/resources/Textures/defaultn.png",
+                "./src/main/resources/sunny_rose_garden_2k.hdr"
             );
             materials.add(defaultMat);
             materialRefCount.put(defaultMat, 0);
@@ -115,7 +119,13 @@ public class Scene implements AutoCloseable {
 
         int startTriangle = triangleCount;
         // Создаём метаданные модели с вычисленным AABB
-        ModelMetadata meta = new ModelMetadata(modelName, startTriangle, newTriangles, localMin, localMax);
+        ModelMetadata meta = new ModelMetadata(
+            modelName,
+            startTriangle,
+            newTriangles,
+            localMin,
+            localMax
+        );
         models.add(meta);
         modelTriangleStartIndices.add(startTriangle);
 
@@ -128,8 +138,12 @@ public class Scene implements AutoCloseable {
         // Пересчитываем TLAS (общий bounding box сцены)
         updateTLAS();
     }
+
     public ModelMetadata getModelByTriangleIndex(int triangleIdx) {
-        int pos = Collections.binarySearch(modelTriangleStartIndices, triangleIdx);
+        int pos = Collections.binarySearch(
+            modelTriangleStartIndices,
+            triangleIdx
+        );
         if (pos < 0) {
             pos = -pos - 2;
         }
@@ -162,12 +176,24 @@ public class Scene implements AutoCloseable {
         Vector3f min = new Vector3f(Float.POSITIVE_INFINITY);
         Vector3f max = new Vector3f(Float.NEGATIVE_INFINITY);
         for (int i = startTri; i < startTri + triCount; i++) {
-            int i0 = indices.get(i*3);
-            int i1 = indices.get(i*3+1);
-            int i2 = indices.get(i*3+2);
-            Vector3f v0 = new Vector3f(vertices.get(i0*3), vertices.get(i0*3+1), vertices.get(i0*3+2));
-            Vector3f v1 = new Vector3f(vertices.get(i1*3), vertices.get(i1*3+1), vertices.get(i1*3+2));
-            Vector3f v2 = new Vector3f(vertices.get(i2*3), vertices.get(i2*3+1), vertices.get(i2*3+2));
+            int i0 = indices.get(i * 3);
+            int i1 = indices.get(i * 3 + 1);
+            int i2 = indices.get(i * 3 + 2);
+            Vector3f v0 = new Vector3f(
+                vertices.get(i0 * 3),
+                vertices.get(i0 * 3 + 1),
+                vertices.get(i0 * 3 + 2)
+            );
+            Vector3f v1 = new Vector3f(
+                vertices.get(i1 * 3),
+                vertices.get(i1 * 3 + 1),
+                vertices.get(i1 * 3 + 2)
+            );
+            Vector3f v2 = new Vector3f(
+                vertices.get(i2 * 3),
+                vertices.get(i2 * 3 + 1),
+                vertices.get(i2 * 3 + 2)
+            );
             min.min(v0).min(v1).min(v2);
             max.max(v0).max(v1).max(v2);
         }
@@ -248,6 +274,7 @@ public class Scene implements AutoCloseable {
             }
         }
     }
+
     public void removeModel(int index) {
         if (index < 0 || index >= models.size()) return;
 
@@ -323,7 +350,11 @@ public class Scene implements AutoCloseable {
         // 8. Уменьшаем счётчики материалов и удаляем неиспользуемые
         for (int matIdx : materialsToRelease) {
             TextureMaterial mat = materials.get(matIdx);
-            int newCount = materialRefCount.merge(mat, -1, (old, delta) -> old + delta);
+            int newCount = materialRefCount.merge(
+                mat,
+                -1,
+                (old, delta) -> old + delta
+            );
             if (newCount == 0) {
                 try {
                     mat.close();
@@ -338,7 +369,14 @@ public class Scene implements AutoCloseable {
         }
     }
 
-    private boolean rayTriangleIntersect(Vector3fc ro, Vector3fc rd, Vector3f v0, Vector3f v1, Vector3f v2, float[] outDist) {
+    private boolean rayTriangleIntersect(
+        Vector3fc ro,
+        Vector3fc rd,
+        Vector3f v0,
+        Vector3f v1,
+        Vector3f v2,
+        float[] outDist
+    ) {
         Vector3f v0v1 = new Vector3f(v1);
         v0v1.sub(v0);
         Vector3f v0v2 = new Vector3f(v2);
@@ -362,13 +400,25 @@ public class Scene implements AutoCloseable {
         return true;
     }
 
-    private Vector3f getRayDirection(float screenX, float screenY, Camera camera, int viewportWidth, int viewportHeight) {
+    private Vector3f getRayDirection(
+        float screenX,
+        float screenY,
+        Camera camera,
+        int viewportWidth,
+        int viewportHeight
+    ) {
         float ndcX = (2.0f * screenX) / viewportWidth - 1.0f;
         float ndcY = 1.0f - (2.0f * screenY) / viewportHeight;
         return new Vector3f(ndcX, ndcY, 1.0f).normalize();
     }
 
-    public int pickModel(float screenX, float screenY, Camera camera, int viewportWidth, int viewportHeight) {
+    public int pickModel(
+        float screenX,
+        float screenY,
+        Camera camera,
+        int viewportWidth,
+        int viewportHeight
+    ) {
         // Тут произошла великая битва меня и ебанного JOML
         // Короче, когда делаешь .cross .dot и другие и сохраняешь результат в переменную, то этот результат также сохранится туда, откуда делал данный запрос
         // Даже если из new Vector3f().cross, да-да.
@@ -384,11 +434,10 @@ public class Scene implements AutoCloseable {
         float yawRad = (float) Math.toRadians(camera.getYawPitch().x);
         float pitchRad = (float) Math.toRadians(camera.getYawPitch().y);
         Vector3f forward = new Vector3f(
-                (float)(Math.cos(pitchRad) * Math.sin(yawRad)),
-                (float) Math.sin(pitchRad),
-                (float)(Math.cos(pitchRad) * Math.cos(yawRad))
+            (float) (Math.cos(pitchRad) * Math.sin(yawRad)),
+            (float) Math.sin(pitchRad),
+            (float) (Math.cos(pitchRad) * Math.cos(yawRad))
         ).normalize();
-
 
         Vector3f right = new Vector3f(forward);
         right.cross(new Vector3f(0, 1, 0));
@@ -399,9 +448,8 @@ public class Scene implements AutoCloseable {
 
         // 3. Направление луча в мировом пространстве
         Vector3f rayDir = new Vector3f(forward);
-                rayDir.add(right.mul(u))
-                .add(up.mul(v));
-                rayDir.normalize(); // на всякий случай
+        rayDir.add(right.mul(u)).add(up.mul(v));
+        rayDir.normalize(); // на всякий случай
         Vector3f rayOrigin = camera.getPosition();
 
         float minDist = Float.POSITIVE_INFINITY;
@@ -423,13 +471,34 @@ public class Scene implements AutoCloseable {
             int startTri = model.getStartTriangleIndex();
             int endTri = startTri + model.getTriangleCount();
             for (int i = startTri; i < endTri; i++) {
-                int i0 = indices.get(i*3);
-                int i1 = indices.get(i*3+1);
-                int i2 = indices.get(i*3+2);
-                Vector3f v0 = new Vector3f(vertices.get(i0*3), vertices.get(i0*3+1), vertices.get(i0*3+2));
-                Vector3f v1 = new Vector3f(vertices.get(i1*3), vertices.get(i1*3+1), vertices.get(i1*3+2));
-                Vector3f v2 = new Vector3f(vertices.get(i2*3), vertices.get(i2*3+1), vertices.get(i2*3+2));
-                if (rayTriangleIntersect(localOrigin, localDir, v0, v1, v2, distOut)) {
+                int i0 = indices.get(i * 3);
+                int i1 = indices.get(i * 3 + 1);
+                int i2 = indices.get(i * 3 + 2);
+                Vector3f v0 = new Vector3f(
+                    vertices.get(i0 * 3),
+                    vertices.get(i0 * 3 + 1),
+                    vertices.get(i0 * 3 + 2)
+                );
+                Vector3f v1 = new Vector3f(
+                    vertices.get(i1 * 3),
+                    vertices.get(i1 * 3 + 1),
+                    vertices.get(i1 * 3 + 2)
+                );
+                Vector3f v2 = new Vector3f(
+                    vertices.get(i2 * 3),
+                    vertices.get(i2 * 3 + 1),
+                    vertices.get(i2 * 3 + 2)
+                );
+                if (
+                    rayTriangleIntersect(
+                        localOrigin,
+                        localDir,
+                        v0,
+                        v1,
+                        v2,
+                        distOut
+                    )
+                ) {
                     // Расстояние в локальном пространстве – прямое, так как масштаб искажает, но для сравнения подойдёт
                     if (distOut[0] < minDist && distOut[0] > 0) {
                         minDist = distOut[0];
@@ -440,8 +509,15 @@ public class Scene implements AutoCloseable {
         }
         return hitModelIdx;
     }
-    public void addMaterial(String albedoTexPath, String normalTexPath, String RMTTexPath) {
-        materials.add(TextureMaterial.create(albedoTexPath, normalTexPath, RMTTexPath));
+
+    public void addMaterial(
+        String albedoTexPath,
+        String normalTexPath,
+        String RMTTexPath
+    ) {
+        materials.add(
+            TextureMaterial.create(albedoTexPath, normalTexPath, RMTTexPath)
+        );
     }
 
     public void addMaterial(TextureMaterial mat) {
@@ -473,8 +549,13 @@ public class Scene implements AutoCloseable {
         return -1;
     }
 
-    public void packScene(SSBO geometryBuffer, SSBO indexBuffer, SSBO materialIndicesBuffer,
-                          SSBO materialHandlesBuffer, SSBO triangleModelIndicesBuffer) {
+    public void packScene(
+        SSBO geometryBuffer,
+        SSBO indexBuffer,
+        SSBO materialIndicesBuffer,
+        SSBO materialHandlesBuffer,
+        SSBO triangleModelIndicesBuffer
+    ) {
         if (models.isEmpty()) {
             geometryBuffer.clear();
             indexBuffer.clear();
@@ -493,23 +574,23 @@ public class Scene implements AutoCloseable {
             geometryData[base + 0] = vertices.get(i * 3);
             geometryData[base + 1] = vertices.get(i * 3 + 1);
             geometryData[base + 2] = vertices.get(i * 3 + 2);
-            geometryData[base + 3] = 1.0f;                           // pad
+            geometryData[base + 3] = 1.0f; // pad
             geometryData[base + 4] = normals.get(i * 3);
             geometryData[base + 5] = normals.get(i * 3 + 1);
             geometryData[base + 6] = normals.get(i * 3 + 2);
-            geometryData[base + 7] = 0.0f;                           // pad
+            geometryData[base + 7] = 0.0f; // pad
             geometryData[base + 8] = uvs.get(i * 2);
             geometryData[base + 9] = uvs.get(i * 2 + 1);
-            geometryData[base +10] = 0.0f;                           // pad
-            geometryData[base +11] = 0.0f;                           // pad
-            geometryData[base +12] = tangents.get(i * 3);
-            geometryData[base +13] = tangents.get(i * 3 + 1);
-            geometryData[base +14] = tangents.get(i * 3 + 2);
-            geometryData[base +15] = 0.0f;                           // pad
-            geometryData[base +16] = bitangents.get(i * 3);
-            geometryData[base +17] = bitangents.get(i * 3 + 1);
-            geometryData[base +18] = bitangents.get(i * 3 + 2);
-            geometryData[base +19] = 0.0f;                           // pad
+            geometryData[base + 10] = 0.0f; // pad
+            geometryData[base + 11] = 0.0f; // pad
+            geometryData[base + 12] = tangents.get(i * 3);
+            geometryData[base + 13] = tangents.get(i * 3 + 1);
+            geometryData[base + 14] = tangents.get(i * 3 + 2);
+            geometryData[base + 15] = 0.0f; // pad
+            geometryData[base + 16] = bitangents.get(i * 3);
+            geometryData[base + 17] = bitangents.get(i * 3 + 1);
+            geometryData[base + 18] = bitangents.get(i * 3 + 2);
+            geometryData[base + 19] = 0.0f; // pad
         }
         geometryBuffer.fillBuffer(geometryData);
 
@@ -520,7 +601,8 @@ public class Scene implements AutoCloseable {
 
         // --- Материалы для каждого треугольника ---
         int[] materialIndicesData = new int[triangleCount];
-        for (int i = 0; i < triangleCount; i++) materialIndicesData[i] = materialIndicesPerTriangle.get(i);
+        for (int i = 0; i < triangleCount; i++) materialIndicesData[i] =
+            materialIndicesPerTriangle.get(i);
         materialIndicesBuffer.fillBuffer(materialIndicesData);
 
         // --- Массив стартовых индексов моделей (длина = modelCount + 1) ---
@@ -528,13 +610,15 @@ public class Scene implements AutoCloseable {
         for (int i = 0; i < models.size(); i++) {
             startIndices[i] = models.get(i).getStartTriangleIndex();
         }
-        startIndices[models.size()] = triangleCount;   // последний элемент = общее количество треугольников
+        startIndices[models.size()] = triangleCount; // последний элемент = общее количество треугольников
         triangleModelIndicesBuffer.fillBuffer(startIndices);
 
         // --- Bindless handles материалов ---
         packMaterials(materialHandlesBuffer);
 
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT);
+        glMemoryBarrier(
+            GL_SHADER_STORAGE_BARRIER_BIT | GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT
+        );
     }
 
     public void updateModelMatricesOnGPU(SSBO modelMatricesBuffer) {

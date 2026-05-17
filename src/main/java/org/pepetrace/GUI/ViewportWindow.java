@@ -5,19 +5,15 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
+import java.io.FileNotFoundException;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Camera;
 import org.pepetrace.Drawers.ViewportDrawer;
 import org.pepetrace.GlobalState;
 import org.pepetrace.Scene.Scene;
 
-import java.io.FileNotFoundException;
-import java.lang.annotation.Inherited;
-
 public class ViewportWindow {
 
-
-    private int fbo;
     private final GlobalState programState = GlobalState.getInstance();
 
     public ViewportWindow() throws FileNotFoundException {
@@ -26,6 +22,7 @@ public class ViewportWindow {
     }
 
     private static class AxisLine {
+
         float endX, endY;
         int color;
         float thickness;
@@ -33,12 +30,21 @@ public class ViewportWindow {
     }
 
     private void drawRotatedAxisWidget(
-            float yawRad, float pitchRad,
-            float widgetSizePx, float posLen, float negLen, float thickness
+        float yawRad,
+        float pitchRad,
+        float widgetSizePx,
+        float posLen,
+        float negLen,
+        float thickness
     ) {
         ImVec2 imageMin = ImGui.getItemRectMin();
         ImVec2 imageMax = ImGui.getItemRectMax();
-        if (imageMin.x == 0 && imageMin.y == 0 && imageMax.x == 0 && imageMax.y == 0) return;
+        if (
+            imageMin.x == 0 &&
+            imageMin.y == 0 &&
+            imageMax.x == 0 &&
+            imageMax.y == 0
+        ) return;
 
         float originX = imageMax.x - widgetSizePx / 2;
         float originY = imageMin.y + widgetSizePx / 2 - 3;
@@ -51,7 +57,7 @@ public class ViewportWindow {
         // Camera-space direction vectors (X, Y, Z)
         float camXx = -cosYaw;
         float camXy = -sinYaw * sinPitch;
-        float camXz = sinYaw * cosPitch;   // Z component of X axis after rotation
+        float camXz = sinYaw * cosPitch; // Z component of X axis after rotation
 
         float camYx = 0;
         float camYy = cosPitch;
@@ -59,7 +65,7 @@ public class ViewportWindow {
 
         float camZx = sinYaw;
         float camZy = -cosYaw * sinPitch;
-        float camZz = cosYaw * cosPitch;    // Z component of Z axis
+        float camZz = cosYaw * cosPitch; // Z component of Z axis
 
         // Build list of lines (positive and negative)
         java.util.ArrayList<AxisLine> lines = new java.util.ArrayList<>();
@@ -103,14 +109,37 @@ public class ViewportWindow {
             // Use solid line for positive, dashed for negative based on alpha
             boolean isPositive = (line.color >>> 24) >= 0xFF; // alpha > 0x33
             if (isPositive) {
-                dl.addLine(originX, originY, line.endX, line.endY, line.color, line.thickness);
+                dl.addLine(
+                    originX,
+                    originY,
+                    line.endX,
+                    line.endY,
+                    line.color,
+                    line.thickness
+                );
             } else {
-                drawDashedLine(dl, originX, originY, line.endX, line.endY, line.color, line.thickness, 6f, 4f);
+                drawDashedLine(
+                    dl,
+                    originX,
+                    originY,
+                    line.endX,
+                    line.endY,
+                    line.color,
+                    line.thickness,
+                    6f,
+                    4f
+                );
             }
         }
     }
 
-    private AxisLine createLine(float endX, float endY, int color, float thickness, float depthZ) {
+    private AxisLine createLine(
+        float endX,
+        float endY,
+        int color,
+        float thickness,
+        float depthZ
+    ) {
         AxisLine l = new AxisLine();
         l.endX = endX;
         l.endY = endY;
@@ -120,10 +149,20 @@ public class ViewportWindow {
         return l;
     }
 
-    private void drawDashedLine(ImDrawList dl, float x1, float y1, float x2, float y2, int color, float thickness, float dashLen, float gapLen) {
+    private void drawDashedLine(
+        ImDrawList dl,
+        float x1,
+        float y1,
+        float x2,
+        float y2,
+        int color,
+        float thickness,
+        float dashLen,
+        float gapLen
+    ) {
         float dx = x2 - x1;
         float dy = y2 - y1;
-        float lineLen = (float) Math.sqrt(dx*dx + dy*dy);
+        float lineLen = (float) Math.sqrt(dx * dx + dy * dy);
         if (lineLen < 0.001f) return;
 
         float udx = dx / lineLen;
@@ -147,7 +186,7 @@ public class ViewportWindow {
     }
 
     private void drawText(float x, float y, String text, ImDrawList dl) {
-        int textColor = ImGui.getColorU32(1, 1, 1, 1);   // white
+        int textColor = ImGui.getColorU32(1, 1, 1, 1); // white
         int outlineColor = ImGui.getColorU32(0, 0, 0, 1); // black
         int thickness = 2;
         for (int dx = -thickness; dx <= thickness; dx++) {
@@ -168,25 +207,51 @@ public class ViewportWindow {
         float windowPosX = ImGui.getWindowPosX();
         float windowPosY = ImGui.getWindowPosY();
 
-        if (drawer.getCurrentWidth() != (int) renderViewportWidth || drawer.getCurrentHeight() != (int) renderViewportHeight) {
-            drawer.onResize((int) renderViewportWidth, (int) renderViewportHeight, false);
+        if (
+            drawer.getCurrentWidth() != (int) renderViewportWidth ||
+            drawer.getCurrentHeight() != (int) renderViewportHeight
+        ) {
+            drawer.onResize(
+                (int) renderViewportWidth,
+                (int) renderViewportHeight,
+                false
+            );
         }
 
-        ImGui.image(outputTexture.id, outputTexture.getWidth(), outputTexture.getHeight(), 0, 1, 1, 0);
-        boolean hovered = ImGui.isItemHovered();
+        ImGui.image(
+            outputTexture.id,
+            outputTexture.getWidth(),
+            outputTexture.getHeight(),
+            0,
+            1,
+            1,
+            0
+        );
 
         ImDrawList dl = ImGui.getWindowDrawList();
-        float x = 13 + windowPosX, y = 30 + windowPosY;
-        float xc = x + 0, yc = y + 20;
-        float xt = x + 0, yt = yc + 20;
-        float xf = x + 0, yf = yt + 20;
+        float x = 13 + windowPosX,
+            y = 30 + windowPosY;
+        float xc = x + 0,
+            yc = y + 20;
+        float xt = x + 0,
+            yt = yc + 20;
+        float xf = x + 0,
+            yf = yt + 20;
 
         double gpu = (double) programState.getArbitraryData("GPURenderTime");
         double cpu = (double) programState.getArbitraryData("CPURenderTime");
-        int triangleCount = ((Scene) programState.getArbitraryData("Scene")).getTriangleCount();
+        int triangleCount = (
+            (Scene) programState.getArbitraryData("Scene")
+        ).getTriangleCount();
         String gpuvalue = String.format("%.2f", Math.floor(gpu * 100) / 100);
         String cpuvalue = String.format("%.2f", Math.floor(cpu * 100) / 100);
-        String trivalue = triangleCount >= 1000 ? String.format("%.2f", Math.floor((float) triangleCount / 1000 * 100) / 100) + "k" : Integer.toString(triangleCount);
+        String trivalue =
+            triangleCount >= 1000
+                ? String.format(
+                      "%.2f",
+                      Math.floor(((float) triangleCount / 1000) * 100) / 100
+                  ) + "k"
+                : Integer.toString(triangleCount);
         String gputext = "GPU Render Time: " + gpuvalue + " ms";
         String cputext = "CPU Render Time: " + cpuvalue + " ms";
         String tritext = "Triangle Count: " + trivalue;
@@ -198,21 +263,37 @@ public class ViewportWindow {
         drawText(xf, yf, frametext, dl);
 
         Camera camera = programState.getCamera();
-        float yaw = (float) (camera.getYawPitch().x / 180 * Math.PI);
-        float pitch = (float) (camera.getYawPitch().y / 180 * Math.PI);
+        float yaw = (float) ((camera.getYawPitch().x / 180) * Math.PI);
+        float pitch = (float) ((camera.getYawPitch().y / 180) * Math.PI);
         drawRotatedAxisWidget(yaw, pitch, 80, 27, 30, 2);
 
         // ----- НОВАЯ ЛОГИКА ПИКИНГА (двойной клик + Shift) -----
-        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
+        if (
+            ImGui.isItemHovered() &&
+            ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)
+        ) {
             float mouseX = ImGui.getMousePosX() - ImGui.getItemRectMinX();
             float mouseY = ImGui.getMousePosY() - ImGui.getItemRectMinY();
-            if (mouseX >= 0 && mouseX <= renderViewportWidth && mouseY >= 0 && mouseY <= renderViewportHeight) {
+            if (
+                mouseX >= 0 &&
+                mouseX <= renderViewportWidth &&
+                mouseY >= 0 &&
+                mouseY <= renderViewportHeight
+            ) {
                 Scene scene = programState.getScene();
                 Camera cam = programState.getCamera();
-                int modelIdx = scene.pickModel(mouseX, mouseY, cam, (int)renderViewportWidth, (int)renderViewportHeight);
+                int modelIdx = scene.pickModel(
+                    mouseX,
+                    mouseY,
+                    cam,
+                    (int) renderViewportWidth,
+                    (int) renderViewportHeight
+                );
 
                 // Обработка Shift для множественного выбора
-                boolean shiftHeld = ImGui.isKeyDown(ImGuiKey.LeftShift) || ImGui.isKeyDown(ImGuiKey.RightShift);
+                boolean shiftHeld =
+                    ImGui.isKeyDown(ImGuiKey.LeftShift) ||
+                    ImGui.isKeyDown(ImGuiKey.RightShift);
                 if (shiftHeld) {
                     if (modelIdx != -1) {
                         programState.toggleModelSelection(modelIdx);
@@ -229,7 +310,12 @@ public class ViewportWindow {
 
         // Обработка перетаскивания для вращения камеры (Ctrl + ЛКМ)
         // Этот блок лучше перенести в Camera.updateCamera, но для начала оставим флаг.
-        if (ImGui.isItemHovered() && ImGui.isMouseDown(ImGuiMouseButton.Left) && !programState.getViewportDrawer().draggingMouse && !ImGui.getIO().getWantCaptureMouse()) {
+        if (
+            ImGui.isItemHovered() &&
+            ImGui.isMouseDown(ImGuiMouseButton.Left) &&
+            !programState.getViewportDrawer().draggingMouse &&
+            !ImGui.getIO().getWantCaptureMouse()
+        ) {
             programState.getViewportDrawer().draggingMouse = true;
         }
 

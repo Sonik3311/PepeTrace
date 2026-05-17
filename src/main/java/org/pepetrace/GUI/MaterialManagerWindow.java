@@ -4,14 +4,13 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImDrawFlags;
 import imgui.flag.ImGuiSelectableFlags;
+import java.util.ArrayList;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Scene.Material.TextureMaterial;
 import org.pepetrace.Scene.Scene;
 
-import java.util.ArrayList;
-import java.util.Objects;
-
 public class MaterialManagerWindow implements GuiWindow {
+
     private final int THUMB_SIZE = 48;
     private final int MAX_THUMB_SIZE = 48;
     private final int MIN_THUMB_SIZE = 8;
@@ -38,7 +37,9 @@ public class MaterialManagerWindow implements GuiWindow {
     private void renderMaterialList() {
         Scene scene = programState.getScene();
         ArrayList<TextureMaterial> materials = scene.getMaterials();
-        int selectedMaterialIndex = (int) programState.getArbitraryData("selectedMaterialIndex");
+        int selectedMaterialIndex = (int) programState.getArbitraryData(
+            "selectedMaterialIndex"
+        );
         ImGui.beginChild("MaterialListRegion", 0, -40, true);
 
         final float ITEM_SPACING_BASE = 8.0f;
@@ -48,7 +49,6 @@ public class MaterialManagerWindow implements GuiWindow {
         final int BORDER_COLOR = ImGui.getColorU32(0.3f, 0.3f, 0.3f, 1.0f);
         // White for the image tint
         final int IMAGE_TINT = ImGui.getColorU32(1.0f, 1.0f, 1.0f, 1.0f);
-
 
         for (int i = 0; i < materials.size(); i++) {
             TextureMaterial mat = materials.get(i);
@@ -65,31 +65,44 @@ public class MaterialManagerWindow implements GuiWindow {
 
             // ---- Compute thumbnail size that fits:
             // text + 3 thumbs + 4 spacings (spacing scales with thumb size)
-            float k = ITEM_SPACING_BASE / THUMB_SIZE_REF;   // spacing factor
+            float k = ITEM_SPACING_BASE / THUMB_SIZE_REF; // spacing factor
             float denom = 3.0f + 4.0f * k;
             float thumbSize = (availWidth - textWidth) / denom;
-            thumbSize = Math.max(MIN_THUMB_SIZE, Math.min(MAX_THUMB_SIZE, thumbSize));
+            thumbSize = Math.max(
+                MIN_THUMB_SIZE,
+                Math.min(MAX_THUMB_SIZE, thumbSize)
+            );
 
-            float spacing = k * thumbSize;          // actual scaled spacing
-            float lineHeight = thumbSize + 4.0f;   // vertical padding
+            float spacing = k * thumbSize; // actual scaled spacing
+            float lineHeight = thumbSize + 4.0f; // vertical padding
 
             // ---- Invisible selectable covering the whole block ----
             float startX = ImGui.getCursorPosX() + spacing * 0.5f;
             float startY = ImGui.getCursorPosY();
 
-            ImGui.selectable("##material" + i, isSelected,
-                    ImGuiSelectableFlags.SpanAllColumns |
-                            ImGuiSelectableFlags.AllowItemOverlap,
-                    availWidth, lineHeight);
+            ImGui.selectable(
+                "##material" + i,
+                isSelected,
+                ImGuiSelectableFlags.SpanAllColumns |
+                    ImGuiSelectableFlags.AllowItemOverlap,
+                availWidth,
+                lineHeight
+            );
 
             if (ImGui.isItemClicked()) {
                 selectedMaterialIndex = i;
-                programState.setArbitraryData("selectedMaterialIndex", selectedMaterialIndex);
+                programState.setArbitraryData(
+                    "selectedMaterialIndex",
+                    selectedMaterialIndex
+                );
             }
 
             // ---- Draw items in order: label, then three thumbnails ----
             // Label (leftmost)
-            ImGui.setCursorPos(startX, startY + (lineHeight - ImGui.getFontSize()) * 0.5f);
+            ImGui.setCursorPos(
+                startX,
+                startY + (lineHeight - ImGui.getFontSize()) * 0.5f
+            );
             ImGui.text(label);
 
             // Helper to draw a thumb with rounded border
@@ -103,21 +116,35 @@ public class MaterialManagerWindow implements GuiWindow {
 
             // Draw rounded image (this actually clips the corners)
             ImGui.getWindowDrawList().addImageRounded(
-                    mat.getAlbedoTexture().id,
-                    min, max,
-                    new ImVec2(0, 0), new ImVec2(1, 1),
-                    IMAGE_TINT, ROUNDING_RADIUS,
-                    ImDrawFlags.RoundCornersAll);
+                mat.getAlbedoTexture().id,
+                min,
+                max,
+                new ImVec2(0, 0),
+                new ImVec2(1, 1),
+                IMAGE_TINT,
+                ROUNDING_RADIUS,
+                ImDrawFlags.RoundCornersAll
+            );
             // Draw the border on top
             ImGui.getWindowDrawList().addRect(
-                    min.x, min.y, max.x, max.y,
-                    BORDER_COLOR, ROUNDING_RADIUS,
-                    ImDrawFlags.RoundCornersAll, BORDER_THICKNESS);
+                min.x,
+                min.y,
+                max.x,
+                max.y,
+                BORDER_COLOR,
+                ROUNDING_RADIUS,
+                ImDrawFlags.RoundCornersAll,
+                BORDER_THICKNESS
+            );
             // Tooltip via manual rectangle hover check
-            if (ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y) && ImGui.isWindowHovered()) {
-                ImGui.setTooltip("Albedo: " + getShortPath(mat.getAlbedoTexture()));
+            if (
+                ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y) &&
+                ImGui.isWindowHovered()
+            ) {
+                ImGui.setTooltip(
+                    "Albedo: " + getShortPath(mat.getAlbedoTexture())
+                );
             }
-
 
             // Normal
             float normalX = albedoX + thumbSize + spacing;
@@ -125,17 +152,32 @@ public class MaterialManagerWindow implements GuiWindow {
             min = new ImVec2(ImGui.getCursorScreenPos());
             max = new ImVec2(min.x + thumbSize, min.y + thumbSize);
             ImGui.getWindowDrawList().addImageRounded(
-                    mat.getNormalTexture().id,
-                    min, max,
-                    new ImVec2(0, 0), new ImVec2(1, 1),
-                    IMAGE_TINT, ROUNDING_RADIUS,
-                    ImDrawFlags.RoundCornersAll);
+                mat.getNormalTexture().id,
+                min,
+                max,
+                new ImVec2(0, 0),
+                new ImVec2(1, 1),
+                IMAGE_TINT,
+                ROUNDING_RADIUS,
+                ImDrawFlags.RoundCornersAll
+            );
             ImGui.getWindowDrawList().addRect(
-                    min.x, min.y, max.x, max.y,
-                    BORDER_COLOR, ROUNDING_RADIUS,
-                    ImDrawFlags.RoundCornersAll, BORDER_THICKNESS);
-            if (ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y) && ImGui.isWindowHovered()) {
-                ImGui.setTooltip("Normal: " + getShortPath(mat.getNormalTexture()));
+                min.x,
+                min.y,
+                max.x,
+                max.y,
+                BORDER_COLOR,
+                ROUNDING_RADIUS,
+                ImDrawFlags.RoundCornersAll,
+                BORDER_THICKNESS
+            );
+            if (
+                ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y) &&
+                ImGui.isWindowHovered()
+            ) {
+                ImGui.setTooltip(
+                    "Normal: " + getShortPath(mat.getNormalTexture())
+                );
             }
 
             // RMT
@@ -144,25 +186,36 @@ public class MaterialManagerWindow implements GuiWindow {
             min = new ImVec2(ImGui.getCursorScreenPos());
             max = new ImVec2(min.x + thumbSize, min.y + thumbSize);
             ImGui.getWindowDrawList().addImageRounded(
-                    mat.getRMTTexture().id,
-                    min, max,
-                    new ImVec2(0, 0), new ImVec2(1, 1),
-                    IMAGE_TINT, ROUNDING_RADIUS,
-                    ImDrawFlags.RoundCornersAll);
+                mat.getRMTTexture().id,
+                min,
+                max,
+                new ImVec2(0, 0),
+                new ImVec2(1, 1),
+                IMAGE_TINT,
+                ROUNDING_RADIUS,
+                ImDrawFlags.RoundCornersAll
+            );
             ImGui.getWindowDrawList().addRect(
-                    min.x, min.y, max.x, max.y,
-                    BORDER_COLOR, ROUNDING_RADIUS,
-                    ImDrawFlags.RoundCornersAll, BORDER_THICKNESS);
-            if (ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y) && ImGui.isWindowHovered()) {
+                min.x,
+                min.y,
+                max.x,
+                max.y,
+                BORDER_COLOR,
+                ROUNDING_RADIUS,
+                ImDrawFlags.RoundCornersAll,
+                BORDER_THICKNESS
+            );
+            if (
+                ImGui.isMouseHoveringRect(min.x, min.y, max.x, max.y) &&
+                ImGui.isWindowHovered()
+            ) {
                 ImGui.setTooltip("RMT: " + getShortPath(mat.getRMTTexture()));
             }
-
 
             // ---- Move cursor to the end of the block ----
             ImGui.setCursorPos(startX - spacing * 0.5f, startY + lineHeight);
 
             ImGui.popID();
-
 
             ImGui.spacing();
             ImGui.separator();
@@ -175,7 +228,9 @@ public class MaterialManagerWindow implements GuiWindow {
     private void renderActionButtons() {
         Scene scene = programState.getScene();
         ArrayList<TextureMaterial> materials = scene.getMaterials();
-        int selectedMaterialIndex = (int) programState.getArbitraryData("selectedMaterialIndex");
+        int selectedMaterialIndex = (int) programState.getArbitraryData(
+            "selectedMaterialIndex"
+        );
 
         // A small horizontal layout
         ImGui.beginGroup();
@@ -200,8 +255,14 @@ public class MaterialManagerWindow implements GuiWindow {
             //materials.remove(selectedMaterialIndex);
             // Adjust selection
             if (!materials.isEmpty()) {
-                selectedMaterialIndex = Math.min(selectedMaterialIndex, materials.size() - 1);
-                programState.setArbitraryData("selectedMaterialIndex", selectedMaterialIndex);
+                selectedMaterialIndex = Math.min(
+                    selectedMaterialIndex,
+                    materials.size() - 1
+                );
+                programState.setArbitraryData(
+                    "selectedMaterialIndex",
+                    selectedMaterialIndex
+                );
             } else {
                 programState.setArbitraryData("selectedMaterialIndex", 0);
             }
@@ -210,7 +271,6 @@ public class MaterialManagerWindow implements GuiWindow {
 
         ImGui.endGroup();
     }
-
 
     private String getShortPath(Texture texture) {
         // Helper to extract filename from full path

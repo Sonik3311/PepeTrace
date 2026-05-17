@@ -5,17 +5,13 @@ out vec4 FragColor;
 
 #include "./util/pastel.glsl"
 
-uniform usampler2D tex;
-layout(std140, binding = 2) uniform TestUBO {
-    float tata;
-};
-
+uniform sampler2D u_tex;
 
 void main() {
-    uint id = texture(tex, v_uv).r;
-    if (id == 0){
-        FragColor = vec4(vec3(0), 1);
-        return;
-    }
-    FragColor = vec4(getPastelColor(id-1), 1);
+    vec3 color = texture(u_tex, v_uv).rgb;
+    //if (id == 0){
+    //    FragColor = vec4(vec3(0), 1);
+    //    return;
+    //}
+    FragColor = vec4(color, 1);
 }

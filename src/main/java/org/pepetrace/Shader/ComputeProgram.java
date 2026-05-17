@@ -1,7 +1,6 @@
 package org.pepetrace.Shader;
 
 import static org.lwjgl.opengl.GL46.*;
-import static org.lwjgl.system.MemoryUtil.NULL;
 
 import java.io.FileNotFoundException;
 
@@ -46,7 +45,7 @@ public class ComputeProgram extends Program {
      * @return Массив из трех элементов: максимальный размер рабочей группы ГП по оси X, Y и Z.
      */
     public static int[] getMaxWorkGroupCount() {
-        int[] workGroupCount = { -1, -1, -1 };
+        int[] workGroupCount = {-1, -1, -1};
 
         glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, workGroupCount);
         glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, workGroupCount);

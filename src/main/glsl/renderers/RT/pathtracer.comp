@@ -1,20 +1,19 @@
 #version 460 core
-#extension GL_ARB_bindless_texture : require
 
-#include "constants.glsl"
-#include "intersections.glsl"
-#include "cameraUtil.glsl"
-#include "../../util/random.glsl"
-#include "../../util/matconversion.glsl"
-#include "../../material.glsl"
+//#include "../../constants.glsl"
+//#include "intersections.glsl"
+//#include "cameraUtil.glsl"
+//#include "../../util/random.glsl"
+//#include "../../util/matconversion.glsl"
+//#include "../../material.glsl"
 
-layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1) in;
+layout(local_size_x = 16, local_size_y = 16, local_size_z = 1) in;
 
 // ------------------
 //  Geometry Buffers
 // ------------------
 
-struct VertexData { // 16 * 5
+/*struct VertexData { // 16 * 5
                     vec4 position;
                     vec4 normal;
                     vec4 uv;
@@ -55,26 +54,26 @@ layout(std430, binding = 11) readonly buffer TriangleModelIndices {
 //  Render Settings
 // -----------------
 
-layout(std140, binding = 31) uniform RenderSettings {
+layout(std140, binding = 30) uniform RenderSettings {
     int samples;
     int bounces;
     int triangleCount;
     int frame;
 };
 
-layout(std140, binding = 30) uniform CameraData {
+layout(std140, binding = 29) uniform CameraData {
     vec3 position;
     vec2 yawPitch;
 } camera;
 
-layout(rgba32f, binding = 4) readonly uniform image2D skybox;
+layout(rgba32f, binding = 4) readonly uniform image2D skybox;*/
 
-layout(rgba32f, binding = 32) uniform image2D imgOutput;
+layout(rgba32f, binding = 16) uniform image2D imgOutput;
 
 // -----------------
 //
 // -----------------
-
+/*
 vec3 getSkyColor(vec3 direction, bool useProcedural) {
     if (useProcedural) {
         vec3 light_dir = normalize(vec3(0.5, cos(float(50) / 100), sin(float(50) / 100)));
@@ -150,21 +149,29 @@ SceneIntersectionResult checkSceneIntersection(vec3 ro, vec3 rd, float max_dist)
     }
     result.hit = min_hit;
     return result;
-}
+}*/
 
 void main() {
-    uvec3 rngState = uvec3(gl_GlobalInvocationID.xy, tick + gl_GlobalInvocationID.x);
-    float aspect_ratio = float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
-    ivec2 texelCoord = ivec2(gl_GlobalInvocatopnID.xy);
+    ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+    if (coord.x < 10 && coord.y < 10)
+        imageStore(imgOutput, coord, vec4(1,0,0,1));
+    else
+        imageStore(imgOutput, coord, vec4(0,1,0,1));
+}
+/*
+void main2() {
+    //uvec3 rngState = uvec3(gl_GlobalInvocationID.xy, frame + gl_GlobalInvocationID.x);
+    //float aspect_ratio = float(gl_NumWorkGroups.x) / float(gl_NumWorkGroups.y);
+    ivec2 texelCoord = ivec2(gl_GlobalInvocationID.xy);
 
-    vec2 uv;
-    uv.x = float(texelCoord.x) / (gl_NumWorkGroups.x * KERNEL_SIZE);
-    uv.y = float(texelCoord.y) / (gl_NumWorkGroups.y * KERNEL_SIZE);
-    uv = ((uv - 0.5) * 2);
-    uv.x *= aspect_ratio;
+    //vec2 uv;
+    //uv.x = float(texelCoord.x) / (gl_NumWorkGroups.x * KERNEL_SIZE);
+    //uv.y = float(texelCoord.y) / (gl_NumWorkGroups.y * KERNEL_SIZE);
+    //uv = ((uv - 0.5) * 2);
+    //uv.x *= aspect_ratio;
 
-    vec3 ray_origin = camera.position;
-    vec3 ray_direction = getRayDirection();
+    /*vec3 ray_origin = camera.position;
+    vec3 ray_direction = getRayDirection(uv, camera.yawPitch);
 
     vec3 final_color = vec3(0);
     for (int iter = 0; iter < samples; iter++) {
@@ -174,7 +181,8 @@ void main() {
         vec3 energy = vec3(1);
 
         for (int bounce = 0; bounce < bounces; bounce++) {
-            SceneIntersectionResult hit = checkSceneIntersection(sample_ray_pos, sample_ray_dir, INFINITY);
+            SceneIntersectionResult result = checkSceneIntersection(sample_ray_pos, sample_ray_dir, INFINITY);
+            TriangleHitResult hit = result.hit;
             if (!hit.isValid) {
                 color += energy * getSkyColor(sample_ray_dir, false);
                 break;
@@ -198,14 +206,14 @@ void main() {
                 mat3 TBN = mat3(tangent, bitangent, hit.normal);
                 worldNormal = normalize(M * TBN * textureNormal);
             }
-            
+
             sample_ray_pos = hit.position + geometricNormal * EPSILON * 100;
             vec3 R = RandomHemisphereUnitVector(rngState, worldNormal);
             if (dot(R, geometricNormal) <= 0.0f) {
                 R = reflect(R, geometricNormal);
             }
             sample_ray_dir = R;
-            
+
 
             energy *= albedo;
         }
@@ -218,5 +226,6 @@ void main() {
         final_color = prev_frame_color * (1.0 - alpha) + final_color * alpha;
     }
 
-    imageStore(imgOutput, texelCoord, vec4(final_color, 1));
+    imageStore(imgOutput, texelCoord, vec4(1, 1, 0, 1));
 }
+*/

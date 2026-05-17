@@ -1,6 +1,5 @@
 package org.pepetrace.Buffers;
 
-import static org.lwjgl.opengl.GL30.glBindBufferBase;
 import static org.lwjgl.opengl.GL46.*;
 
 import java.nio.ByteBuffer;
@@ -8,7 +7,6 @@ import java.nio.ByteOrder;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-import org.lwjgl.BufferUtils;
 
 /**
  * Абстрактный класс для универсальных буферов (UBO).
@@ -23,7 +21,7 @@ public abstract class UBO extends Buffer {
     /**
      * Конструктор для создания UBO.
      *
-     * @param sizeBytes размер буфера в байтах.
+     * @param sizeBytes размер буфера в байтах.v
      * @param binding   привязка (slot) к шейдеру. Используется в шейдере как `layout (binding = <binding>) uniform`.
      */
     public UBO(int sizeBytes, int binding) {

@@ -1,15 +1,14 @@
 package org.pepetrace.GUI;
+
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
+import java.util.function.Consumer;
 import org.lwjgl.util.tinyfd.TinyFileDialogs;
-import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Scene.Material.TextureMaterial;
 
-import java.util.ArrayList;
-import java.util.function.Consumer;
-
 public class CreateMaterialPopup implements GuiWindow {
+
     private boolean shouldOpen = false;
     private boolean isOpen = false;
 
@@ -18,7 +17,8 @@ public class CreateMaterialPopup implements GuiWindow {
     private ImString normalPath = new ImString("", 512);
     private ImString rmtPath = new ImString("", 512);
 
-    private static final String TEXTURE_FILTERS = "*.png;*.jpg;*.jpeg;*.bmp;*.tga";
+    private static final String TEXTURE_FILTERS =
+        "*.png;*.jpg;*.jpeg;*.bmp;*.tga";
     private static final String FILTER_DESC = "Image files";
 
     // Callback when material is created – receives the new TextureMaterial
@@ -49,7 +49,12 @@ public class CreateMaterialPopup implements GuiWindow {
         }
 
         // 2. Render the modal (centered, always on top)
-        if (ImGui.beginPopupModal("Create Material", ImGuiWindowFlags.AlwaysAutoResize)) {
+        if (
+            ImGui.beginPopupModal(
+                "Create Material",
+                ImGuiWindowFlags.AlwaysAutoResize
+            )
+        ) {
             ImGui.text("Define new material properties");
             ImGui.spacing();
             ImGui.separator();
@@ -85,11 +90,12 @@ public class CreateMaterialPopup implements GuiWindow {
         // tinyfd_openFileDialog(title, defaultPath, numFilters, filterPatterns, singleFilterDesc, allowMulti)
         // We use the version with filters – LWJGL3's binding
         return TinyFileDialogs.tinyfd_openFileDialog(
-                "Select " + title + " texture",
-                System.getProperty("user.home"),   // default path
-                null,                             // filter patterns – null means “all files”
-                FILTER_DESC,
-                false                              // single file only
+            "Select " + title + " texture",
+            System
+                .getProperty("user.home"), // default path
+            null, // filter patterns – null means “all files”
+            FILTER_DESC,
+            false // single file only
         );
     }
 
@@ -111,11 +117,13 @@ public class CreateMaterialPopup implements GuiWindow {
         }
     }
 
-
-
     private void createMaterialAndClose() {
         // Build the material (adjust constructors / factory methods to your project)
-        TextureMaterial mat = TextureMaterial.create(albedoPath.get(), normalPath.get(), rmtPath.get());
+        TextureMaterial mat = TextureMaterial.create(
+            albedoPath.get(),
+            normalPath.get(),
+            rmtPath.get()
+        );
 
         // Optional: set a custom name / ID if your material supports it
         // mat.setName(materialName.get());

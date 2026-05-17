@@ -1,6 +1,6 @@
-vec3 getRayDirection() {
-    float yawRad = radians(camera.yawPitch.x);
-    float pitchRad = radians(camera.yawPitch.y);
+vec3 getRayDirection(vec2 uv, vec2 yawPitch) {
+    float yawRad = radians(yawPitch.x);
+    float pitchRad = radians(yawPitch.y);
 
     vec3 ray_dir = normalize(vec3(
                 cos(pitchRad) * sin(yawRad),
