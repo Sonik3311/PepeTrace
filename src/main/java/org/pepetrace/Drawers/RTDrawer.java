@@ -5,13 +5,13 @@ import static org.lwjgl.opengl.GL13.*;
 import static org.lwjgl.opengl.GL15C.GL_READ_WRITE;
 import static org.lwjgl.opengl.GL30.glBindBufferBase;
 import static org.lwjgl.opengl.GL30.glBindVertexArray;
-import static org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER;
 import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 import static org.lwjgl.opengl.GL30C.GL_RGBA32F;
 import static org.lwjgl.opengl.GL42C.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT;
 import static org.lwjgl.opengl.GL42C.GL_TEXTURE_FETCH_BARRIER_BIT;
 import static org.lwjgl.opengl.GL42C.glBindImageTexture;
 import static org.lwjgl.opengl.GL42C.glMemoryBarrier;
+import static org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER;
 import static org.lwjgl.opengl.GL43C.GL_SHADER_STORAGE_BARRIER_BIT;
 import static org.lwjgl.opengl.GL43C.glDispatchCompute;
 
@@ -112,10 +112,17 @@ public class RTDrawer extends AbstractDrawer {
             (SSBO) programState.getArbitraryData("triangleModelIndicesBuffer"),
         };
         for (SSBO ssbo : ssbos) {
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, ssbo.getBinding(), ssbo.getId());
+            glBindBufferBase(
+                GL_SHADER_STORAGE_BUFFER,
+                ssbo.getBinding(),
+                ssbo.getId()
+            );
         }
         glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_2D, (int) programState.getArbitraryData("skyboxTexture"));
+        glBindTexture(
+            GL_TEXTURE_2D,
+            (int) programState.getArbitraryData("skyboxTexture")
+        );
         pathTracingProgram.setInt("skybox", 4);
         int groupsX = (pathTracingTexture.getWidth() + 15) / 16;
         int groupsY = (pathTracingTexture.getHeight() + 15) / 16;
