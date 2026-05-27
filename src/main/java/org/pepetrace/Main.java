@@ -176,7 +176,6 @@ public class Main {
                 (mainWindow.isKeyPressed(GLFW_KEY_LEFT_CONTROL) ||
                     mainWindow.isKeyPressed(GLFW_KEY_RIGHT_CONTROL)) &&
                 mainWindow.isMouseButtonPressed(Window.MOUSE_BUTTON_LEFT);
-            boolean blockCameraRotation = rotatingModelsNow;
 
             // ----- Обработка скролла (до вызова updateCamera) -----
             double scroll = mainWindow.getScrollDelta();
@@ -220,7 +219,7 @@ public class Main {
                     mainWindow,
                     !viewportDrawer.draggingMouse &&
                         !(viewportCamera.getCameraMode() == 0),
-                    blockCameraRotation
+                        rotatingModelsNow
                 )
             ) {
                 viewportDrawer.resetRender();
@@ -230,6 +229,8 @@ public class Main {
                 timer.startTimer();
                 viewportDrawer.renderFrame();
                 timer.stopTimerAsync();
+            } else {
+                viewportDrawer.renderFrame(true);
             }
 
             // ---------- F2: фокус на модель ----------
@@ -420,6 +421,8 @@ public class Main {
 
         if (!renderWindow.isVisible()) {
             viewportDrawer.renderFrame();
+        } else {
+            viewportDrawer.renderFrame(true);
         }
 
         handleF12(mainWindow.isKeyPressed(GLFW_KEY_F12) || testF12);

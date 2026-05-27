@@ -146,35 +146,44 @@ public class ViewportDrawer extends AbstractDrawer {
 
     @Override
     public void renderFrame() {
+        renderFrame(false);
+    }
+
+    public void renderFrame(boolean skipSceneRender) {
+        if (skipSceneRender) {
+            programState.setArbitraryData("GPURenderTime", -1.0);
+        }
         Scene scene = programState.getScene();
         int triangleCount = scene.getTriangleCount();
 
-        ubo.updateBuffer(
-            frameId,
-            ambientOcclusionSamples.get(),
-            2,
-            ambientOcclusion.get(),
-            ViewportRenderMode.values()[renderMode.get()],
-            triangleCount
-        );
-        glMemoryBarrier(
-            GL_SHADER_STORAGE_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT
-        );
+        if (!skipSceneRender) {
+            ubo.updateBuffer(
+                frameId,
+                ambientOcclusionSamples.get(),
+                2,
+                ambientOcclusion.get(),
+                ViewportRenderMode.values()[renderMode.get()],
+                triangleCount
+            );
+            glMemoryBarrier(
+                GL_SHADER_STORAGE_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT
+            );
 
-        pathTracingProgram.use();
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(
-            GL_TEXTURE_2D,
-            (int) programState.getArbitraryData("skyboxTexture")
-        );
-        pathTracingProgram.setInt("blurrySkybox", 1);
-        int groupsX = (currentWidth + 15) / 16;
-        int groupsY = (currentHeight + 15) / 16;
-        glDispatchCompute(groupsX, groupsY, 1);
+            pathTracingProgram.use();
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(
+                GL_TEXTURE_2D,
+                (int) programState.getArbitraryData("skyboxTexture")
+            );
+            pathTracingProgram.setInt("blurrySkybox", 1);
+            int groupsX = (currentWidth + 15) / 16;
+            int groupsY = (currentHeight + 15) / 16;
+            glDispatchCompute(groupsX, groupsY, 1);
 
-        glMemoryBarrier(
-            GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT
-        );
+            glMemoryBarrier(
+                GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT
+            );
+        }
 
         // --- ImGui ---
         imGuiGl3.newFrame();
