@@ -15,6 +15,7 @@ import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 import java.io.FileNotFoundException;
+import java.util.HashSet;
 import java.util.Set;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.GUI.*;
@@ -175,6 +176,27 @@ public class ViewportDrawer extends AbstractDrawer {
             GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT
         );
 
+        // --- ImGui ---
+        imGuiGl3.newFrame();
+        imGuiGlfw.newFrame();
+        ImGui.newFrame();
+        ImGui.getIO().setWantCaptureMouse(draggingMouse);
+
+        // Save selection before ImGui windows (drag-drop may change it for highlight)
+        Set<Integer> savedSelection = new HashSet<>(programState.getSelectedModelIndices());
+
+        mainMenuBar.render(0);
+        ImGui.dockSpaceOverViewport();
+        buildInfoWindow.render(ImGuiWindowFlags.NoCollapse);
+        materialManagerWindow.render(ImGuiWindowFlags.NoCollapse);
+        cameraInfoWindow.render(ImGuiWindowFlags.NoCollapse);
+        viewportWindow.render(0, outputTexture);
+        viewportRenderSettingsWindow.render(ImGuiWindowFlags.NoCollapse);
+        outlinerWindow.render(ImGuiWindowFlags.NoCollapse);
+        modelDataWindow.render(ImGuiWindowFlags.NoCollapse);
+        ImGui.showStyleEditor();
+
+        // Outline renders after ImGui windows so drag-highlight selection change takes effect
         glViewport(0, 0, currentWidth, currentHeight);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glDisable(GL_DEPTH_TEST);
@@ -208,22 +230,13 @@ public class ViewportDrawer extends AbstractDrawer {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
         glEnable(GL_DEPTH_TEST);
 
-        // --- ImGui (без изменений) ---
-        imGuiGl3.newFrame();
-        imGuiGlfw.newFrame();
-        ImGui.newFrame();
-        ImGui.getIO().setWantCaptureMouse(draggingMouse);
-
-        mainMenuBar.render(0);
-        ImGui.dockSpaceOverViewport();
-        buildInfoWindow.render(ImGuiWindowFlags.NoCollapse);
-        materialManagerWindow.render(ImGuiWindowFlags.NoCollapse);
-        cameraInfoWindow.render(ImGuiWindowFlags.NoCollapse);
-        viewportWindow.render(0, outputTexture);
-        viewportRenderSettingsWindow.render(ImGuiWindowFlags.NoCollapse);
-        outlinerWindow.render(ImGuiWindowFlags.NoCollapse);
-        modelDataWindow.render(ImGuiWindowFlags.NoCollapse);
-        ImGui.showStyleEditor();
+        // Restore selection after outline if it was only a drag highlight
+        if (viewportWindow.dragHighlightActive) {
+            programState.clearSelectedModels();
+            for (int idx : savedSelection) {
+                programState.addSelectedModel(idx);
+            }
+        }
 
         ImGui.render();
         imGuiGl3.renderDrawData(ImGui.getDrawData());

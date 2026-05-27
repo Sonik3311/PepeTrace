@@ -17,6 +17,7 @@ public class ModelMetadata {
     private Vector3f scale;
     private int startTriangleIndex;
     private int triangleCount;
+    private int materialIndex;
 
     // AABB в локальном пространстве модели (вычисляется один раз при загрузке)
     private final AABB localAABB;
@@ -33,10 +34,11 @@ public class ModelMetadata {
      * @param localMax           максимальная точка локального AABB
      */
     public ModelMetadata(String name, int startTriangleIndex, int triangleCount,
-                         Vector3f localMin, Vector3f localMax) {
+                         Vector3f localMin, Vector3f localMax, int materialIndex) {
         this.name = name;
         this.startTriangleIndex = startTriangleIndex;
         this.triangleCount = triangleCount;
+        this.materialIndex = materialIndex;
         this.position = new Vector3f(0, 0, 0);
         this.rotation = new Quaternionf();
         this.scale = new Vector3f(1, 1, 1);
@@ -72,6 +74,9 @@ public class ModelMetadata {
 
     public int getTriangleCount() { return triangleCount; }
     public void setTriangleCount(int triangleCount) { this.triangleCount = triangleCount; }
+
+    public int getMaterialIndex() { return materialIndex; }
+    public void setMaterialIndex(int materialIndex) { this.materialIndex = materialIndex; }
 
     // --- AABB ---
     public AABB getLocalAABB() { return localAABB; }

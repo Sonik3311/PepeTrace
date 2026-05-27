@@ -103,6 +103,12 @@ public class MaterialManagerWindow implements GuiWindow {
                 );
             }
 
+            if (ImGui.beginDragDropSource()) {
+                ImGui.setDragDropPayload("MATERIAL_INDEX", new int[]{i});
+                ImGui.text("Material " + i);
+                ImGui.endDragDropSource();
+            }
+
             // ---- Draw items in order: label, then three thumbnails ----
             // Label (leftmost)
             ImGui.setCursorPos(

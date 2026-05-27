@@ -10,9 +10,12 @@ import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Camera;
 import org.pepetrace.Drawers.ViewportDrawer;
 import org.pepetrace.GlobalState;
+import org.pepetrace.Main;
 import org.pepetrace.Scene.Scene;
 
 public class ViewportWindow {
+
+    public boolean dragHighlightActive = false;
 
     private final GlobalState programState = GlobalState.getInstance();
 
@@ -324,6 +327,46 @@ public class ViewportWindow {
                 programState.getViewportDrawer().draggingMouse = false;
             }
         }
+
+        // Drag-drop target for materials from Material Manager
+        dragHighlightActive = false;
+        if (ImGui.beginDragDropTarget()) {
+            float mouseX = ImGui.getMousePosX() - ImGui.getItemRectMinX();
+            float mouseY = ImGui.getMousePosY() - ImGui.getItemRectMinY();
+            boolean inBounds = mouseX >= 0 && mouseX <= renderViewportWidth && mouseY >= 0 && mouseY <= renderViewportHeight;
+
+            // Each frame while dragging, highlight the model under cursor
+            if (inBounds) {
+                Scene scene = programState.getScene();
+                Camera cam = programState.getCamera();
+                int modelIdx = scene.pickModel(mouseX, mouseY, cam, (int) renderViewportWidth, (int) renderViewportHeight);
+                if (modelIdx != -1) {
+                    programState.setSelectedModels(modelIdx);
+                    dragHighlightActive = true;
+                }
+            }
+
+            // On actual drop
+            int[] payload = ImGui.acceptDragDropPayload("MATERIAL_INDEX");
+            if (payload != null && payload.length > 0) {
+                int materialIndex = payload[0];
+                if (inBounds) {
+                    Scene scene = programState.getScene();
+                    Camera cam = programState.getCamera();
+                    int modelIdx = scene.pickModel(mouseX, mouseY, cam, (int) renderViewportWidth, (int) renderViewportHeight);
+                    if (modelIdx != -1) {
+                        scene.setModelMaterial(modelIdx, materialIndex);
+                        programState.setSelectedModels(modelIdx);
+                        Main mainProgram = (Main) programState.getArbitraryData("Main");
+                        mainProgram.refreshSceneBuffers(true, true);
+                        drawer.resetRender();
+                        dragHighlightActive = false;
+                    }
+                }
+            }
+            ImGui.endDragDropTarget();
+        }
+
         ImGui.end();
     }
 }

@@ -414,6 +414,7 @@ public class Main {
         }
     }
 
+    // Для модуль-тестов.
     void runOneFrame() {
         mainWindow.setActive();
 

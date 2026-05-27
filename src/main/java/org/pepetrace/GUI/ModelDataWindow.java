@@ -1,6 +1,7 @@
 package org.pepetrace.GUI;
 
 import imgui.ImGui;
+import imgui.type.ImInt;
 import imgui.type.ImString;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -18,7 +19,8 @@ public class ModelDataWindow implements GuiWindow {
     public void render(int windowFlags) {
         Scene scene = programState.getScene();
         Set<Integer> selectedIndices = programState.getSelectedModelIndices();
-        boolean isChanged = false;
+        boolean isTransformChanged = false;
+        boolean isSceneChanged = false;
 
         ImGui.begin("Model Data");
 
@@ -34,7 +36,7 @@ public class ModelDataWindow implements GuiWindow {
                 for (int idx : selectedIndices) {
                     scene.getModels().get(idx).setName(newName.isBlank() ? "Unnamed Model" : newName);
                 }
-                isChanged = true;
+                isTransformChanged = true;
             }
 
             ImGui.spacing();
@@ -50,7 +52,7 @@ public class ModelDataWindow implements GuiWindow {
                     ModelMetadata m = scene.getModels().get(idx);
                     m.setPosition(new Vector3f(m.getPosition()).add(delta));
                 }
-                isChanged = true;
+                isTransformChanged = true;
             }
 
             // -- Rotation --
@@ -69,7 +71,7 @@ public class ModelDataWindow implements GuiWindow {
                 for (int idx : selectedIndices) {
                     scene.getModels().get(idx).setRotation(newRot);
                 }
-                isChanged = true;
+                isTransformChanged = true;
             }
 
             // -- Scale --
@@ -79,7 +81,29 @@ public class ModelDataWindow implements GuiWindow {
                 for (int idx : selectedIndices) {
                     scene.getModels().get(idx).setScale(new Vector3f(scaleArr[0], scaleArr[1], scaleArr[2]));
                 }
-                isChanged = true;
+                isTransformChanged = true;
+            }
+
+            ImGui.spacing();
+            ImGui.separatorText("Material");
+            ImGui.spacing();
+
+            // -- Material --
+            int matCount = scene.getMaterials().size();
+            String[] matLabels = new String[matCount];
+            for (int i = 0; i < matCount; i++) {
+                matLabels[i] = String.valueOf(i);
+            }
+            if (matCount > 0) {
+                ImInt matIdx = new ImInt(firstModel.getMaterialIndex());
+                if (ImGui.combo("Material", matIdx, matLabels, matCount)) {
+                    for (int idx : selectedIndices) {
+                        scene.setModelMaterial(idx, matIdx.get());
+                    }
+                    isSceneChanged = true;
+                }
+            } else {
+                ImGui.textDisabled("No materials available");
             }
         } else {
             ImGui.textDisabled("No model selected");
@@ -87,11 +111,19 @@ public class ModelDataWindow implements GuiWindow {
 
         ImGui.end();
 
-        if (isChanged) updateTransformations();
+        if (isTransformChanged || isSceneChanged) {
+            updateTransformations();
+            if (isSceneChanged) updateSceneBuffers();
+        }
     }
 
     private void updateTransformations() {
         Main mainProgram = (Main) programState.getArbitraryData("Main");
         mainProgram.refreshSceneBuffers(false, true);
+    }
+
+    private void updateSceneBuffers() {
+        Main mainProgram = (Main) programState.getArbitraryData("Main");
+        mainProgram.refreshSceneBuffers(true, true);
     }
 }

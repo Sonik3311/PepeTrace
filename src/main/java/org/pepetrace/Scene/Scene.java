@@ -125,7 +125,8 @@ public class Scene implements AutoCloseable {
             startTriangle,
             newTriangles,
             localMin,
-            localMax
+            localMax,
+            materialIndex
         );
         models.add(meta);
         modelTriangleStartIndices.add(startTriangle);
@@ -535,6 +536,33 @@ public class Scene implements AutoCloseable {
 
     public void removeMaterial(int index) {
         materials.remove(index);
+    }
+
+    public void setModelMaterial(int modelIndex, int newMaterialIndex) {
+        if (modelIndex < 0 || modelIndex >= models.size()) return;
+        if (newMaterialIndex < 0 || newMaterialIndex >= materials.size()) return;
+
+        ModelMetadata model = models.get(modelIndex);
+        int oldMaterialIndex = model.getMaterialIndex();
+        if (oldMaterialIndex == newMaterialIndex) return;
+
+        // Update material indices for all triangles of this model
+        int startTri = model.getStartTriangleIndex();
+        int triCount = model.getTriangleCount();
+        for (int i = startTri; i < startTri + triCount; i++) {
+            materialIndicesPerTriangle.set(i, newMaterialIndex);
+        }
+
+        // Update ref counts
+        TextureMaterial oldMat = materials.get(oldMaterialIndex);
+        TextureMaterial newMat = materials.get(newMaterialIndex);
+        int newCount = materialRefCount.merge(oldMat, -1, (old, delta) -> old + delta);
+        if (newCount <= 0) {
+            materialRefCount.remove(oldMat);
+        }
+        materialRefCount.merge(newMat, 1, Integer::sum);
+
+        model.setMaterialIndex(newMaterialIndex);
     }
 
     public void packMaterials(SSBO textureMaterialBuffer) {
