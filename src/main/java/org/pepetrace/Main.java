@@ -393,10 +393,19 @@ public class Main {
 
     void handleF12(boolean f12Pressed) {
         if (f12Pressed && !wasF12Pressed && f12Cooldown == 0) {
+            var settings = viewportDrawer.getRenderSettings();
             renderWindow.resetCloseFlag();
-            renderWindow.show();
+            renderWindow.makeCurrent();
+            renderDrawer.initRender(
+                settings.rtWidth,
+                settings.rtHeight,
+                settings.rtSamples.get(),
+                settings.rtBounces.get()
+            );
             renderDrawer.copyCameraFrom(viewportCamera);
             renderDrawer.resetRender();
+            mainWindow.makeCurrent();
+            renderWindow.show();
             f12Cooldown = 3;
         }
         wasF12Pressed = f12Pressed;

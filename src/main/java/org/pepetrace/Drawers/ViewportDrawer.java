@@ -277,6 +277,10 @@ public class ViewportDrawer extends AbstractDrawer {
         if (accumulateFrames.get()) frameId++;
     }
 
+    public RenderSettingsWindow getRenderSettings() {
+        return viewportRenderSettingsWindow;
+    }
+
     public void resetRender() {
         frameId = 0;
     }

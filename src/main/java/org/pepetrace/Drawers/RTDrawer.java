@@ -85,6 +85,9 @@ public class RTDrawer extends AbstractDrawer {
     public void initRender(int width, int height, int samples, int bounces) {
         max_samples = Math.max(samples, 1);
         max_bounces = Math.max(bounces, 2);
+        if (pathTracingTexture != null) {
+            pathTracingTexture.close();
+        }
         pathTracingTexture = new Texture(
             width,
             height,

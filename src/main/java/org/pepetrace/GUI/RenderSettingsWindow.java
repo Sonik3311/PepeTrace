@@ -9,6 +9,11 @@ import java.util.Arrays;
 
 public class RenderSettingsWindow implements GuiWindow {
 
+    public final ImInt rtSamples = new ImInt(1);
+    public final ImInt rtBounces = new ImInt(2);
+    public int rtWidth = 1024;
+    public int rtHeight = 1024;
+
     @Override
     public void render(int windowFlags) {
         ViewportDrawer drawer = programState.getViewportDrawer();//;
@@ -47,28 +52,20 @@ public class RenderSettingsWindow implements GuiWindow {
 
         ImGui.spacing();
         ImGui.separatorText("Final render");
-        if (ImGui.inputInt("Samples", new ImInt(5))) {
-        //    int min = 1, max = 16384;
-        //    int clamped = Math.clamp(drawer.samples.get(), min, max);
-        //    drawer.samples.set(clamped);
-        //    drawer.frame = 0;
+        if (ImGui.inputInt("Samples", rtSamples)) {
+            int clamped = Math.max(1, rtSamples.get());
+            rtSamples.set(clamped);
         }
-        if (ImGui.inputInt("Max bounces", new ImInt(3))) {
-
+        if (ImGui.inputInt("Max bounces", rtBounces)) {
+            int clamped = Math.max(2, rtBounces.get());
+            rtBounces.set(clamped);
         }
         ImGui.spacing();
-        int[] resolution = {1024,1024};
+        int[] resolution = {rtWidth, rtHeight};
         if (ImGui.inputInt2("Render resolution", resolution)) {
-
+            rtWidth = Math.max(64, resolution[0]);
+            rtHeight = Math.max(64, resolution[1]);
         }
-        //if (ImGui.checkbox("Accumulate frames", drawer.accumulating)) {
-        //    if (!drawer.accumulating.get()) {
-        //        drawer.frame = 0;
-        //    }
-        //}
-        //if (ImGui.button("Reset Accumulation")) {
-        //    drawer.frame = 0;
-        //}
 
         ImGui.end();
     }
