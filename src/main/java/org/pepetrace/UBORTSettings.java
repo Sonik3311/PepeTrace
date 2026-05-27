@@ -9,16 +9,16 @@ public class UBORTSettings extends UBO {
     }
 
     public void updateBuffer(
-        int frame,
-        int samples,
-        int bounces,
+        int frameId,
+        int samplesPerFrame,
+        int maxBounces,
         int triangleCount
     ) {
         buffer.clear();
-        putInt(0, samples);
-        putInt(4, bounces);
-        putInt(8, triangleCount);
-        putInt(12, frame);
+        putInt(0, frameId);
+        putInt(4, samplesPerFrame);
+        putInt(8, maxBounces);
+        putInt(12, triangleCount);
         uploadToGPU();
     }
 }

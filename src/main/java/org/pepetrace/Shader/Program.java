@@ -181,6 +181,15 @@ public class Program implements AutoCloseable {
             glDeleteProgram(id);
             isReleased = true;
         }
+    }
 
+    public void deleteProgram() {
+        if (!isReleased) {
+            if (glGetInteger(GL_CURRENT_PROGRAM) == id) {
+                glUseProgram(0);
+            }
+            glDeleteProgram(id);
+            isReleased = true;
+        }
     }
 }

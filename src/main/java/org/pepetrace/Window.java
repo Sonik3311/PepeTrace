@@ -58,16 +58,32 @@ public class Window implements AutoCloseable {
         isShown = false;
     }
 
+    public void pacedHide() {
+        glfwSwapBuffers(id);
+        glfwPollEvents();
+        try {
+            Thread.sleep(16);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        glfwHideWindow(id);
+        isShown = false;
+    }
+
     public boolean isVisible() {
         return isShown;
     }
 
     public Window(int width, int height, boolean resizable, String title, long shareContext) {
+        this(width, height, resizable, title, shareContext, true);
+    }
+
+    public Window(int width, int height, boolean resizable, String title, long shareContext, boolean visible) {
         initGLFW();
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-        glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
+        glfwWindowHint(GLFW_VISIBLE, visible ? GLFW_TRUE : GLFW_FALSE);
         glfwWindowHint(GLFW_RESIZABLE, resizable ? GLFW_TRUE : GLFW_FALSE);
         glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
 
@@ -75,6 +91,7 @@ public class Window implements AutoCloseable {
         this.height = height;
         this.id = glfwCreateWindow(width, height, title, NULL, shareContext);
         if (this.id == NULL) throw new RuntimeException("Failed to create window");
+        this.isShown = visible;
 
         glfwSetFramebufferSizeCallback(id, (window, w, h) -> {
             this.width = w;
@@ -96,6 +113,10 @@ public class Window implements AutoCloseable {
         this(width, height, resizable, title, parentWindow.getId());
     }
 
+    public Window(int width, int height, boolean resizable, String title, Window parentWindow, boolean visible) {
+        this(width, height, resizable, title, parentWindow.getId(), visible);
+    }
+
     private void initGLFW() {
         if (glfwInitialized) return;
         GLFWErrorCallback errorCallback;
@@ -107,12 +128,16 @@ public class Window implements AutoCloseable {
     }
 
     public void setActive() {
+        makeCurrent();
+        glfwSwapInterval(1);
+    }
+
+    public void makeCurrent() {
         glfwMakeContextCurrent(this.id);
         if (!glCreated) {
             GL.createCapabilities();
             glCreated = true;
         }
-        glfwSwapInterval(1);
     }
 
     public void resetMouse() {
@@ -177,5 +202,9 @@ public class Window implements AutoCloseable {
 
     public boolean shouldClose() {
         return glfwWindowShouldClose(id);
+    }
+
+    public void resetCloseFlag() {
+        glfwSetWindowShouldClose(id, false);
     }
 }

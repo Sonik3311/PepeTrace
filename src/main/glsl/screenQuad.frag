@@ -8,10 +8,8 @@ out vec4 FragColor;
 uniform sampler2D u_tex;
 
 void main() {
-    vec3 color = texture(u_tex, v_uv).rgb;
-    //if (id == 0){
-    //    FragColor = vec4(vec3(0), 1);
-    //    return;
-    //}
+    vec4 texel = texture(u_tex, v_uv);
+    float count = texel.a;
+    vec3 color = count > 0.0 ? texel.rgb / count : vec3(0.0);
     FragColor = vec4(color, 1);
 }

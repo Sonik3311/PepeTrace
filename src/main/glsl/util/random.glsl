@@ -72,5 +72,5 @@ vec3 RandomUnitVector(inout uvec3 state)
 }
 vec3 RandomHemisphereUnitVector(inout uvec3 state, in vec3 n) {
     vec3 v = RandomUnitVector(state);
-    return normalize(dot(v, n) * v);
+    return dot(v, n) >= 0.0 ? v : -v;
 }

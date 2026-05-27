@@ -1,4 +1,5 @@
 import org.gradle.internal.os.OperatingSystem
+import java.time.Duration
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Properties
@@ -192,4 +193,32 @@ tasks.named("processResources") {
 
 tasks.named("processTestResources") {
     mustRunAfter(tasks.named("generateBuildPassport"))
+}
+
+tasks.test {
+    useJUnitPlatform()
+    failOnNoDiscoveredTests = false
+}
+
+val jvmArgsForLwjgl = listOf(
+    "--add-opens", "java.base/java.lang=ALL-UNNAMED",
+    "--enable-native-access=ALL-UNNAMED"
+)
+
+tasks.register<JavaExec>("runStressTest") {
+    group = "verification"
+    description = "Run the render-window open/close stress test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "org.pepetrace.RenderWindowStressTest"
+    jvmArgs(jvmArgsForLwjgl)
+    timeout.set(Duration.ofSeconds(30))
+}
+
+tasks.register<JavaExec>("runRtCrashTest") {
+    group = "verification"
+    description = "Run the render-window RT drawer crash/freeze test"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "org.pepetrace.RTDrawerCrashTest"
+    jvmArgs(jvmArgsForLwjgl)
+    timeout.set(Duration.ofSeconds(60))
 }

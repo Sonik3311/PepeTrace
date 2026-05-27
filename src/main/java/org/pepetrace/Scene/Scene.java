@@ -9,6 +9,7 @@ import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Camera;
+import org.pepetrace.GlobalState;
 import org.pepetrace.Scene.Loader.AssimpLoader;
 import org.pepetrace.Scene.Loader.MeshData;
 import org.pepetrace.Scene.Loader.MeshLoader;
@@ -325,16 +326,16 @@ public class Scene implements AutoCloseable {
             modelCount = 0;
             modelTriangleStartIndices.clear();
 
-            // Закрываем все материалы
-            for (TextureMaterial mat : materials) {
-                try {
-                    mat.close();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-            materials.clear();
-            materialRefCount.clear();
+            // // Закрываем все материалы
+            // for (TextureMaterial mat : materials) {
+            //     try {
+            //         mat.close();
+            //     } catch (Exception e) {
+            //         e.printStackTrace();
+            //     }
+            // }
+            // materials.clear();
+            // materialRefCount.clear();
 
             return;
         }
@@ -515,12 +516,20 @@ public class Scene implements AutoCloseable {
         String normalTexPath,
         String RMTTexPath
     ) {
+        if (materials.size() >= GlobalState.getInstance().getMaxMaterials()) {
+            System.err.println("Cannot add material: limit of " + GlobalState.getInstance().getMaxMaterials() + " reached");
+            return;
+        }
         materials.add(
             TextureMaterial.create(albedoTexPath, normalTexPath, RMTTexPath)
         );
     }
 
     public void addMaterial(TextureMaterial mat) {
+        if (materials.size() >= GlobalState.getInstance().getMaxMaterials()) {
+            System.err.println("Cannot add material: limit of " + GlobalState.getInstance().getMaxMaterials() + " reached");
+            return;
+        }
         materials.add(mat);
     }
 

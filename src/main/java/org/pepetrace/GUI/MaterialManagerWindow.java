@@ -28,6 +28,12 @@ public class MaterialManagerWindow implements GuiWindow {
 
     public void render(int windowFlags) {
         ImGui.begin("Material Manager", windowFlags);
+        Scene scene = programState.getScene();
+        int count = scene.getMaterials().size();
+        int max = programState.getMaxMaterials();
+        String label = "Materials: " + count + " / " + (max == Integer.MAX_VALUE ? "\u221E" : String.valueOf(max));
+        ImGui.text(label);
+        ImGui.separator();
         renderMaterialList();
         renderActionButtons();
         createMaterialPopup.render(0);
@@ -234,14 +240,16 @@ public class MaterialManagerWindow implements GuiWindow {
 
         // A small horizontal layout
         ImGui.beginGroup();
+        boolean atLimit = materials.size() >= programState.getMaxMaterials();
+        if (atLimit) ImGui.beginDisabled();
         if (ImGui.button("Create")) {
-            // Add a new default material – adjust the constructor to suit your project
-            //TextureMaterial newMat = new TextureMaterial();
-            //materials.add(newMat);
-            // Select the newly created material
-            //selectedMaterialIndex = materials.size() - 1;
-            //programState.setArbitraryData("selectedMaterialIndex", selectedMaterialIndex);
             createMaterialPopup.open();
+        }
+        if (atLimit) {
+            ImGui.endDisabled();
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("Maximum materials (" + programState.getMaxMaterials() + ") reached");
+            }
         }
 
         ImGui.sameLine();

@@ -29,11 +29,14 @@ public class Main {
     private final Window mainWindow;
     private final GlobalState programState;
     private final ViewportDrawer viewportDrawer;
-    private final Camera viewportCamera;
+    final Camera viewportCamera;
     private final Scene scene;
 
-    private final Window renderWindow;
-    private final RTDrawer renderDrawer;
+    final Window renderWindow;
+    final RTDrawer renderDrawer;
+    private boolean wasF12Pressed = false;
+    private int f12Cooldown = 0;
+    boolean testF12 = false;
 
     public Main() throws Exception {
         mainWindow = new Window(1024, 512, true, "Editor|Pepetrace");
@@ -93,15 +96,15 @@ public class Main {
             1024,
             true,
             "Render|Pepetrace",
-            mainWindow
+            mainWindow,
+            false
         );
-        renderWindow.setActive();
+        renderWindow.makeCurrent();
         renderDrawer = new RTDrawer(renderWindow);
         renderDrawer.initRender(1024, 1024, 1, 2);
 
         mainWindow.setActive();
         mainWindow.show();
-        renderWindow.show();
     }
 
     public void refreshSceneBuffers(
@@ -223,9 +226,11 @@ public class Main {
                 viewportDrawer.resetRender();
             }
 
-            timer.startTimer();
-            viewportDrawer.renderFrame();
-            timer.stopTimerAsync();
+            if (!renderWindow.isVisible()) {
+                timer.startTimer();
+                viewportDrawer.renderFrame();
+                timer.stopTimerAsync();
+            }
 
             // ---------- F2: фокус на модель ----------
             if (mainWindow.isKeyPressed(GLFW_KEY_F2)) {
@@ -243,6 +248,9 @@ public class Main {
                     viewportDrawer.resetRender();
                 }
             }
+
+            handleF12(mainWindow.isKeyPressed(GLFW_KEY_F12) || testF12);
+            testF12 = false;
 
             // ---------- ESC: снять выделение ----------
             if (mainWindow.isKeyPressed(GLFW_KEY_ESCAPE)) {
@@ -370,18 +378,55 @@ public class Main {
 
             glfwSwapBuffers(mainWindow.getId());
 
-            renderWindow.setActive();
-            if (renderWindow.shouldClose()) {
-                renderWindow.hide();
-            } else if (renderWindow.isVisible()) {
-                renderDrawer.renderFrame();
-                glfwSwapBuffers(renderWindow.getId());
-            }
+            handleRenderWindow();
+
+            // Восстанавливаем контекст основного окна для pollEvents
+            mainWindow.makeCurrent();
 
             glfwPollEvents();
         }
 
         glfwTerminate();
         System.out.println("Finished");
+    }
+
+    void handleF12(boolean f12Pressed) {
+        if (f12Pressed && !wasF12Pressed && f12Cooldown == 0) {
+            renderWindow.resetCloseFlag();
+            renderWindow.show();
+            renderDrawer.copyCameraFrom(viewportCamera);
+            renderDrawer.resetRender();
+            f12Cooldown = 3;
+        }
+        wasF12Pressed = f12Pressed;
+        if (f12Cooldown > 0) f12Cooldown--;
+    }
+
+    void handleRenderWindow() {
+        if (renderWindow.isVisible()) {
+            renderWindow.setActive();
+            if (renderWindow.shouldClose()) {
+                renderWindow.pacedHide();
+            } else {
+                renderDrawer.renderFrame();
+                glfwSwapBuffers(renderWindow.getId());
+            }
+        }
+    }
+
+    void runOneFrame() {
+        mainWindow.setActive();
+
+        if (!renderWindow.isVisible()) {
+            viewportDrawer.renderFrame();
+        }
+
+        handleF12(mainWindow.isKeyPressed(GLFW_KEY_F12) || testF12);
+        testF12 = false;
+
+        glfwSwapBuffers(mainWindow.getId());
+        handleRenderWindow();
+        mainWindow.makeCurrent();
+        glfwPollEvents();
     }
 }

@@ -11,6 +11,7 @@ public class GlobalState {
     private Camera camera;
     private final HashMap<String, Object> arbitraryData = new HashMap<>();
     private final Set<Integer> selectedModelIndices = new HashSet<>();  // множество выбранных моделей
+    private int maxMaterials = Integer.MAX_VALUE;
 
     private GlobalState() {}
 
@@ -49,6 +50,9 @@ public class GlobalState {
     public Set<Integer> getSelectedModelIndices() {
         return Collections.unmodifiableSet(selectedModelIndices);
     }
+
+    public int getMaxMaterials() { return maxMaterials; }
+    public void setMaxMaterials(int maxMaterials) { this.maxMaterials = maxMaterials; }
 
     public void setSelectedModels(int singleIndex) {
         selectedModelIndices.clear();
