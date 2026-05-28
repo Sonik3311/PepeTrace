@@ -5,6 +5,7 @@
 #include "cameraUtil.glsl"
 #include "../../util/random.glsl"
 #include "../../util/matconversion.glsl"
+#include "pbr.glsl"
 
 layout(local_size_x = KERNEL_SIZE, local_size_y = KERNEL_SIZE, local_size_z = 1) in;
 
@@ -181,15 +182,84 @@ void main() {
             }
             vec3 geometricNormal = normalize(M * hit.geometricNormal);
 
-            ray_pos = localToGlobal(hit.position, matrices.forwardM) + worldNormal * EPSILON * 100;
-
-            vec3 R = RandomHemisphereUnitVector(rngState, worldNormal);
-            if (dot(R, geometricNormal) <= 0.0) {
-                R = reflect(R, geometricNormal);
+            // Read PBR material properties from RMT texture
+            float roughness = 0.5;
+            float metallic = 0.0;
+            float transparency = 0.0;
+            if (matIdx >= 0 && matIdx < MAX_MATERIALS) {
+                vec3 rmt = texture(rmttTextures[matIdx], hit.uv).rgb;
+                roughness = rmt.r;
+                metallic = rmt.g;
+                transparency = rmt.b;
             }
-            rd = R;
 
-            energy *= albedo * max(dot(R, worldNormal), 0.0) * 2.0;
+            // Transparency: probabilistically pass through without surface interaction
+            if (random(rngState) < transparency) {
+                ray_pos = localToGlobal(hit.position, matrices.forwardM) + rd * EPSILON * 100;
+                continue;
+            }
+
+            vec3 V = normalize(-rd);
+            float alpha = max(roughness * roughness, 0.001);
+            vec3 F0 = mix(vec3(0.04), albedo, metallic);
+            float NdotV = max(dot(worldNormal, V), 1e-5);
+            vec3 F = fresnelSchlick(F0, NdotV);
+            float specProb = clamp((F.r + F.g + F.b) / 3.0, 0.1, 0.9);
+
+            vec3 L;
+            vec3 H;
+            float pdf;
+            float NdotL;
+
+            vec2 rnd = vec2(random(rngState), random(rngState));
+
+            if (random(rngState) < specProb) {
+                L = sampleGGXVNDF(V, worldNormal, alpha, rnd);
+                NdotL = max(dot(L, worldNormal), 0.0);
+                if (NdotL <= 0.0) {
+                    energy = vec3(0.0);
+                    break;
+                }
+                H = normalize(V + L);
+
+                float D = ggxNDF(worldNormal, H, alpha);
+                float G1 = smithGGX_G1(worldNormal, V, alpha);
+                pdf = specProb * D * G1 / (4.0 * NdotV);
+            } else {
+                L = sampleCosineHemisphere(worldNormal, rnd);
+                NdotL = max(dot(L, worldNormal), 0.0);
+                if (NdotL <= 0.0) {
+                    energy = vec3(0.0);
+                    break;
+                }
+                H = normalize(V + L);
+
+                pdf = (1.0 - specProb) * NdotL / PI;
+            }
+
+            // Evaluate full Cook-Torrance BRDF at sampled direction
+            float NdotH = max(dot(worldNormal, H), 1e-5);
+            float LdotH = max(dot(L, H), 1e-5);
+
+            vec3 F_term = fresnelSchlick(F0, LdotH);
+
+            float D = ggxNDF(worldNormal, H, alpha);
+            float G = smithGGX(worldNormal, V, L, alpha);
+            vec3 specular = D * G * F_term / max(4.0 * NdotV * NdotL, 1e-6);
+
+            vec3 diffuse = (1.0 - F_term) * (1.0 - metallic) * albedo / PI;
+
+            vec3 brdf = specular + diffuse;
+            float weight = NdotL / max(pdf, 1e-6);
+            energy *= brdf * weight;
+
+            // Reflect below geometric normal: rare with normal maps, mirror to avoid self-intersection
+            if (dot(L, geometricNormal) <= 0.0) {
+                L = reflect(L, geometricNormal);
+            }
+
+            ray_pos = localToGlobal(hit.position, matrices.forwardM) + L * EPSILON * 100;
+            rd = L;
         }
         newColor += color;
     }
