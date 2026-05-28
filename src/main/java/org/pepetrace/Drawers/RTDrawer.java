@@ -1,5 +1,6 @@
 package org.pepetrace.Drawers;
 
+import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.ARBClearTexture.glClearTexImage;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL13.*;
@@ -17,6 +18,9 @@ import static org.lwjgl.opengl.GL43.GL_SHADER_STORAGE_BUFFER;
 import static org.lwjgl.opengl.GL43C.GL_MAX_COMPUTE_TEXTURE_IMAGE_UNITS;
 import static org.lwjgl.opengl.GL43C.GL_SHADER_STORAGE_BARRIER_BIT;
 import static org.lwjgl.opengl.GL43C.glDispatchCompute;
+import static org.lwjgl.opengl.GL46.*;
+import static org.lwjgl.stb.STBImageWrite.stbi_write_png;
+import static org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_saveFileDialog;
 
 import imgui.ImGui;
 import java.io.FileNotFoundException;
@@ -24,28 +28,23 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.lwjgl.PointerBuffer;
-import org.lwjgl.system.MemoryStack;
-import static org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_saveFileDialog;
-import static org.lwjgl.stb.STBImageWrite.stbi_write_png;
 import org.joml.Vector2f;
 import org.joml.Vector3f;
+import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.MemoryStack;
 import org.pepetrace.Buffers.SSBO;
 import org.pepetrace.Buffers.Texture;
 import org.pepetrace.Camera;
-import org.pepetrace.GlobalState;
 import org.pepetrace.GUI.RTViewportWindow;
+import org.pepetrace.GlobalState;
 import org.pepetrace.Scene.Material.TextureMaterial;
-import org.pepetrace.Util.GPUTimeQuerier;
 import org.pepetrace.Scene.Scene;
 import org.pepetrace.Shader.ComputeProgram;
 import org.pepetrace.Shader.Program;
 import org.pepetrace.UBOCamera;
 import org.pepetrace.UBORTSettings;
+import org.pepetrace.Util.GPUTimeQuerier;
 import org.pepetrace.Window;
-
-import static org.lwjgl.opengl.GL46.*;
-import static org.lwjgl.glfw.GLFW.*;
 
 public class RTDrawer extends AbstractDrawer {
 
@@ -61,8 +60,14 @@ public class RTDrawer extends AbstractDrawer {
     private final UBORTSettings settingsUbo = new UBORTSettings(30);
     private final UBOCamera cameraUbo = new UBOCamera(29);
     private Texture pathTracingTexture;
+    private Texture albedoTexture;
+    private Texture normalTexture;
     private int displayFbo;
     private int displayTexId;
+    private int albedoDisplayFbo;
+    private int albedoDisplayTexId;
+    private int normalDisplayFbo;
+    private int normalDisplayTexId;
 
     private int max_bounces;
     private int max_samples;
@@ -74,6 +79,9 @@ public class RTDrawer extends AbstractDrawer {
     private boolean attentionSignaled;
     private boolean denoised;
     private boolean denoiseSucceeded;
+    private long avgFrameTimeNs;
+    private long frameClock;
+    private float etaSeconds;
     private org.pepetrace.Denoising.OIDNDenoiser denoiser;
     private final Vector3f cameraPosition = new Vector3f(0, 0, -5);
     private final Vector2f cameraYawPitch = new Vector2f(0, 0);
@@ -83,6 +91,7 @@ public class RTDrawer extends AbstractDrawer {
         attentionSignaled = false;
         denoised = false;
         denoiseSucceeded = false;
+        frameClock = 0;
     }
 
     public void copyCameraFrom(Camera camera) {
@@ -106,11 +115,19 @@ public class RTDrawer extends AbstractDrawer {
         super.onResize(newWidth, newHeight, isFromGlfw);
         if (pathTracingTexture != null && !isFromGlfw) {
             pathTracingTexture.close();
+            albedoTexture.close();
+            normalTexture.close();
             initRender(newWidth, newHeight, max_samples, max_bounces, maxSpp);
         }
     }
 
-    public void initRender(int width, int height, int samples, int bounces, int maxSpp) {
+    public void initRender(
+        int width,
+        int height,
+        int samples,
+        int bounces,
+        int maxSpp
+    ) {
         max_samples = Math.max(samples, 1);
         max_bounces = Math.max(bounces, 2);
         this.maxSpp = Math.max(maxSpp, 0);
@@ -126,11 +143,33 @@ public class RTDrawer extends AbstractDrawer {
             GL_READ_WRITE,
             GL_LINEAR
         );
+        albedoTexture = new Texture(
+            width,
+            height,
+            false,
+            17,
+            GL_RGBA32F,
+            GL_READ_WRITE,
+            GL_LINEAR
+        );
+        normalTexture = new Texture(
+            width,
+            height,
+            false,
+            18,
+            GL_RGBA32F,
+            GL_READ_WRITE,
+            GL_LINEAR
+        );
 
         // Create display FBO + RGBA8 texture for ImGui display
         if (displayTexId != 0) {
             glDeleteTextures(displayTexId);
             glDeleteFramebuffers(displayFbo);
+            glDeleteTextures(albedoDisplayTexId);
+            glDeleteFramebuffers(albedoDisplayFbo);
+            glDeleteTextures(normalDisplayTexId);
+            glDeleteFramebuffers(normalDisplayFbo);
         }
         displayTexId = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, displayTexId);
@@ -143,7 +182,55 @@ public class RTDrawer extends AbstractDrawer {
 
         displayFbo = glGenFramebuffers();
         glBindFramebuffer(GL_FRAMEBUFFER, displayFbo);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, displayTexId, 0);
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            displayTexId,
+            0
+        );
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // Albedo display
+        albedoDisplayTexId = glGenTextures();
+        glBindTexture(GL_TEXTURE_2D, albedoDisplayTexId);
+        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        albedoDisplayFbo = glGenFramebuffers();
+        glBindFramebuffer(GL_FRAMEBUFFER, albedoDisplayFbo);
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            albedoDisplayTexId,
+            0
+        );
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        // Normal display
+        normalDisplayTexId = glGenTextures();
+        glBindTexture(GL_TEXTURE_2D, normalDisplayTexId);
+        glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        glBindTexture(GL_TEXTURE_2D, 0);
+
+        normalDisplayFbo = glGenFramebuffers();
+        glBindFramebuffer(GL_FRAMEBUFFER, normalDisplayFbo);
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            normalDisplayTexId,
+            0
+        );
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Query GPU limit for compute shader texture image units.
@@ -171,7 +258,15 @@ public class RTDrawer extends AbstractDrawer {
         // --- Persistent bindings (set once, persist across frames) ---
 
         // Output image
-        glBindImageTexture(16, pathTracingTexture.id, 0, false, 0, GL_READ_WRITE, GL_RGBA32F);
+        glBindImageTexture(
+            16,
+            pathTracingTexture.id,
+            0,
+            false,
+            0,
+            GL_READ_WRITE,
+            GL_RGBA32F
+        );
 
         // SSBOs (buffer IDs never change)
         SSBO[] ssbos = {
@@ -182,12 +277,19 @@ public class RTDrawer extends AbstractDrawer {
             (SSBO) programState.getArbitraryData("triangleModelIndicesBuffer"),
         };
         for (SSBO ssbo : ssbos) {
-            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, ssbo.getBinding(), ssbo.getId());
+            glBindBufferBase(
+                GL_SHADER_STORAGE_BUFFER,
+                ssbo.getBinding(),
+                ssbo.getId()
+            );
         }
 
         // Skybox texture
         glActiveTexture(GL_TEXTURE4);
-        glBindTexture(GL_TEXTURE_2D, (int) programState.getArbitraryData("skyboxTexture"));
+        glBindTexture(
+            GL_TEXTURE_2D,
+            (int) programState.getArbitraryData("skyboxTexture")
+        );
         pathTracingProgram.setInt("skybox", 4);
 
         frameId = 0;
@@ -198,6 +300,17 @@ public class RTDrawer extends AbstractDrawer {
         if (pathTracingTexture == null) {
             return;
         }
+
+        long clock = System.nanoTime();
+        if (frameClock != 0) {
+            long rawDelta = clock - frameClock;
+            if (avgFrameTimeNs == 0) {
+                avgFrameTimeNs = rawDelta;
+            } else {
+                avgFrameTimeNs += (long)((rawDelta - avgFrameTimeNs) * 0.05);
+            }
+        }
+        frameClock = clock;
 
         if (gpuTimer.isResultReady()) {
             lastDispatchNs = gpuTimer.getResult();
@@ -220,7 +333,21 @@ public class RTDrawer extends AbstractDrawer {
                     0,
                     GL_RGBA,
                     GL_FLOAT,
-                    new float[] {0, 0, 0, 0}
+                    new float[] { 0, 0, 0, 0 }
+                );
+                glClearTexImage(
+                    albedoTexture.id,
+                    0,
+                    GL_RGBA,
+                    GL_FLOAT,
+                    new float[] { 0, 0, 0, 0 }
+                );
+                glClearTexImage(
+                    normalTexture.id,
+                    0,
+                    GL_RGBA,
+                    GL_FLOAT,
+                    new float[] { 0, 0, 0, 0 }
                 );
                 // Bind material textures once on first frame (cached per context)
                 Scene scene = programState.getScene();
@@ -247,12 +374,12 @@ public class RTDrawer extends AbstractDrawer {
                 max_bounces,
                 programState.getScene().getTriangleCount()
             );
-            cameraUbo.updateBuffer(
-                cameraPosition,
-                cameraYawPitch
-            );
+            cameraUbo.updateBuffer(cameraPosition, cameraYawPitch);
             glMemoryBarrier(
-                GL_SHADER_STORAGE_BARRIER_BIT | GL_TEXTURE_UPDATE_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT
+                GL_SHADER_STORAGE_BARRIER_BIT |
+                    GL_TEXTURE_UPDATE_BARRIER_BIT |
+                    GL_TEXTURE_FETCH_BARRIER_BIT |
+                    GL_SHADER_IMAGE_ACCESS_BARRIER_BIT
             );
 
             pathTracingProgram.use();
@@ -264,7 +391,8 @@ public class RTDrawer extends AbstractDrawer {
             glDispatchCompute(groupsX, groupsY, 1);
 
             glMemoryBarrier(
-                GL_SHADER_IMAGE_ACCESS_BARRIER_BIT | GL_TEXTURE_FETCH_BARRIER_BIT
+                GL_SHADER_IMAGE_ACCESS_BARRIER_BIT |
+                    GL_TEXTURE_FETCH_BARRIER_BIT
             );
             gpuTimer.stopTimerAsync();
 
@@ -278,6 +406,17 @@ public class RTDrawer extends AbstractDrawer {
             denoiseResult();
         }
 
+        // --- ETA: remaining frames based on current SPP ---
+        int remainingSpp = Math.max(0, maxSpp - spp);
+        if (remainingSpp > 0) {
+            int remainingBatches =
+                (remainingSpp + max_samples - 1) / max_samples;
+            int remainingFrames = remainingBatches * 4;
+            etaSeconds = (remainingFrames * avgFrameTimeNs) / 1_000_000_000f;
+        } else {
+            etaSeconds = 0;
+        }
+
         // --- ImGui viewport with display texture ---
         // Clear mouse so main-window events from glfwPollEvents don't leak in
         ImGui.getIO().setMousePos(-Float.MAX_VALUE, -Float.MAX_VALUE);
@@ -288,7 +427,8 @@ public class RTDrawer extends AbstractDrawer {
         // so we must propagate DPI scale manually.
         // currentWidth/currentHeight are framebuffer pixels, but ImGui expects
         // displaySize in screen points and framebufferScale = pixels / points.
-        int[] winW = new int[1], winH = new int[1];
+        int[] winW = new int[1],
+            winH = new int[1];
         glfwGetWindowSize(window.getId(), winW, winH);
         ImGui.getIO().setDisplaySize(winW[0], winH[0]);
         ImGui.getIO().setDisplayFramebufferScale(
@@ -299,6 +439,8 @@ public class RTDrawer extends AbstractDrawer {
 
         rtViewportWindow.setState(
             displayTexId,
+            albedoDisplayTexId,
+            normalDisplayTexId,
             pathTracingTexture.getWidth(),
             pathTracingTexture.getHeight(),
             winW[0],
@@ -308,7 +450,8 @@ public class RTDrawer extends AbstractDrawer {
             max_bounces,
             maxSpp,
             lastDispatchNs,
-            done
+            done,
+            etaSeconds
         );
         rtViewportWindow.render(0);
 
@@ -316,23 +459,49 @@ public class RTDrawer extends AbstractDrawer {
         imGuiGl3.renderDrawData(ImGui.getDrawData());
 
         // Save via Ctrl+S in the render window
-        if (window.isKeyPressed(GLFW_KEY_S) && window.isKeyPressed(GLFW_KEY_LEFT_CONTROL)) {
+        if (
+            window.isKeyPressed(GLFW_KEY_S) &&
+            window.isKeyPressed(GLFW_KEY_LEFT_CONTROL)
+        ) {
             saveImage();
         }
 
-        glfwSetWindowTitle(window.getId(), done ? "(DONE) Render | Pepetrace" : "Render | Pepetrace");
+        glfwSetWindowTitle(
+            window.getId(),
+            done ? "(DONE) Render | Pepetrace" : "Render | Pepetrace"
+        );
     }
 
     private void renderDisplayPass() {
-        glBindFramebuffer(GL_FRAMEBUFFER, displayFbo);
-        glViewport(0, 0, pathTracingTexture.getWidth(), pathTracingTexture.getHeight());
+        int w = pathTracingTexture.getWidth();
+        int h = pathTracingTexture.getHeight();
         glDisable(GL_DEPTH_TEST);
         windowRenderer.use();
+
+        // Color
+        glBindFramebuffer(GL_FRAMEBUFFER, displayFbo);
+        glViewport(0, 0, w, h);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, pathTracingTexture.id);
         windowRenderer.setInt("u_tex", 0);
         glBindVertexArray(vao);
         glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        // Albedo
+        glBindFramebuffer(GL_FRAMEBUFFER, albedoDisplayFbo);
+        glViewport(0, 0, w, h);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, albedoTexture.id);
+        windowRenderer.setInt("u_tex", 0);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
+        // Normal
+        glBindFramebuffer(GL_FRAMEBUFFER, normalDisplayFbo);
+        glViewport(0, 0, w, h);
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, normalTexture.id);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+
         glBindVertexArray(0);
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
     }
@@ -342,7 +511,9 @@ public class RTDrawer extends AbstractDrawer {
             try {
                 denoiser = new org.pepetrace.Denoising.OIDNDenoiser();
             } catch (Exception e) {
-                System.err.println("OIDN denoiser unavailable: " + e.getMessage());
+                System.err.println(
+                    "OIDN denoiser unavailable: " + e.getMessage()
+                );
                 denoised = true;
                 return;
             }
@@ -352,6 +523,8 @@ public class RTDrawer extends AbstractDrawer {
             if (sampleCount < 1) sampleCount = 1;
             denoiser.denoise(
                 pathTracingTexture.id,
+                albedoTexture.id,
+                normalTexture.id,
                 pathTracingTexture.id,
                 pathTracingTexture.getWidth(),
                 pathTracingTexture.getHeight(),
@@ -372,7 +545,12 @@ public class RTDrawer extends AbstractDrawer {
             PointerBuffer filters = stack.mallocPointer(1);
             filters.put(stack.UTF8("*.png"));
             filters.flip();
-            path = tinyfd_saveFileDialog("Save Render As", defaultName, filters, "PNG Image (*.png)");
+            path = tinyfd_saveFileDialog(
+                "Save Render As",
+                defaultName,
+                filters,
+                "PNG Image (*.png)"
+            );
         }
         if (path == null) {
             return;
@@ -402,9 +580,23 @@ public class RTDrawer extends AbstractDrawer {
         System.out.println("Saved render to: " + path);
     }
 
-    public boolean isDenoised() { return denoised; }
-    public boolean isDenoiseSucceeded() { return denoiseSucceeded; }
-    public int getDisplayTexId() { return displayTexId; }
-    public int getDisplayFbo() { return displayFbo; }
-    public int getPathTracingTexId() { return pathTracingTexture.id; }
+    public boolean isDenoised() {
+        return denoised;
+    }
+
+    public boolean isDenoiseSucceeded() {
+        return denoiseSucceeded;
+    }
+
+    public int getDisplayTexId() {
+        return displayTexId;
+    }
+
+    public int getDisplayFbo() {
+        return displayFbo;
+    }
+
+    public int getPathTracingTexId() {
+        return pathTracingTexture.id;
+    }
 }

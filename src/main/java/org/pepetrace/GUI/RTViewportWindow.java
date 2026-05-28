@@ -9,17 +9,24 @@ import imgui.flag.ImGuiWindowFlags;
 public class RTViewportWindow implements GuiWindow {
 
     private int texId;
+    private int albedoTexId;
+    private int normalTexId;
     private int texW, texH;
     private int currentWidth, currentHeight;
     private int frameId, maxSamples, maxBounces, maxSpp;
     private long lastDispatchNs;
     private boolean done;
+    private float etaSeconds;
 
-    public void setState(int texId, int texW, int texH,
+    public void setState(int texId, int albedoTexId, int normalTexId,
+                         int texW, int texH,
                          int currentWidth, int currentHeight,
                          int frameId, int maxSamples, int maxBounces,
-                         int maxSpp, long lastDispatchNs, boolean done) {
+                         int maxSpp, long lastDispatchNs, boolean done,
+                         float etaSeconds) {
         this.texId = texId;
+        this.albedoTexId = albedoTexId;
+        this.normalTexId = normalTexId;
         this.texW = texW;
         this.texH = texH;
         this.currentWidth = currentWidth;
@@ -30,6 +37,7 @@ public class RTViewportWindow implements GuiWindow {
         this.maxSpp = maxSpp;
         this.lastDispatchNs = lastDispatchNs;
         this.done = done;
+        this.etaSeconds = etaSeconds;
     }
 
     @Override
@@ -47,15 +55,34 @@ public class RTViewportWindow implements GuiWindow {
         int spp = (frameId / 4) * maxSamples;
         int cycle = (frameId % 4) + 1;
         String info;
+        String etaStr;
+        if (etaSeconds > 0 && !done) {
+            if (etaSeconds < 60) {
+                etaStr = String.format("%5.1fs", etaSeconds);
+            } else {
+                int totalSec = (int) Math.ceil(etaSeconds);
+                int h = totalSec / 3600;
+                int m = (totalSec % 3600) / 60;
+                int s = totalSec % 60;
+                etaStr = h > 0
+                    ? String.format("%dh %02dm %02ds", h, m, s)
+                    : String.format("%02dm %02ds", m, s);
+            }
+        } else {
+            etaStr = null;
+        }
         if (maxSpp > 0) {
-            info = String.format("SPP %d/%d  |  Cycle %d  |  Frame %d  |  Samples %d  |  Bounces %d  |  GPU %.1f ms",
+            info = String.format("SPP %3d/%-3d  |  Cycle %d  |  Frame %d  |  Samples %d  |  Bounces %d  |  GPU %5.1f ms",
                 spp, maxSpp, cycle, frameId, maxSamples, maxBounces, lastDispatchNs / 1_000_000.0);
         } else {
-            info = String.format("SPP %d  |  Cycle %d  |  Frame %d  |  Samples %d  |  Bounces %d  |  GPU %.1f ms",
+            info = String.format("SPP %3d  |  Cycle %d  |  Frame %d  |  Samples %d  |  Bounces %d  |  GPU %5.1f ms",
                 spp, cycle, frameId, maxSamples, maxBounces, lastDispatchNs / 1_000_000.0);
         }
         if (done) {
             info += "  |  Done";
+        }
+        if (etaStr != null) {
+            info += "  |  ETA " + etaStr;
         }
         info += "    [Ctrl+S to save]";
 
@@ -77,28 +104,50 @@ public class RTViewportWindow implements GuiWindow {
         ImGui.setCursorPos(0, barHeight);
         float contentW = ImGui.getContentRegionAvailX();
         float contentH = ImGui.getContentRegionAvailY();
-        float texAspect = (float) texW / texH;
-        float areaAspect = contentW / contentH;
 
-        float imgW, imgH;
-        if (texAspect > areaAspect) {
-            imgW = contentW;
-            imgH = contentW / texAspect;
-        } else {
+        float aspect = (float) texW / texH;
+        float colW = contentW / 3;
+        float imgW = colW - 4;
+        float imgH = imgW / aspect;
+        if (imgH > contentH) {
             imgH = contentH;
-            imgW = contentH * texAspect;
+            imgW = imgH * aspect;
         }
 
-        float offX = (contentW - imgW) * 0.5f + ImGui.getCursorPosX();
-        float offY = (contentH - imgH) * 0.5f + ImGui.getCursorPosY();
-        ImGui.setCursorPos(offX, offY);
-
-        ImVec2 imageMin = new ImVec2(offX - 1, offY - 1);
-        ImVec2 imageMax = new ImVec2(offX + imgW + 1, offY + imgH + 1);
-        ImGui.getWindowDrawList().addRect(imageMin, imageMax, ImGui.getColorU32(0.3f, 0.3f, 0.3f, 1.0f), 0, 0, 1.5f);
-        ImGui.image(texId, imgW, imgH, 0, 1, 1, 0);
+        drawImagePanel(dl, 0, texId, "Color", barHeight, contentW, contentH, colW, imgW, imgH);
+        drawImagePanel(dl, 1, albedoTexId, "Albedo", barHeight, contentW, contentH, colW, imgW, imgH);
+        drawImagePanel(dl, 2, normalTexId, "Normal", barHeight, contentW, contentH, colW, imgW, imgH);
 
         ImGui.end();
         ImGui.popStyleColor();
+    }
+
+    private void drawImagePanel(ImDrawList dl, int col, int tex, String label,
+                                 float barHeight, float contentW, float contentH,
+                                 float colW, float imgW, float imgH) {
+        float pad = 2;
+        float x = col * colW + (colW - imgW) / 2;
+        float y = barHeight + (contentH - imgH) / 2;
+
+        // Border
+        dl.addRect(
+            ImGui.getWindowPosX() + x - pad,
+            ImGui.getWindowPosY() + y - pad,
+            ImGui.getWindowPosX() + x + imgW + pad,
+            ImGui.getWindowPosY() + y + imgH + pad,
+            ImGui.getColorU32(0.3f, 0.3f, 0.3f, 1.0f), 0, 0, 1.5f
+        );
+
+        // Image with flipped Y
+        ImGui.setCursorPos(x, y);
+        ImGui.image(tex, imgW, imgH, 0, 1, 1, 0);
+
+        // Label
+        float labelY = ImGui.getWindowPosY() + y + imgH + 2;
+        float labelX = ImGui.getWindowPosX() + x + (imgW - ImGui.calcTextSize(label).x) / 2;
+        dl.addText(ImGui.getFont(), 14, labelX + 1, labelY + 1,
+            ImGui.getColorU32(0, 0, 0, 255), label);
+        dl.addText(ImGui.getFont(), 14, labelX, labelY,
+            ImGui.getColorU32(255, 255, 255, 255), label);
     }
 }

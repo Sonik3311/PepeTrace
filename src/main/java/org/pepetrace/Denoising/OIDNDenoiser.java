@@ -140,6 +140,20 @@ public class OIDNDenoiser implements Denoiser {
         ByteBuffer outRgbOnly = ByteBuffer.allocateDirect(rgbByteSize).order(ByteOrder.nativeOrder());
         ByteBuffer writeBuf = ByteBuffer.allocateDirect(byteSize).order(ByteOrder.nativeOrder());
 
+        // Read auxiliary channels (albedo, normal) if provided
+        ByteBuffer albedoRgbOnly = null, normalRgbOnly = null;
+        if (albedoTexId != 0) {
+            albedoRgbOnly = readAuxFloat3(albedoTexId, width, height, pixelCount, rgbByteSize, false);
+        }
+        if (normalTexId != 0) {
+            normalRgbOnly = readAuxFloat3(normalTexId, width, height, pixelCount, rgbByteSize, true);
+        }
+
+        // Build per-pixel sample count buffer (uniform across image after accumulation)
+        ByteBuffer sampleCountBuf = ByteBuffer.allocateDirect(pixelCount * 4).order(ByteOrder.nativeOrder());
+        FloatBuffer sampleCountFb = sampleCountBuf.asFloatBuffer();
+        for (int i = 0; i < pixelCount; i++) sampleCountFb.put(i, (float) sampleCount);
+
         // OIDN RT filter — use shared memory
         Pointer filter = oidn.oidnNewFilter(device, "RT");
         checkError("oidnNewFilter");
@@ -149,10 +163,24 @@ public class OIDNDenoiser implements Denoiser {
             oidn.oidnSetSharedFilterImage(filter, "color",
                 Native.getDirectBufferPointer(colorRgbOnly),
                 OIDN.OIDN_FORMAT_FLOAT3, width, height, 0, 0, 0);
+            if (albedoRgbOnly != null) {
+                oidn.oidnSetSharedFilterImage(filter, "albedo",
+                    Native.getDirectBufferPointer(albedoRgbOnly),
+                    OIDN.OIDN_FORMAT_FLOAT3, width, height, 0, 0, 0);
+            }
+            if (normalRgbOnly != null) {
+                oidn.oidnSetSharedFilterImage(filter, "normal",
+                    Native.getDirectBufferPointer(normalRgbOnly),
+                    OIDN.OIDN_FORMAT_FLOAT3, width, height, 0, 0, 0);
+            }
             oidn.oidnSetSharedFilterImage(filter, "output",
                 Native.getDirectBufferPointer(outRgbOnly),
                 OIDN.OIDN_FORMAT_FLOAT3, width, height, 0, 0, 0);
+            oidn.oidnSetSharedFilterImage(filter, "sampleCount",
+                Native.getDirectBufferPointer(sampleCountBuf),
+                OIDN.OIDN_FORMAT_FLOAT, width, height, 0, 0, 0);
             oidn.oidnSetFilterBool(filter, "hdr", true);
+            oidn.oidnSetFilterBool(filter, "cleanAux", false);
 
             oidn.oidnCommitFilter(filter);
             oidn.oidnExecuteFilter(filter);
@@ -245,6 +273,43 @@ public class OIDNDenoiser implements Denoiser {
 
         result.rewind();
         return result;
+    }
+
+    /** Read an accumulated auxiliary texture, divide by count, and pack as Float3 for OIDN.
+     *  If {@code isNormal} is true, the data is un-biased from [0,1] to [-1,1] and renormalized. */
+    private ByteBuffer readAuxFloat3(int texId, int width, int height,
+                                     int pixelCount, int rgbByteSize, boolean isNormal) {
+        ByteBuffer buf = readTexture(texId, width, height, pixelCount * 4 * 4);
+        FloatBuffer fb = buf.rewind().asFloatBuffer();
+        // Divide by alpha (accumulated sample count) to get the average
+        for (int i = 0; i < pixelCount; i++) {
+            float cnt = fb.get(i * 4 + 3);
+            if (cnt > 1e-6f) {
+                float r = fb.get(i * 4 + 0) / cnt;
+                float g = fb.get(i * 4 + 1) / cnt;
+                float b = fb.get(i * 4 + 2) / cnt;
+                if (isNormal) {
+                    // Unbias from [0,1] to [-1,1] and renormalize
+                    r = r * 2.0f - 1.0f;
+                    g = g * 2.0f - 1.0f;
+                    b = b * 2.0f - 1.0f;
+                    float len = (float) Math.sqrt(r * r + g * g + b * b);
+                    if (len > 1e-6f) { r /= len; g /= len; b /= len; }
+                }
+                fb.put(i * 4 + 0, r);
+                fb.put(i * 4 + 1, g);
+                fb.put(i * 4 + 2, b);
+            }
+        }
+        // Pack to Float3 with native byte order
+        ByteBuffer out = ByteBuffer.allocateDirect(rgbByteSize).order(ByteOrder.nativeOrder());
+        FloatBuffer outFb = out.asFloatBuffer();
+        for (int i = 0; i < pixelCount; i++) {
+            outFb.put(i * 3 + 0, fb.get(i * 4 + 0));
+            outFb.put(i * 3 + 1, fb.get(i * 4 + 1));
+            outFb.put(i * 3 + 2, fb.get(i * 4 + 2));
+        }
+        return out;
     }
 
     private static float halfToFloat(short hf) {

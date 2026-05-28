@@ -42,7 +42,7 @@ public class Scene implements AutoCloseable {
         TextureMaterial defaultMat = TextureMaterial.create(
             "./src/main/resources/Textures/defaulta.png",
             "./src/main/resources/Textures/defaultn.png",
-            "./src/main/resources/sunny_rose_garden_2k.hdr"
+            "./src/main/resources/Textures/defaultrmt.png"
         );
         materials.add(defaultMat);
         materialRefCount.put(defaultMat, 1); // одна модель (дефолтный материал используется в сцене)
@@ -518,7 +518,11 @@ public class Scene implements AutoCloseable {
         String RMTTexPath
     ) {
         if (materials.size() >= GlobalState.getInstance().getMaxMaterials()) {
-            System.err.println("Cannot add material: limit of " + GlobalState.getInstance().getMaxMaterials() + " reached");
+            System.err.println(
+                "Cannot add material: limit of " +
+                    GlobalState.getInstance().getMaxMaterials() +
+                    " reached"
+            );
             return;
         }
         materials.add(
@@ -528,7 +532,11 @@ public class Scene implements AutoCloseable {
 
     public void addMaterial(TextureMaterial mat) {
         if (materials.size() >= GlobalState.getInstance().getMaxMaterials()) {
-            System.err.println("Cannot add material: limit of " + GlobalState.getInstance().getMaxMaterials() + " reached");
+            System.err.println(
+                "Cannot add material: limit of " +
+                    GlobalState.getInstance().getMaxMaterials() +
+                    " reached"
+            );
             return;
         }
         materials.add(mat);
@@ -540,7 +548,9 @@ public class Scene implements AutoCloseable {
 
     public void setModelMaterial(int modelIndex, int newMaterialIndex) {
         if (modelIndex < 0 || modelIndex >= models.size()) return;
-        if (newMaterialIndex < 0 || newMaterialIndex >= materials.size()) return;
+        if (
+            newMaterialIndex < 0 || newMaterialIndex >= materials.size()
+        ) return;
 
         ModelMetadata model = models.get(modelIndex);
         int oldMaterialIndex = model.getMaterialIndex();
@@ -556,7 +566,11 @@ public class Scene implements AutoCloseable {
         // Update ref counts
         TextureMaterial oldMat = materials.get(oldMaterialIndex);
         TextureMaterial newMat = materials.get(newMaterialIndex);
-        int newCount = materialRefCount.merge(oldMat, -1, (old, delta) -> old + delta);
+        int newCount = materialRefCount.merge(
+            oldMat,
+            -1,
+            (old, delta) -> old + delta
+        );
         if (newCount <= 0) {
             materialRefCount.remove(oldMat);
         }
