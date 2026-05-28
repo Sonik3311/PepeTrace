@@ -134,6 +134,11 @@ void main() {
     ivec2 imgSize = imageSize(imgOutput);
     if (coord.x >= imgSize.x || coord.y >= imgSize.y) return;
 
+    // Foveated: render 1 of every 2×2 block each frame, cycling through 4 patterns
+    int px = frame & 1;
+    int py = (frame >> 1) & 1;
+    if ((coord.x & 1) != px || (coord.y & 1) != py) return;
+
     uvec3 rngState = uvec3(coord, frame);
 
     vec2 uv;
