@@ -18,6 +18,7 @@ public abstract class AbstractDrawer implements Window.ResizeListener {
     protected final ImGuiImplGlfw imGuiGlfw = new ImGuiImplGlfw();
     protected final ImGuiImplGl3 imGuiGl3 = new ImGuiImplGl3();
     protected final Window window;
+
     protected int frameId;
     protected Camera camera;
 

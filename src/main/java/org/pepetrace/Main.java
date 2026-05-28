@@ -101,7 +101,7 @@ public class Main {
         );
         renderWindow.makeCurrent();
         renderDrawer = new RTDrawer(renderWindow);
-        renderDrawer.initRender(1024, 1024, 1, 2);
+        renderDrawer.initRender(1024, 1024, 1, 2, 256);
 
         mainWindow.setActive();
         mainWindow.show();
@@ -400,7 +400,8 @@ public class Main {
                 settings.rtWidth,
                 settings.rtHeight,
                 settings.rtSamples.get(),
-                settings.rtBounces.get()
+                settings.rtBounces.get(),
+                settings.rtMaxSpp.get()
             );
             renderDrawer.copyCameraFrom(viewportCamera);
             renderDrawer.resetRender();
@@ -412,9 +413,19 @@ public class Main {
         if (f12Cooldown > 0) f12Cooldown--;
     }
 
+    public void startRender() {
+        handleF12(true);
+        handleF12(false);
+    }
+
+    public void resetRender() {
+        renderDrawer.resetRender();
+    }
+
     void handleRenderWindow() {
         if (renderWindow.isVisible()) {
             renderWindow.setActive();
+            glfwPollEvents();
             if (renderWindow.shouldClose()) {
                 renderWindow.pacedHide();
             } else {

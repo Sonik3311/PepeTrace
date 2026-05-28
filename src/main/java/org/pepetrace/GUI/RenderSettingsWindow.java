@@ -13,6 +13,7 @@ public class RenderSettingsWindow implements GuiWindow {
     public final ImInt rtBounces = new ImInt(2);
     public int rtWidth = 1024;
     public int rtHeight = 1024;
+    public final ImInt rtMaxSpp = new ImInt(256);
 
     @Override
     public void render(int windowFlags) {
@@ -59,6 +60,13 @@ public class RenderSettingsWindow implements GuiWindow {
         if (ImGui.inputInt("Max bounces", rtBounces)) {
             int clamped = Math.max(2, rtBounces.get());
             rtBounces.set(clamped);
+        }
+        if (ImGui.inputInt("Max SPP", rtMaxSpp)) {
+            int clamped = Math.max(0, rtMaxSpp.get());
+            rtMaxSpp.set(clamped);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("0 = unlimited");
         }
         ImGui.spacing();
         int[] resolution = {rtWidth, rtHeight};

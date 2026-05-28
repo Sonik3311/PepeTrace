@@ -56,6 +56,17 @@ public class MainMenuBar implements GuiWindow {
                 // edit menu items
                 ImGui.endMenu();
             }
+            if (ImGui.beginMenu("Render")) {
+                if (ImGui.menuItem("Start Render", "F12")) {
+                    Main mainProgram = (Main) programState.getArbitraryData("Main");
+                    mainProgram.startRender();
+                }
+                if (ImGui.menuItem("Reset Accumulation")) {
+                    Main mainProgram = (Main) programState.getArbitraryData("Main");
+                    mainProgram.resetRender();
+                }
+                ImGui.endMenu();
+            }
             // ... other menus
             ImGui.endMainMenuBar();
         }
