@@ -72,12 +72,17 @@ public class RTDrawer extends AbstractDrawer {
     private final GPUTimeQuerier gpuTimer = new GPUTimeQuerier();
     private final RTViewportWindow rtViewportWindow = new RTViewportWindow();
     private boolean attentionSignaled;
+    private boolean denoised;
+    private boolean denoiseSucceeded;
+    private org.pepetrace.Denoising.OIDNDenoiser denoiser;
     private final Vector3f cameraPosition = new Vector3f(0, 0, -5);
     private final Vector2f cameraYawPitch = new Vector2f(0, 0);
 
     public void resetRender() {
         frameId = 0;
         attentionSignaled = false;
+        denoised = false;
+        denoiseSucceeded = false;
     }
 
     public void copyCameraFrom(Camera camera) {
@@ -263,20 +268,14 @@ public class RTDrawer extends AbstractDrawer {
             );
             gpuTimer.stopTimerAsync();
 
-            // --- Display FBO pass: render fullscreen quad (divides by sample count) to RGBA8 texture ---
-            glBindFramebuffer(GL_FRAMEBUFFER, displayFbo);
-            glViewport(0, 0, pathTracingTexture.getWidth(), pathTracingTexture.getHeight());
-            glDisable(GL_DEPTH_TEST);
-            windowRenderer.use();
-            glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, pathTracingTexture.id);
-            windowRenderer.setInt("u_tex", 0);
-            glBindVertexArray(vao);
-            glDrawArrays(GL_TRIANGLES, 0, 3);
-            glBindVertexArray(0);
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
+            renderDisplayPass();
 
             frameId++;
+        }
+
+        // --- Denoise when rendering is finished ---
+        if (done && !denoised) {
+            denoiseResult();
         }
 
         // --- ImGui viewport with display texture ---
@@ -324,6 +323,48 @@ public class RTDrawer extends AbstractDrawer {
         glfwSetWindowTitle(window.getId(), done ? "(DONE) Render | Pepetrace" : "Render | Pepetrace");
     }
 
+    private void renderDisplayPass() {
+        glBindFramebuffer(GL_FRAMEBUFFER, displayFbo);
+        glViewport(0, 0, pathTracingTexture.getWidth(), pathTracingTexture.getHeight());
+        glDisable(GL_DEPTH_TEST);
+        windowRenderer.use();
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, pathTracingTexture.id);
+        windowRenderer.setInt("u_tex", 0);
+        glBindVertexArray(vao);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glBindVertexArray(0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    private void denoiseResult() {
+        if (denoiser == null) {
+            try {
+                denoiser = new org.pepetrace.Denoising.OIDNDenoiser();
+            } catch (Exception e) {
+                System.err.println("OIDN denoiser unavailable: " + e.getMessage());
+                denoised = true;
+                return;
+            }
+        }
+        try {
+            int sampleCount = (frameId / 4) * max_samples;
+            if (sampleCount < 1) sampleCount = 1;
+            denoiser.denoise(
+                pathTracingTexture.id,
+                pathTracingTexture.id,
+                pathTracingTexture.getWidth(),
+                pathTracingTexture.getHeight(),
+                sampleCount
+            );
+            renderDisplayPass();
+            denoiseSucceeded = true;
+        } catch (Exception e) {
+            System.err.println("Denoise failed: " + e.getMessage());
+        }
+        denoised = true;
+    }
+
     private void saveImage() {
         String defaultName = "rt_render_" + System.currentTimeMillis() + ".png";
         String path;
@@ -343,7 +384,9 @@ public class RTDrawer extends AbstractDrawer {
 
         // Read the tonemapped RGBA8 display texture (OpenGL bottom-left origin)
         ByteBuffer rgba = ByteBuffer.allocateDirect(w * h * 4);
-        glGetTextureImage(displayTexId, 0, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+        glBindFramebuffer(GL_FRAMEBUFFER, displayFbo);
+        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
         // Flip vertically for PNG top-left origin
         ByteBuffer flipped = ByteBuffer.allocateDirect(w * h * 4);
@@ -358,4 +401,10 @@ public class RTDrawer extends AbstractDrawer {
         stbi_write_png(path, w, h, 4, flipped, rowSize);
         System.out.println("Saved render to: " + path);
     }
+
+    public boolean isDenoised() { return denoised; }
+    public boolean isDenoiseSucceeded() { return denoiseSucceeded; }
+    public int getDisplayTexId() { return displayTexId; }
+    public int getDisplayFbo() { return displayFbo; }
+    public int getPathTracingTexId() { return pathTracingTexture.id; }
 }

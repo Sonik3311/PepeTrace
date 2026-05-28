@@ -2,22 +2,21 @@ package org.pepetrace.GUI;
 
 import imgui.ImGui;
 import imgui.type.ImInt;
+import java.util.Arrays;
 import org.pepetrace.Drawers.ViewportDrawer;
 import org.pepetrace.Util.ViewportRenderMode;
-
-import java.util.Arrays;
 
 public class RenderSettingsWindow implements GuiWindow {
 
     public final ImInt rtSamples = new ImInt(1);
-    public final ImInt rtBounces = new ImInt(2);
+    public final ImInt rtBounces = new ImInt(8);
     public int rtWidth = 1024;
     public int rtHeight = 1024;
-    public final ImInt rtMaxSpp = new ImInt(256);
+    public final ImInt rtMaxSpp = new ImInt(16);
 
     @Override
     public void render(int windowFlags) {
-        ViewportDrawer drawer = programState.getViewportDrawer();//;
+        ViewportDrawer drawer = programState.getViewportDrawer(); //;
 
         ImGui.begin("Render Settings");
 
@@ -32,24 +31,30 @@ public class RenderSettingsWindow implements GuiWindow {
         }
         ImGui.beginDisabled(!drawer.ambientOcclusion.get());
         if (ImGui.inputInt("AO Samples", drawer.ambientOcclusionSamples)) {
-            int min = 1, max = 16384;
-            int clamped = Math.clamp(drawer.ambientOcclusionSamples.get(), min, max);
+            int min = 1,
+                max = 16384;
+            int clamped = Math.clamp(
+                drawer.ambientOcclusionSamples.get(),
+                min,
+                max
+            );
             drawer.ambientOcclusionSamples.set(clamped);
             drawer.resetRender();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("Amount of rays sent out for ray-traced ambient occlusion effect. Values lower that 4 yield inaccurate results");
+            ImGui.setTooltip(
+                "Amount of rays sent out for ray-traced ambient occlusion effect. Values lower that 4 yield inaccurate results"
+            );
         }
         ImGui.endDisabled();
 
         String[] modeNames = Arrays.stream(ViewportRenderMode.values())
-                .map(Enum::name)
-        .toArray(String[]::new);
+            .map(Enum::name)
+            .toArray(String[]::new);
 
         if (ImGui.combo("Render Mode", drawer.renderMode, modeNames)) {
             drawer.resetRender();
         }
-
 
         ImGui.spacing();
         ImGui.separatorText("Final render");
@@ -69,7 +74,7 @@ public class RenderSettingsWindow implements GuiWindow {
             ImGui.setTooltip("0 = unlimited");
         }
         ImGui.spacing();
-        int[] resolution = {rtWidth, rtHeight};
+        int[] resolution = { rtWidth, rtHeight };
         if (ImGui.inputInt2("Render resolution", resolution)) {
             rtWidth = Math.max(64, resolution[0]);
             rtHeight = Math.max(64, resolution[1]);

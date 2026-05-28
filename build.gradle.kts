@@ -69,6 +69,8 @@ dependencies {
 
     implementation("org.joml:joml:1.10.5")
 
+    implementation("net.java.dev.jna:jna:5.14.0")
+
 	implementation("org.lwjgl:lwjgl")
 	implementation("org.lwjgl:lwjgl-assimp")
 	implementation("org.lwjgl:lwjgl-glfw")
@@ -219,6 +221,15 @@ tasks.register<JavaExec>("runRtCrashTest") {
     description = "Run the render-window RT drawer crash/freeze test"
     classpath = sourceSets["test"].runtimeClasspath
     mainClass = "org.pepetrace.RTDrawerCrashTest"
+    jvmArgs(jvmArgsForLwjgl)
+    timeout.set(Duration.ofSeconds(60))
+}
+
+tasks.register<JavaExec>("runDenoiserTest") {
+    group = "verification"
+    description = "Render a full frame at 512x512 with maxSpp=16 and verify OIDN denoising"
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "org.pepetrace.RTDenoiserTest"
     jvmArgs(jvmArgsForLwjgl)
     timeout.set(Duration.ofSeconds(60))
 }
