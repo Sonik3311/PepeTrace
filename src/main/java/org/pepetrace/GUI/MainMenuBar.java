@@ -62,8 +62,7 @@ public class MainMenuBar implements GuiWindow {
                     mainProgram.startRender();
                 }
                 if (ImGui.menuItem("Reset Accumulation")) {
-                    Main mainProgram = (Main) programState.getArbitraryData("Main");
-                    mainProgram.resetRender();
+                    programState.getViewportDrawer().resetRender();
                 }
                 ImGui.endMenu();
             }

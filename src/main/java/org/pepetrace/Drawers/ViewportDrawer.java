@@ -1,5 +1,6 @@
 package org.pepetrace.Drawers;
 
+import static org.lwjgl.glfw.GLFW.glfwGetWindowContentScale;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL15.GL_READ_WRITE;
 import static org.lwjgl.opengl.GL30.*;
@@ -45,6 +46,10 @@ public class ViewportDrawer extends AbstractDrawer {
     private Texture pathTracingTexture;
     private Texture modelStencilTexture;
     private Texture outputTexture;
+    private int targetWidth;
+    private int targetHeight;
+    private int pixelWidth;
+    private int pixelHeight;
     private final ComputeProgram pathTracingProgram = new ComputeProgram(
         "./src/main/glsl/renderers/viewport/program"
     );
@@ -77,6 +82,10 @@ public class ViewportDrawer extends AbstractDrawer {
         super(window);
 
         createTextures(currentWidth, currentHeight);
+        targetWidth = currentWidth;
+        targetHeight = currentHeight;
+        pixelWidth = currentWidth;
+        pixelHeight = currentHeight;
 
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glFramebufferTexture2D(
@@ -125,23 +134,30 @@ public class ViewportDrawer extends AbstractDrawer {
 
     @Override
     public void onResize(int width, int height, boolean isFromGlfw) {
-        if (!isFromGlfw) {
-            super.onResize(width, height, isFromGlfw);
-            pathTracingTexture.close();
-            modelStencilTexture.close();
-            outputTexture.close();
-            createTextures(width, height);
-            glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-            glFramebufferTexture2D(
-                GL_FRAMEBUFFER,
-                GL_COLOR_ATTACHMENT0,
-                GL_TEXTURE_2D,
-                outputTexture.id,
-                0
-            );
-            glBindFramebuffer(GL_FRAMEBUFFER, 0);
-            resetRender();
-        }
+        if (currentWidth == width && currentHeight == height) return;
+        super.onResize(width, height, isFromGlfw);
+        // width/height from ImGui content region are in points; scale to pixels for GL
+        float[] xscale = {0};
+        float[] yscale = {0};
+        glfwGetWindowContentScale(window.getId(), xscale, yscale);
+        pixelWidth = (int) (width * xscale[0]);
+        pixelHeight = (int) (height * yscale[0]);
+        if (pixelWidth < 1) pixelWidth = 1;
+        if (pixelHeight < 1) pixelHeight = 1;
+        pathTracingTexture.close();
+        modelStencilTexture.close();
+        outputTexture.close();
+        createTextures(pixelWidth, pixelHeight);
+        glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            outputTexture.id,
+            0
+        );
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        resetRender();
     }
 
     @Override
@@ -156,6 +172,32 @@ public class ViewportDrawer extends AbstractDrawer {
         Scene scene = programState.getScene();
         int triangleCount = scene.getTriangleCount();
 
+        // --- ImGui (early, so ViewportWindow detects any resize before compute dispatch) ---
+        imGuiGl3.newFrame();
+        imGuiGlfw.newFrame();
+        ImGui.newFrame();
+        ImGui.getIO().setWantCaptureMouse(draggingMouse);
+
+        // Save selection before ImGui windows (drag-drop may change it for highlight)
+        Set<Integer> savedSelection = new HashSet<>(programState.getSelectedModelIndices());
+
+        mainMenuBar.render(0);
+        ImGui.dockSpaceOverViewport();
+        buildInfoWindow.render(ImGuiWindowFlags.NoCollapse);
+        materialManagerWindow.render(ImGuiWindowFlags.NoCollapse);
+        cameraInfoWindow.render(ImGuiWindowFlags.NoCollapse);
+        viewportWindow.render(0, outputTexture);
+        viewportRenderSettingsWindow.render(ImGuiWindowFlags.NoCollapse);
+        outlinerWindow.render(ImGuiWindowFlags.NoCollapse);
+        modelDataWindow.render(ImGuiWindowFlags.NoCollapse);
+        ImGui.showStyleEditor();
+
+        // Apply any pending resize detected by ViewportWindow
+        if (targetWidth != currentWidth || targetHeight != currentHeight) {
+            onResize(targetWidth, targetHeight, false);
+        }
+
+        // --- Compute dispatch (now at the correct size) ---
         if (!skipSceneRender) {
             ubo.updateBuffer(
                 frameId,
@@ -176,8 +218,8 @@ public class ViewportDrawer extends AbstractDrawer {
                 (int) programState.getArbitraryData("skyboxTexture")
             );
             pathTracingProgram.setInt("blurrySkybox", 1);
-            int groupsX = (currentWidth + 15) / 16;
-            int groupsY = (currentHeight + 15) / 16;
+            int groupsX = (pixelWidth + 15) / 16;
+            int groupsY = (pixelHeight + 15) / 16;
             glDispatchCompute(groupsX, groupsY, 1);
 
             glMemoryBarrier(
@@ -185,28 +227,8 @@ public class ViewportDrawer extends AbstractDrawer {
             );
         }
 
-        // --- ImGui ---
-        imGuiGl3.newFrame();
-        imGuiGlfw.newFrame();
-        ImGui.newFrame();
-        ImGui.getIO().setWantCaptureMouse(draggingMouse);
-
-        // Save selection before ImGui windows (drag-drop may change it for highlight)
-        Set<Integer> savedSelection = new HashSet<>(programState.getSelectedModelIndices());
-
-        mainMenuBar.render(0);
-        ImGui.dockSpaceOverViewport();
-        buildInfoWindow.render(ImGuiWindowFlags.NoCollapse);
-        materialManagerWindow.render(ImGuiWindowFlags.NoCollapse);
-        cameraInfoWindow.render(ImGuiWindowFlags.NoCollapse);
-        viewportWindow.render(0, outputTexture);
-        viewportRenderSettingsWindow.render(ImGuiWindowFlags.NoCollapse);
-        outlinerWindow.render(ImGuiWindowFlags.NoCollapse);
-        modelDataWindow.render(ImGuiWindowFlags.NoCollapse);
-        ImGui.showStyleEditor();
-
         // Outline renders after ImGui windows so drag-highlight selection change takes effect
-        glViewport(0, 0, currentWidth, currentHeight);
+        glViewport(0, 0, pixelWidth, pixelHeight);
         glBindFramebuffer(GL_FRAMEBUFFER, fbo);
         glDisable(GL_DEPTH_TEST);
         outlineProgram.use();
@@ -275,6 +297,15 @@ public class ViewportDrawer extends AbstractDrawer {
         }
 
         if (accumulateFrames.get()) frameId++;
+    }
+
+    public void setViewportTargetSize(int width, int height) {
+        targetWidth = width;
+        targetHeight = height;
+    }
+
+    public int getOutputTextureId() {
+        return outputTexture.id;
     }
 
     public RenderSettingsWindow getRenderSettings() {

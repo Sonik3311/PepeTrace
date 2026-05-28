@@ -285,15 +285,25 @@ public class RTDrawer extends AbstractDrawer {
         for (int i = 0; i < 5; i++) ImGui.getIO().setMouseDown(i, false);
         ImGui.getIO().setMouseWheel(0);
         imGuiGl3.newFrame();
-        ImGui.getIO().setDisplaySize(currentWidth, currentHeight);
+        // imGuiGlfw.newFrame() is intentionally not called (would leak input),
+        // so we must propagate DPI scale manually.
+        // currentWidth/currentHeight are framebuffer pixels, but ImGui expects
+        // displaySize in screen points and framebufferScale = pixels / points.
+        int[] winW = new int[1], winH = new int[1];
+        glfwGetWindowSize(window.getId(), winW, winH);
+        ImGui.getIO().setDisplaySize(winW[0], winH[0]);
+        ImGui.getIO().setDisplayFramebufferScale(
+            (float) currentWidth / winW[0],
+            (float) currentHeight / winH[0]
+        );
         ImGui.newFrame();
 
         rtViewportWindow.setState(
             displayTexId,
             pathTracingTexture.getWidth(),
             pathTracingTexture.getHeight(),
-            currentWidth,
-            currentHeight,
+            winW[0],
+            winH[0],
             frameId,
             max_samples,
             max_bounces,

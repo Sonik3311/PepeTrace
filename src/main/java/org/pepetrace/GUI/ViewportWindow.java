@@ -210,6 +210,10 @@ public class ViewportWindow {
         float windowPosX = ImGui.getWindowPosX();
         float windowPosY = ImGui.getWindowPosY();
 
+        drawer.setViewportTargetSize(
+            (int) renderViewportWidth,
+            (int) renderViewportHeight
+        );
         if (
             drawer.getCurrentWidth() != (int) renderViewportWidth ||
             drawer.getCurrentHeight() != (int) renderViewportHeight
@@ -222,9 +226,9 @@ public class ViewportWindow {
         }
 
         ImGui.image(
-            outputTexture.id,
-            outputTexture.getWidth(),
-            outputTexture.getHeight(),
+            drawer.getOutputTextureId(),
+            drawer.getCurrentWidth(),
+            drawer.getCurrentHeight(),
             0,
             1,
             1,
