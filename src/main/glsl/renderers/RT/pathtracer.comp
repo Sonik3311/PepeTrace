@@ -205,6 +205,15 @@ void main() {
             }
             vec3 geometricNormal = normalize(M * hit.geometricNormal);
 
+            // Bump-terminator fix: if the shading normal puts V in the lower
+            // hemisphere, microfacet BRDFs are undefined — sampling and PDF
+            // both break, producing bright fireflies at silhouettes/creases.
+            // Fall back to the geometric normal for this bounce.
+            vec3 V = normalize(-rd);
+            if (dot(worldNormal, V) <= 1e-4) {
+                worldNormal = geometricNormal;
+            }
+
             // Read PBR material properties from RMT texture
             float roughness = 0.5;
             float metallic = 0.0;
@@ -222,8 +231,7 @@ void main() {
                 continue;
             }
 
-            vec3 V = normalize(-rd);
-            float alpha = max(roughness * roughness, 0.001);
+            float alpha = max(roughness * roughness, 0.01);
             vec3 F0 = mix(vec3(0.04), albedo, metallic);
             float NdotV = max(dot(worldNormal, V), 1e-5);
             vec3 F = fresnelSchlick(F0, NdotV);
@@ -231,7 +239,6 @@ void main() {
 
             vec3 L;
             vec3 H;
-            float pdf;
             float NdotL;
 
             vec2 rnd = vec2(random(rngState), random(rngState));
@@ -244,10 +251,6 @@ void main() {
                     break;
                 }
                 H = normalize(V + L);
-
-                float D = ggxNDF(worldNormal, H, alpha);
-                float G1 = smithGGX_G1(worldNormal, V, alpha);
-                pdf = specProb * D * G1 / (4.0 * NdotV);
             } else {
                 L = sampleCosineHemisphere(worldNormal, rnd);
                 NdotL = max(dot(L, worldNormal), 0.0);
@@ -256,8 +259,6 @@ void main() {
                     break;
                 }
                 H = normalize(V + L);
-
-                pdf = (1.0 - specProb) * NdotL / PI;
             }
 
             // Evaluate full Cook-Torrance BRDF at sampled direction
@@ -267,13 +268,17 @@ void main() {
             vec3 F_term = fresnelSchlick(F0, LdotH);
 
             float D = ggxNDF(worldNormal, H, alpha);
-            float G = smithGGX(worldNormal, V, L, alpha);
+            float G1_v = smithGGX_G1(worldNormal, V, alpha);
+            float G = G1_v * smithGGX_G1(worldNormal, L, alpha);
             vec3 specular = D * G * F_term / max(4.0 * NdotV * NdotL, 1e-6);
 
             vec3 diffuse = (1.0 - F_term) * (1.0 - metallic) * albedo / PI;
 
             vec3 brdf = specular + diffuse;
-            float weight = NdotL / max(pdf, 1e-6);
+            float pdf_s = D * G1_v / (4.0 * NdotV);
+            float pdf_d = NdotL / PI;
+            float misPdf = specProb * pdf_s + (1.0 - specProb) * pdf_d;
+            float weight = NdotL / max(misPdf, 1e-6);
 
             // Reject if sampled direction is below geometric normal (prevents energy focusing in creases)
             if (dot(L, geometricNormal) <= 0.0) {
@@ -284,7 +289,7 @@ void main() {
             energy *= brdf * weight;
 
             vec3 hitPos = localToGlobal(hit.position, matrices.forwardM);
-            ray_pos = hitPos + geometricNormal * 1e-3;
+            ray_pos = hitPos + geometricNormal * EPSILON * 100;
             rd = L;
         }
         newColor += color;
