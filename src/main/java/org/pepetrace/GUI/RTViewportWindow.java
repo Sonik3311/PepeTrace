@@ -17,13 +17,14 @@ public class RTViewportWindow implements GuiWindow {
     private long lastDispatchNs;
     private boolean done;
     private float etaSeconds;
+    private int presentationMode;
 
     public void setState(int texId, int albedoTexId, int normalTexId,
                          int texW, int texH,
                          int currentWidth, int currentHeight,
                          int frameId, int maxSamples, int maxBounces,
                          int maxSpp, long lastDispatchNs, boolean done,
-                         float etaSeconds) {
+                         float etaSeconds, int presentationMode) {
         this.texId = texId;
         this.albedoTexId = albedoTexId;
         this.normalTexId = normalTexId;
@@ -38,6 +39,7 @@ public class RTViewportWindow implements GuiWindow {
         this.lastDispatchNs = lastDispatchNs;
         this.done = done;
         this.etaSeconds = etaSeconds;
+        this.presentationMode = presentationMode;
     }
 
     @Override
@@ -85,6 +87,10 @@ public class RTViewportWindow implements GuiWindow {
             info += "  |  ETA " + etaStr;
         }
         info += "    [Ctrl+S to save]";
+        String modeHint = presentationMode == 0
+            ? "  [ESC for full view]"
+            : "  [ESC for 3-panel]";
+        info += modeHint;
 
         // Draw menu-bar-like overlay at top of window using ImDrawList
         ImDrawList dl = ImGui.getWindowDrawList();
@@ -106,17 +112,41 @@ public class RTViewportWindow implements GuiWindow {
         float contentH = ImGui.getContentRegionAvailY();
 
         float aspect = (float) texW / texH;
-        float colW = contentW / 3;
-        float imgW = colW - 4;
-        float imgH = imgW / aspect;
-        if (imgH > contentH) {
-            imgH = contentH;
-            imgW = imgH * aspect;
-        }
+        float colW;
+        float imgW;
+        float imgH;
+        float pad = 8;
 
-        drawImagePanel(dl, 0, texId, "Color", barHeight, contentW, contentH, colW, imgW, imgH);
-        drawImagePanel(dl, 1, albedoTexId, "Albedo", barHeight, contentW, contentH, colW, imgW, imgH);
-        drawImagePanel(dl, 2, normalTexId, "Normal", barHeight, contentW, contentH, colW, imgW, imgH);
+        if (presentationMode == 0) {
+            colW = contentW / 3;
+            imgW = colW - 4;
+            imgH = imgW / aspect;
+            if (imgH > contentH) {
+                imgH = contentH;
+                imgW = imgH * aspect;
+            }
+            drawImagePanel(dl, 0, texId, "Color", barHeight, contentW, contentH, colW, imgW, imgH);
+            drawImagePanel(dl, 1, albedoTexId, "Albedo", barHeight, contentW, contentH, colW, imgW, imgH);
+            drawImagePanel(dl, 2, normalTexId, "Normal", barHeight, contentW, contentH, colW, imgW, imgH);
+        } else {
+            imgW = contentW - pad * 2;
+            imgH = imgW / aspect;
+            if (imgH > contentH - pad * 2) {
+                imgH = contentH - pad * 2;
+                imgW = imgH * aspect;
+            }
+            float x = (contentW - imgW) / 2;
+            float y = barHeight + (contentH - imgH) / 2;
+            dl.addRect(
+                ImGui.getWindowPosX() + x - 2,
+                ImGui.getWindowPosY() + y - 2,
+                ImGui.getWindowPosX() + x + imgW + 2,
+                ImGui.getWindowPosY() + y + imgH + 2,
+                ImGui.getColorU32(0.3f, 0.3f, 0.3f, 1.0f), 0, 0, 1.5f
+            );
+            ImGui.setCursorPos(x, y);
+            ImGui.image(texId, imgW, imgH, 0, 1, 1, 0);
+        }
 
         ImGui.end();
         ImGui.popStyleColor();

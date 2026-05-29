@@ -79,6 +79,8 @@ public class RTDrawer extends AbstractDrawer {
     private boolean attentionSignaled;
     private boolean denoised;
     private boolean denoiseSucceeded;
+    private boolean wasEscapePressed;
+    private int presentationMode = 1;
     private long avgFrameTimeNs;
     private long frameClock;
     private float etaSeconds;
@@ -451,7 +453,8 @@ public class RTDrawer extends AbstractDrawer {
             maxSpp,
             lastDispatchNs,
             done,
-            etaSeconds
+            etaSeconds,
+            presentationMode
         );
         rtViewportWindow.render(0);
 
@@ -465,6 +468,12 @@ public class RTDrawer extends AbstractDrawer {
         ) {
             saveImage();
         }
+
+        boolean escapePressed = window.isKeyPressed(GLFW_KEY_ESCAPE);
+        if (escapePressed && !wasEscapePressed) {
+            presentationMode = (presentationMode + 1) % 2;
+        }
+        wasEscapePressed = escapePressed;
 
         glfwSetWindowTitle(
             window.getId(),
