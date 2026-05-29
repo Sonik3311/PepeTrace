@@ -52,11 +52,11 @@ public class Main {
         this.materialHandlesBuffer = new SSBO(GL_STATIC_DRAW, 9);
         this.modelMatricesBuffer = new SSBO(GL_DYNAMIC_DRAW, 10);
         this.triangleModelIndicesBuffer = new SSBO(GL_STATIC_DRAW, 11);
-        this.skyboxTexture = Texture.createFromFileHDR(
+        this.skyboxTexture = Texture.createFromResourceHDR(
             4,
             true,
             GL_READ_ONLY,
-            "./src/main/resources/sunny_rose_garden_2k.hdr"
+            "/sunny_rose_garden_2k.hdr"
         );
 
         modelMatricesBuffer.fillBuffer(new float[0]);

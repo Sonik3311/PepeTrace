@@ -22,30 +22,22 @@ public class TextureMaterial extends Material {
         String RMTTexturePath
     ) {
         TextureMaterial texture = new TextureMaterial();
-        texture.albedoTexture = Texture.createFromFile(
-            -1,
-            false,
-            GL_READ_ONLY,
-            albedoTexturePath
-        );
-        texture.normalTexture = Texture.createFromFile(
-            -1,
-            false,
-            GL_READ_ONLY,
-            normalTexturePath
-        );
-        texture.RMTTexture = Texture.createFromFile(
-            -1,
-            false,
-            GL_READ_ONLY,
-            RMTTexturePath
-        );
+        texture.albedoTexture = loadTexture(albedoTexturePath);
+        texture.normalTexture = loadTexture(normalTexturePath);
+        texture.RMTTexture = loadTexture(RMTTexturePath);
 
         glMakeTextureHandleResidentARB(texture.albedoTexture.getBinding());
         glMakeTextureHandleResidentARB(texture.normalTexture.getBinding());
         glMakeTextureHandleResidentARB(texture.RMTTexture.getBinding());
 
         return texture;
+    }
+
+    private static Texture loadTexture(String path) {
+        if (path.startsWith("/")) {
+            return Texture.createFromResource(-1, false, GL_READ_ONLY, path);
+        }
+        return Texture.createFromFile(-1, false, GL_READ_ONLY, path);
     }
 
     public List<Long> getTextureHandles() {

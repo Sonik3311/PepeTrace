@@ -13,8 +13,8 @@ public class RenderWindowStressTest {
 
     static final String[] MODEL_PATHS = {
         null,
-        "./src/main/resources/models/cube1.obj",
-        "./src/main/resources/models/cube3.obj"
+        "/models/cube1.obj",
+        "/models/cube3.obj"
     };
     static final String[] MODEL_NAMES = {
         null, "cube1", "cube3"

@@ -1,6 +1,9 @@
 package org.pepetrace.Scene.Loader;
 
 import org.lwjgl.assimp.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import org.lwjgl.assimp.AINode;
 import org.lwjgl.assimp.AIScene;
@@ -15,7 +18,12 @@ public class AssimpLoader implements MeshLoader {
                 | Assimp.aiProcess_JoinIdenticalVertices
                 | Assimp.aiProcess_CalcTangentSpace;
 
-        AIScene scene = Assimp.aiImportFile(path, flags);
+        AIScene scene;
+        if (path.startsWith("/")) {
+            scene = aiImportFileFromResource(path, flags);
+        } else {
+            scene = Assimp.aiImportFile(path, flags);
+        }
         if (scene == null || (scene.mFlags() & Assimp.AI_SCENE_FLAGS_INCOMPLETE) != 0 || scene.mRootNode() == null) {
             throw new RuntimeException("Assimp import failed: " + Assimp.aiGetErrorString());
         }
@@ -61,6 +69,22 @@ public class AssimpLoader implements MeshLoader {
             System.out.println("No UV coordinates – skipping tangent generation.");
         }
         return data;
+    }
+
+    private static AIScene aiImportFileFromResource(String resourcePath, int flags) {
+        try (InputStream is = AssimpLoader.class.getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                throw new RuntimeException("Resource not found: " + resourcePath);
+            }
+            byte[] bytes = is.readAllBytes();
+            ByteBuffer buffer = ByteBuffer.allocateDirect(bytes.length);
+            buffer.put(bytes);
+            buffer.flip();
+            String hint = resourcePath.substring(resourcePath.lastIndexOf('.') + 1);
+            return Assimp.aiImportFileFromMemory(buffer, flags, hint);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read resource: " + resourcePath, e);
+        }
     }
 
     private void processNode(AINode node, AIScene scene, MeshData data) {

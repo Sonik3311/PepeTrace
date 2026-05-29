@@ -13,7 +13,7 @@ import org.pepetrace.Scene.Scene;
  */
 public class RTDrawerCrashTest {
 
-    static final String CUBE1_PATH = "./src/main/resources/models/cube1.obj";
+    static final String CUBE1_PATH = "/models/cube1.obj";
 
     public static void main(String[] args) throws Exception {
         new RTDrawerCrashTest().run();

@@ -49,11 +49,11 @@ import org.pepetrace.Window;
 public class RTDrawer extends AbstractDrawer {
 
     private final Program testrenderer = new Program(
-        "./src/main/glsl/renderers/RT/Test/test"
+        "/glsl/renderers/RT/Test/test"
     );
     private ComputeProgram pathTracingProgram;
     private final Program windowRenderer = new Program(
-        "./src/main/glsl/screenQuad"
+        "/glsl/screenQuad"
     );
     private final int vao = glGenVertexArrays();
 
@@ -250,7 +250,7 @@ public class RTDrawer extends AbstractDrawer {
         defines.put("MAX_MATERIALS", String.valueOf(maxMaterialTextures));
         try {
             pathTracingProgram = new ComputeProgram(
-                "./src/main/glsl/renderers/RT/pathtracer",
+                "/glsl/renderers/RT/pathtracer",
                 defines
             );
         } catch (FileNotFoundException e) {

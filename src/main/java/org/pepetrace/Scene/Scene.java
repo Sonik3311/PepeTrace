@@ -40,9 +40,9 @@ public class Scene implements AutoCloseable {
 
     public Scene() {
         TextureMaterial defaultMat = TextureMaterial.create(
-            "./src/main/resources/Textures/defaulta.png",
-            "./src/main/resources/Textures/defaultn.png",
-            "./src/main/resources/Textures/defaultrmt.png"
+            "/Textures/defaulta.png",
+            "/Textures/defaultn.png",
+            "/Textures/defaultrmt.png"
         );
         materials.add(defaultMat);
         materialRefCount.put(defaultMat, 1); // одна модель (дефолтный материал используется в сцене)
@@ -78,9 +78,9 @@ public class Scene implements AutoCloseable {
         if (materials.isEmpty()) {
             // Добавляем дефолтный материал, если список пуст
             TextureMaterial defaultMat = TextureMaterial.create(
-                "./src/main/resources/Textures/defaulta.png",
-                "./src/main/resources/Textures/defaultn.png",
-                "./src/main/resources/sunny_rose_garden_2k.hdr"
+                "/Textures/defaulta.png",
+                "/Textures/defaultn.png",
+                "/Textures/defaultrmt.png"
             );
             materials.add(defaultMat);
             materialRefCount.put(defaultMat, 0);

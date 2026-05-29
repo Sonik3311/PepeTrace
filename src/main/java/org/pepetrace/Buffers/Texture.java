@@ -6,6 +6,8 @@ import static org.lwjgl.opengl.GL46.*;
 import static org.lwjgl.stb.STBImage.*;
 
 import org.lwjgl.system.MemoryStack;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
@@ -208,6 +210,113 @@ public class Texture implements AutoCloseable {
             glBindTexture(GL_TEXTURE_2D, 0);
 
             this.sourceFilePath = path;
+            stbi_image_free(data);
+        }
+    }
+
+    private static ByteBuffer resourceToByteBuffer(String resourcePath) {
+        try (InputStream is = Texture.class.getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                throw new RuntimeException("Resource not found: " + resourcePath);
+            }
+            byte[] bytes = is.readAllBytes();
+            ByteBuffer buf = ByteBuffer.allocateDirect(bytes.length);
+            buf.put(bytes);
+            buf.flip();
+            return buf;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read resource: " + resourcePath, e);
+        }
+    }
+
+    public static Texture createFromResourceHDR(int binding, boolean generateMipmaps, int access, String resourcePath) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer w = stack.mallocInt(1);
+            IntBuffer h = stack.mallocInt(1);
+            IntBuffer channels = stack.mallocInt(1);
+
+            stbi_set_flip_vertically_on_load(true);
+
+            ByteBuffer fileBuffer = resourceToByteBuffer(resourcePath);
+            FloatBuffer data = stbi_loadf_from_memory(fileBuffer, w, h, channels, 4);
+            if (data == null) {
+                throw new RuntimeException("Failed to load image: " + stbi_failure_reason());
+            }
+
+            int width = w.get();
+            int height = h.get();
+
+            Texture texture = new Texture(width, height, generateMipmaps, binding, GL_RGBA32F, access, GL_LINEAR);
+            texture.sourceFilePath = resourcePath;
+
+            glBindTexture(GL_TEXTURE_2D, texture.id);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_FLOAT, data);
+            if (generateMipmaps) {
+                glGenerateMipmap(GL_TEXTURE_2D);
+            }
+            glBindTexture(GL_TEXTURE_2D, 0);
+            stbi_image_free(data);
+            return texture;
+        }
+    }
+
+    public static Texture createFromResource(int binding, boolean generateMipmaps, int access, String resourcePath) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer w = stack.mallocInt(1);
+            IntBuffer h = stack.mallocInt(1);
+            IntBuffer channels = stack.mallocInt(1);
+
+            stbi_set_flip_vertically_on_load(true);
+
+            ByteBuffer fileBuffer = resourceToByteBuffer(resourcePath);
+            ByteBuffer data = stbi_load_from_memory(fileBuffer, w, h, channels, 4);
+            if (data == null) {
+                throw new RuntimeException("Failed to load image: " + stbi_failure_reason());
+            }
+
+            int width = w.get();
+            int height = h.get();
+
+            Texture texture = new Texture(width, height, generateMipmaps, binding, GL_RGBA8, access, GL_LINEAR);
+            texture.sourceFilePath = resourcePath;
+
+            glBindTexture(GL_TEXTURE_2D, texture.id);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            if (generateMipmaps) {
+                glGenerateMipmap(GL_TEXTURE_2D);
+            }
+            glBindTexture(GL_TEXTURE_2D, 0);
+            stbi_image_free(data);
+            return texture;
+        }
+    }
+
+    public void updateFromResource(String resourcePath) {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer w = stack.mallocInt(1);
+            IntBuffer h = stack.mallocInt(1);
+            IntBuffer channels = stack.mallocInt(1);
+
+            stbi_set_flip_vertically_on_load(true);
+            ByteBuffer fileBuffer = resourceToByteBuffer(resourcePath);
+            ByteBuffer data = stbi_load_from_memory(fileBuffer, w, h, channels, 4);
+            if (data == null) {
+                throw new RuntimeException("Failed to load image: " + stbi_failure_reason());
+            }
+
+            int newWidth = w.get();
+            int newHeight = h.get();
+            if (newWidth != width || newHeight != height) {
+                stbi_image_free(data);
+                throw new IllegalArgumentException("Image dimensions do not match texture: "
+                        + newWidth + "x" + newHeight + " vs " + width + "x" + height);
+            }
+
+            glBindTexture(GL_TEXTURE_2D, id);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            glBindTexture(GL_TEXTURE_2D, 0);
+
+            this.sourceFilePath = resourcePath;
             stbi_image_free(data);
         }
     }

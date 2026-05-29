@@ -6,6 +6,12 @@ import imgui.ImGuiIO;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import org.pepetrace.Camera;
 import org.pepetrace.GlobalState;
 import org.pepetrace.Window;
@@ -35,7 +41,33 @@ public abstract class AbstractDrawer implements Window.ResizeListener {
     public AbstractDrawer(Window window) {
         this.window = window;
         window.setResizeListener(this);
-        init("guilayout.ini");
+        init(getWritableLayoutPath().toString());
+    }
+
+    private static Path getConfigDir() {
+        String home = System.getProperty("user.home");
+        return Paths.get(home, ".config", "pepetrace");
+    }
+
+    private static Path getWritableLayoutPath() {
+        Path configDir = getConfigDir();
+        Path layoutFile = configDir.resolve("guilayout.ini");
+        if (Files.exists(layoutFile)) {
+            return layoutFile;
+        }
+        try {
+            Files.createDirectories(configDir);
+            try (InputStream in = AbstractDrawer.class.getResourceAsStream("/guilayout.ini")) {
+                if (in != null) {
+                    try (OutputStream out = Files.newOutputStream(layoutFile)) {
+                        in.transferTo(out);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to extract guilayout.ini: " + e.getMessage());
+        }
+        return layoutFile;
     }
 
 
@@ -66,7 +98,14 @@ public abstract class AbstractDrawer implements Window.ResizeListener {
         ImFontConfig config = new ImFontConfig();
         config.setPixelSnapH(true);
         config.setRasterizerDensity(scalex_factor[0]);
-        io.getFonts().addFontFromFileTTF("./src/main/resources/Fonts/GoogleSansCode-VariableFont_wght.ttf", 14, config);
+        try (InputStream fontIs = getClass().getResourceAsStream("/Fonts/GoogleSansCode-VariableFont_wght.ttf")) {
+            if (fontIs != null) {
+                byte[] fontBytes = fontIs.readAllBytes();
+                io.getFonts().addFontFromMemoryTTF(fontBytes, 14, config);
+            }
+        } catch (IOException e) {
+            System.err.println("Failed to load font resource: " + e.getMessage());
+        }
 
         // 3. Инициализировать байндинги GLFW и OpenGL 4.6
         imGuiGlfw.init(window.getId(), true); // The boolean is for integrating the callbacks
