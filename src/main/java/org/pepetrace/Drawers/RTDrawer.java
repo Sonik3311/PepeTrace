@@ -297,6 +297,13 @@ public class RTDrawer extends AbstractDrawer {
         frameId = 0;
     }
 
+    public void rebindSkybox(int skyboxId) {
+        glActiveTexture(GL_TEXTURE4);
+        glBindTexture(GL_TEXTURE_2D, skyboxId);
+        pathTracingProgram.setInt("skybox", 4);
+        resetRender();
+    }
+
     @Override
     public void renderFrame() {
         if (pathTracingTexture == null) {

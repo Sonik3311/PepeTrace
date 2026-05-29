@@ -4,8 +4,12 @@ import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.ARBClearTexture.glClearTexImage;
 import static org.lwjgl.opengl.GL15.*;
 import static org.lwjgl.opengl.GL30C.GL_RED_INTEGER;
+import static org.lwjgl.opengl.GL46.GL_READ_ONLY;
+import static org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog;
 
 import java.util.Set;
+import org.lwjgl.PointerBuffer;
+import org.lwjgl.system.MemoryStack;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.pepetrace.Buffers.SSBO;
@@ -420,6 +424,39 @@ public class Main {
 
     public void resetRender() {
         renderDrawer.resetRender();
+    }
+
+    public void loadSkyboxHDR() {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            PointerBuffer filters = stack.mallocPointer(2);
+            filters.put(stack.UTF8("*.hdr"));
+            filters.put(stack.UTF8("*.exr"));
+            filters.flip();
+            String path = tinyfd_openFileDialog("Load Skybox HDR", "~", filters, "HDR Images", false);
+            if (path != null) {
+                if (skyboxTexture != null) skyboxTexture.close();
+                skyboxTexture = Texture.createFromFileHDR(4, true, GL_READ_ONLY, path);
+                programState.setArbitraryData("skyboxTexture", skyboxTexture.id);
+                renderDrawer.rebindSkybox(skyboxTexture.id);
+                viewportDrawer.resetRender();
+            }
+        }
+    }
+
+    public void loadSkybox() {
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            PointerBuffer filters = stack.mallocPointer(1);
+            filters.put(stack.UTF8("*.png"));
+            filters.flip();
+            String path = tinyfd_openFileDialog("Load Skybox", "~", filters, "PNG Images", false);
+            if (path != null) {
+                if (skyboxTexture != null) skyboxTexture.close();
+                skyboxTexture = Texture.createFromFile(4, true, GL_READ_ONLY, path);
+                programState.setArbitraryData("skyboxTexture", skyboxTexture.id);
+                renderDrawer.rebindSkybox(skyboxTexture.id);
+                viewportDrawer.resetRender();
+            }
+        }
     }
 
     void handleRenderWindow() {

@@ -54,6 +54,14 @@ public class MainMenuBar implements GuiWindow {
                     }
                 }
                 // edit menu items
+                if (ImGui.menuItem("Load Skybox HDR")) {
+                    Main mainProgram = (Main) programState.getArbitraryData("Main");
+                    mainProgram.loadSkyboxHDR();
+                }
+                if (ImGui.menuItem("Load Skybox")) {
+                    Main mainProgram = (Main) programState.getArbitraryData("Main");
+                    mainProgram.loadSkybox();
+                }
                 ImGui.endMenu();
             }
             if (ImGui.beginMenu("Render")) {
