@@ -190,7 +190,6 @@ public class ViewportDrawer extends AbstractDrawer {
         viewportRenderSettingsWindow.render(ImGuiWindowFlags.NoCollapse);
         outlinerWindow.render(ImGuiWindowFlags.NoCollapse);
         modelDataWindow.render(ImGuiWindowFlags.NoCollapse);
-        ImGui.showStyleEditor();
 
         // Apply any pending resize detected by ViewportWindow
         if (targetWidth != currentWidth || targetHeight != currentHeight) {

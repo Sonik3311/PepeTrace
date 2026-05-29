@@ -5,6 +5,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import org.lwjgl.assimp.AINode;
 import org.lwjgl.assimp.AIScene;
 import org.lwjgl.assimp.AIMesh;
@@ -19,7 +21,7 @@ public class AssimpLoader implements MeshLoader {
                 | Assimp.aiProcess_CalcTangentSpace;
 
         AIScene scene;
-        if (path.startsWith("/")) {
+        if (path.startsWith("/") && !Files.exists(Paths.get(path))) {
             scene = aiImportFileFromResource(path, flags);
         } else {
             scene = Assimp.aiImportFile(path, flags);
